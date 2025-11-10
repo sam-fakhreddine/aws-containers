@@ -27,8 +27,15 @@ import urllib.parse as parse
 import urllib.request as request
 import glob
 import hashlib
-import boto3
-from botocore.exceptions import ProfileNotFound, ClientError
+
+# Optional boto3 import - fall back to manual parsing if not available
+try:
+    import boto3
+    from botocore.exceptions import ProfileNotFound, ClientError
+    BOTO3_AVAILABLE = True
+except ImportError:
+    BOTO3_AVAILABLE = False
+    print("boto3 not available, using manual config parsing", file=sys.stderr)
 
 
 class AWSProfileBridge:
@@ -260,105 +267,111 @@ class AWSProfileBridge:
         return None
 
     def get_all_profiles(self):
-        """Get all profiles from both credentials and config files using boto3."""
+        """Get all profiles from both credentials and config files using boto3 if available."""
         profiles = []
 
-        # Use boto3 to enumerate all available profiles
-        try:
-            available_profiles = boto3.Session().available_profiles
-            print(f"Available profiles: {available_profiles}", file=sys.stderr)
+        # Use boto3 to enumerate all available profiles if available
+        if BOTO3_AVAILABLE:
+            try:
+                available_profiles = boto3.Session().available_profiles
+                print(f"Available profiles (boto3): {available_profiles}", file=sys.stderr)
 
-            for profile_name in available_profiles:
-                try:
-                    # Get profile configuration using boto3
-                    session = boto3.Session(profile_name=profile_name)
-
-                    profile_data = {
-                        'name': profile_name,
-                        'has_credentials': False,
-                        'expiration': None,
-                        'expired': False,
-                        'is_sso': False
-                    }
-
-                    # Try to get credentials to check if they exist and are valid
+                for profile_name in available_profiles:
                     try:
-                        credentials = session.get_credentials()
-                        if credentials:
-                            profile_data['has_credentials'] = True
+                        # Get profile configuration using boto3
+                        session = boto3.Session(profile_name=profile_name)
 
-                            # Check if credentials are frozen (have expiry)
-                            frozen_creds = credentials.get_frozen_credentials()
-                            if hasattr(credentials, '_expiry_time') and credentials._expiry_time:
-                                profile_data['expiration'] = credentials._expiry_time.isoformat()
-                                profile_data['expired'] = credentials._expiry_time < datetime.now(timezone.utc)
-                            else:
-                                # Check if credentials exist in the credentials file with expiration comment
-                                cred_file_profiles = self.parse_credentials_file()
-                                for cred_profile in cred_file_profiles:
-                                    if cred_profile['name'] == profile_name:
-                                        profile_data['expiration'] = cred_profile.get('expiration')
-                                        profile_data['expired'] = cred_profile.get('expired', False)
-                                        break
-                    except Exception as e:
-                        # Credentials not available or expired
-                        profile_data['has_credentials'] = False
-                        profile_data['expired'] = True
+                        profile_data = {
+                            'name': profile_name,
+                            'has_credentials': False,
+                            'expiration': None,
+                            'expired': False,
+                            'is_sso': False
+                        }
 
-                    # Check if this is an SSO profile by reading config
-                    profile_config = self.get_profile_config(profile_name)
-                    if profile_config and 'sso_start_url' in profile_config:
-                        profile_data['is_sso'] = True
-                        profile_data['sso_start_url'] = profile_config['sso_start_url']
-                        profile_data['sso_region'] = profile_config.get('sso_region', 'us-east-1')
-                        profile_data['sso_account_id'] = profile_config.get('sso_account_id')
-                        profile_data['sso_role_name'] = profile_config.get('sso_role_name')
-                        profile_data['aws_region'] = profile_config.get('region')
+                        # Try to get credentials to check if they exist and are valid
+                        try:
+                            credentials = session.get_credentials()
+                            if credentials:
+                                profile_data['has_credentials'] = True
 
-                        # Check SSO token status
-                        sso_token = self.get_sso_cached_token(profile_config['sso_start_url'])
-                        if sso_token and 'expiresAt' in sso_token:
-                            expires_at = datetime.fromisoformat(sso_token['expiresAt'].replace('Z', '+00:00'))
-                            profile_data['expiration'] = expires_at.isoformat()
-                            profile_data['expired'] = expires_at < datetime.now(timezone.utc)
-                            profile_data['has_credentials'] = not profile_data['expired']
-                        else:
-                            # No valid SSO token
-                            profile_data['expired'] = True
+                                # Check if credentials are frozen (have expiry)
+                                frozen_creds = credentials.get_frozen_credentials()
+                                if hasattr(credentials, '_expiry_time') and credentials._expiry_time:
+                                    profile_data['expiration'] = credentials._expiry_time.isoformat()
+                                    profile_data['expired'] = credentials._expiry_time < datetime.now(timezone.utc)
+                                else:
+                                    # Check if credentials exist in the credentials file with expiration comment
+                                    cred_file_profiles = self.parse_credentials_file()
+                                    for cred_profile in cred_file_profiles:
+                                        if cred_profile['name'] == profile_name:
+                                            profile_data['expiration'] = cred_profile.get('expiration')
+                                            profile_data['expired'] = cred_profile.get('expired', False)
+                                            break
+                        except Exception as e:
+                            # Credentials not available or expired
                             profile_data['has_credentials'] = False
+                            profile_data['expired'] = True
 
-                    profiles.append(profile_data)
+                        # Check if this is an SSO profile by reading config
+                        profile_config = self.get_profile_config(profile_name)
+                        if profile_config and 'sso_start_url' in profile_config:
+                            profile_data['is_sso'] = True
+                            profile_data['sso_start_url'] = profile_config['sso_start_url']
+                            profile_data['sso_region'] = profile_config.get('sso_region', 'us-east-1')
+                            profile_data['sso_account_id'] = profile_config.get('sso_account_id')
+                            profile_data['sso_role_name'] = profile_config.get('sso_role_name')
+                            profile_data['aws_region'] = profile_config.get('region')
 
-                except Exception as e:
-                    print(f"Error processing profile {profile_name}: {str(e)}", file=sys.stderr)
-                    continue
+                            # Check SSO token status
+                            sso_token = self.get_sso_cached_token(profile_config['sso_start_url'])
+                            if sso_token and 'expiresAt' in sso_token:
+                                expires_at = datetime.fromisoformat(sso_token['expiresAt'].replace('Z', '+00:00'))
+                                profile_data['expiration'] = expires_at.isoformat()
+                                profile_data['expired'] = expires_at < datetime.now(timezone.utc)
+                                profile_data['has_credentials'] = not profile_data['expired']
+                            else:
+                                # No valid SSO token
+                                profile_data['expired'] = True
+                                profile_data['has_credentials'] = False
 
-        except Exception as e:
-            print(f"Error getting profiles: {str(e)}", file=sys.stderr)
-            # Fallback to manual parsing if boto3 fails
-            cred_profiles = self.parse_credentials_file()
-            sso_profiles = self.parse_config_file()
+                        profiles.append(profile_data)
 
-            # Check SSO profile status
-            for profile in sso_profiles:
-                sso_token = self.get_sso_cached_token(profile['sso_start_url'])
-                if sso_token and 'expiresAt' in sso_token:
-                    expires_at = datetime.fromisoformat(sso_token['expiresAt'].replace('Z', '+00:00'))
-                    profile['expiration'] = expires_at.isoformat()
-                    profile['expired'] = expires_at < datetime.now(timezone.utc)
-                    profile['has_credentials'] = not profile['expired']
-                else:
-                    profile['expired'] = True
-                    profile['has_credentials'] = False
+                    except Exception as e:
+                        print(f"Error processing profile {profile_name}: {str(e)}", file=sys.stderr)
+                        continue
 
-            # Merge profiles
-            all_profiles = {}
-            for profile in sso_profiles:
-                all_profiles[profile['name']] = profile
-            for profile in cred_profiles:
-                all_profiles[profile['name']] = profile
+                return profiles
 
-            profiles = list(all_profiles.values())
+            except Exception as e:
+                print(f"Error getting profiles with boto3: {str(e)}", file=sys.stderr)
+                # Fall through to manual parsing below
+
+        # Fallback to manual parsing if boto3 not available or failed
+        print("Using manual config parsing", file=sys.stderr)
+        cred_profiles = self.parse_credentials_file()
+        sso_profiles = self.parse_config_file()
+
+        # Check SSO profile status
+        for profile in sso_profiles:
+            sso_token = self.get_sso_cached_token(profile['sso_start_url'])
+            if sso_token and 'expiresAt' in sso_token:
+                expires_at = datetime.fromisoformat(sso_token['expiresAt'].replace('Z', '+00:00'))
+                profile['expiration'] = expires_at.isoformat()
+                profile['expired'] = expires_at < datetime.now(timezone.utc)
+                profile['has_credentials'] = not profile['expired']
+            else:
+                profile['expired'] = True
+                profile['has_credentials'] = False
+
+        # Merge profiles
+        all_profiles = {}
+        for profile in sso_profiles:
+            all_profiles[profile['name']] = profile
+        for profile in cred_profiles:
+            all_profiles[profile['name']] = profile
+
+        profiles = list(all_profiles.values())
 
         return profiles
 

@@ -281,6 +281,11 @@ Opens in container via ext+container:// protocol
    ```bash
    ls -la ~/.aws/credentials
    ```
+4. For better SSO profile detection, install boto3:
+   ```bash
+   pip3 install boto3 botocore
+   ```
+   (The extension works without it, but boto3 provides better profile enumeration)
 
 ### Credentials Showing as Expired
 
@@ -494,6 +499,19 @@ granted-containers/
   - ⚠️ **Windows** - Not currently supported (requires PowerShell installer and BAT wrapper)
 - **AWS CLI**: Optional (for advanced URL generation)
 - **Python**: 3.6+
+- **Python Dependencies**:
+  - boto3 (optional, recommended for enhanced SSO profile enumeration)
+  - botocore (optional, recommended for enhanced SSO profile enumeration)
+
+### Optional boto3 Installation
+
+For better SSO profile detection and enumeration, install boto3:
+
+```bash
+pip3 install -r native-messaging/requirements.txt
+```
+
+**Note**: The extension works without boto3 by falling back to manual AWS config parsing, but boto3 provides more reliable profile enumeration.
 
 ### Windows Support
 

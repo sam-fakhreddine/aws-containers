@@ -1,0 +1,5 @@
+# Optional dependencies for enhanced AWS profile enumeration
+# The native messaging host works without these, but boto3 provides better
+# SSO profile detection and enumeration
+boto3>=1.26.0
+botocore>=1.29.0
