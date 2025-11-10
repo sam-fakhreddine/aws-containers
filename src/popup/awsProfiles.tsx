@@ -181,8 +181,11 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                         cookieStoreId: container.cookieStoreId,
                     });
 
-                    // Close popup
-                    window.close();
+                    // Close popup only if in popup mode, not sidebar
+                    // Sidebar detection: popup windows are typically smaller
+                    if (window.innerWidth < 400) {
+                        window.close();
+                    }
                 } else if (response.action === "error") {
                     setError(response.message);
                 }

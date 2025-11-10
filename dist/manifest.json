@@ -7,6 +7,11 @@
         "default_icon": "granted-icon.svg",
         "default_popup": "popup.html"
     },
+    "sidebar_action": {
+        "default_icon": "granted-icon.svg",
+        "default_title": "AWS Profile Containers",
+        "default_panel": "popup.html"
+    },
     "background": {
         "scripts": ["js/backgroundPage.js"],
         "persistent": false
