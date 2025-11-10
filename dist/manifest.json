@@ -10,7 +10,15 @@
     "sidebar_action": {
         "default_icon": "granted-icon.svg",
         "default_title": "AWS Profile Containers",
-        "default_panel": "popup.html"
+        "default_panel": "popup.html",
+        "open_at_install": false
+    },
+    "commands": {
+        "_execute_sidebar_action": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+Y"
+            }
+        }
     },
     "background": {
         "scripts": ["js/backgroundPage.js"],
