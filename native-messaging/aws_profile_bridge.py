@@ -1,7 +1,16 @@
 #!/usr/bin/env python3
 """
 AWS Profile Bridge - Native Messaging Host for Firefox Extension
-Reads AWS credentials file and provides profile information to the extension.
+
+SECURITY NOTICE:
+This script handles sensitive AWS credentials. It:
+- Reads ~/.aws/credentials (local filesystem only)
+- Sends credentials to AWS Federation API (HTTPS, official AWS service)
+- Never stores or caches credentials
+- Never logs credentials
+- Communicates only with Firefox extension via native messaging
+
+For security documentation, see SECURITY.md in the project root.
 """
 
 import json
@@ -126,9 +135,25 @@ class AWSProfileBridge:
             return 'circle'
 
     def generate_console_url(self, profile_name):
-        """Generate AWS console federation URL for a profile."""
+        """
+        Generate AWS console federation URL for a profile.
+
+        SECURITY: This function handles sensitive AWS credentials.
+        Data flow:
+        1. Reads credentials from ~/.aws/credentials (local filesystem)
+        2. Sends credentials to AWS Federation API (HTTPS only)
+        3. Receives temporary signin token (12 hour expiry)
+        4. Returns console URL with token (no raw credentials)
+
+        Credentials are:
+        - NEVER stored or cached
+        - NEVER logged
+        - ONLY sent to AWS's official federation endpoint
+        - Used once per profile open
+        """
         try:
-            # Read credentials for the profile
+            # SECURITY: Read credentials from local filesystem
+            # Only this profile's credentials are accessed
             credentials = self.get_profile_credentials(profile_name)
             if not credentials:
                 return {'error': f'No credentials found for profile: {profile_name}'}
@@ -140,39 +165,50 @@ class AWSProfileBridge:
             if not access_key or not secret_key:
                 return {'error': f'Incomplete credentials for profile: {profile_name}'}
 
-            # For profiles without session token (long-term credentials),
-            # just return the basic console URL
+            # SECURITY: Long-term credentials (no session token) require IAM user
+            # We return basic console URL and let user log in manually
+            # This avoids transmitting long-term credentials over network
             if not session_token:
                 return {'url': 'https://console.aws.amazon.com/'}
 
-            # Build the session credentials for federation
+            # SECURITY: Build federation request for AWS API
+            # Only temporary credentials (with session token) are sent
             url_credentials = {
                 'sessionId': access_key,
                 'sessionKey': secret_key,
                 'sessionToken': session_token
             }
 
-            # Request a signin token from AWS federation endpoint
+            # SECURITY: Call AWS Federation API (official AWS service)
+            # Endpoint: https://signin.aws.amazon.com/federation
+            # This is the ONLY network request made with credentials
+            # Request: Temporary credentials → Response: Signin token
             request_parameters = "?Action=getSigninToken"
-            request_parameters += "&DurationSeconds=43200"
+            request_parameters += "&DurationSeconds=43200"  # 12 hours
             request_parameters += "&Session=" + parse.quote_plus(json.dumps(url_credentials))
             request_url = "https://signin.aws.amazon.com/federation" + request_parameters
 
+            # SECURITY: 10 second timeout prevents hanging on network issues
             with request.urlopen(request_url, timeout=10) as response:
                 if response.status != 200:
                     return {'error': 'Failed to get federation token from AWS'}
                 signin_token = json.loads(response.read())
 
-            # Build the console URL with the signin token
+            # SECURITY: Build console URL with signin token
+            # This URL contains a temporary token, not credentials
             request_parameters = "?Action=login"
             request_parameters += "&Destination=" + parse.quote_plus("https://console.aws.amazon.com/")
             request_parameters += "&SigninToken=" + signin_token["SigninToken"]
             request_parameters += "&Issuer=" + parse.quote_plus("https://example.com")
             console_url = "https://signin.aws.amazon.com/federation" + request_parameters
 
+            # SECURITY: Return URL with signin token
+            # Original credentials are discarded (garbage collected)
+            # No credentials are stored or cached
             return {'url': console_url}
 
         except Exception as e:
+            # SECURITY: Error messages do NOT contain credentials
             return {'error': f'Failed to generate console URL: {str(e)}'}
 
     def get_profile_credentials(self, profile_name):

@@ -1,42 +1,79 @@
 # AWS Profile Containers
 
-A Firefox extension that reads your AWS credentials file and opens AWS profiles in separate isolated containers.
+A Firefox extension that reads your AWS credentials file and opens AWS profiles in separate isolated containers with automatic AWS Console federation.
+
+## ⚠️ Security Notice
+
+**This extension reads sensitive AWS credentials from your local filesystem.**
+
+- ✅ **Read** `~/.aws/credentials` (local only)
+- ✅ **Calls** AWS Federation API (official AWS service)
+- ❌ **Never stores** credentials in browser storage
+- ❌ **Never transmits** credentials to any server except AWS
+- 📖 **[Read full security documentation](SECURITY.md)** before installing
 
 ## Features
 
-- **Automatic Profile Detection**: Reads profiles directly from `~/.aws/credentials`
-- **Container Isolation**: Each AWS profile opens in its own Firefox container
-- **Credential Monitoring**: Shows credential expiration status
-- **Smart Color Coding**: Automatically assigns colors based on environment
+### Core Functionality
+- 🔐 **AWS Console Federation**: Automatically generates authenticated console URLs
+- 🔒 **Container Isolation**: Each AWS profile opens in its own Firefox container
+- 📁 **Automatic Profile Detection**: Reads profiles directly from `~/.aws/credentials`
+- ⏰ **Credential Monitoring**: Shows credential expiration status
+- 🌍 **Region Selector**: Choose AWS region before opening console
+
+### UX Enhancements
+- 🔍 **Search/Filter**: Quick profile search as you type
+- ⭐ **Favorites**: Star frequently-used profiles
+- 🕐 **Recent Profiles**: Tracks your last 10 opened profiles
+- 📊 **Smart Organization**: Profiles grouped by Favorites → Recent → All
+- 🎨 **Smart Color Coding**: Automatically assigns colors based on environment
   - Production profiles → Red
   - Staging profiles → Yellow
   - Development profiles → Green
   - Test/QA profiles → Turquoise
   - Integration profiles → Blue
   - Janus profiles → Purple
-- **Works with Your Existing Tools**: Integrates with your `sso-faws`, `lza_container` shell functions
-- **Protocol Handler**: Supports `ext+container://` protocol for CLI integration
 
-## Architecture
+## How It Works
 
 ```
-┌─────────────────────────┐
-│  Firefox Extension      │
-│  (Popup UI)            │
-└───────────┬─────────────┘
-            │ Native Messaging API
-            ↓
-┌─────────────────────────┐
-│  Python Bridge Script   │
-│  (Reads filesystem)     │
-└───────────┬─────────────┘
-            │
-            ↓
-┌─────────────────────────┐
-│  ~/.aws/credentials     │
-│  (Your AWS profiles)    │
-└─────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ 1. User clicks profile in Firefox extension popup       │
+└────────────────────┬─────────────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────────────┐
+│ 2. Extension → Python Bridge (Native Messaging)         │
+│    Sends: Profile name only                             │
+└────────────────────┬─────────────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────────────┐
+│ 3. Python Bridge reads ~/.aws/credentials               │
+│    Extracts: access key, secret key, session token      │
+└────────────────────┬─────────────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────────────┐
+│ 4. Python Bridge → AWS Federation API (HTTPS)           │
+│    Endpoint: signin.aws.amazon.com/federation            │
+│    Returns: Temporary signin token (12 hour expiry)     │
+└────────────────────┬─────────────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────────────┐
+│ 5. Python Bridge → Extension                            │
+│    Sends: Federated console URL (no raw credentials)    │
+└────────────────────┬─────────────────────────────────────┘
+                     ↓
+┌──────────────────────────────────────────────────────────┐
+│ 6. Extension creates/finds Firefox container            │
+│    Opens: Console URL in isolated container             │
+│    Result: Authenticated AWS Console session            │
+└──────────────────────────────────────────────────────────┘
 ```
+
+**Key Security Points:**
+- Credentials never leave your local machine except to AWS's official API
+- Extension uses native Firefox containers API (no custom protocols)
+- No credentials stored in browser storage
+- See [SECURITY.md](SECURITY.md) for full details
 
 ## Installation
 
@@ -68,33 +105,52 @@ This will:
 
 ## Usage
 
-### From the Extension Popup
+### Basic Usage
 
-1. Click the extension icon
-2. View your AWS profiles with credential status
-3. Click any profile to open AWS Console in a container
-4. Switch between "AWS Profiles" and "Containers" tabs
+1. **Click the extension icon** in your Firefox toolbar
+2. **Search or browse** your AWS profiles
+3. **Select a region** from the dropdown (default: us-east-1)
+4. **Click a profile** to open AWS Console in an isolated container
 
-### From Your Shell Functions (Existing Workflow)
+### Features
 
-Your existing shell functions continue to work unchanged:
+#### Search & Filter
+Type in the search box to instantly filter profiles by name.
 
-```bash
-# Your existing commands still work!
-sso-faws production-account
-lza_container fcc-prod
-sso-janus customer-name
+#### Favorites (⭐)
+- Click the star icon next to any profile to mark it as a favorite
+- Favorites appear at the top of the list
+- Favorites persist across browser restarts
+
+#### Recent Profiles
+- Last 10 opened profiles appear in the "Recent" section
+- Helps quickly access frequently-used accounts
+
+#### Region Selection
+- Choose your preferred AWS region before opening
+- Region is appended to the console URL automatically
+- Selection persists across sessions
+
+### Profile Organization
+
+Profiles are automatically organized into sections:
+
+```
+┌─────────────────────┐
+│ FAVORITES   ★       │  ← Your starred profiles (alphabetical)
+├─────────────────────┤
+│ RECENT      🕐      │  ← Last 10 used (chronological)
+├─────────────────────┤
+│ ALL PROFILES        │  ← Everything else (alphabetical)
+└─────────────────────┘
 ```
 
-The extension now handles the `ext+container://` protocol that your `firefox-container.sh` script generates.
+### Managing Containers
 
-### From Command Line (Direct)
-
-You can also open profiles directly:
-
-```bash
-firefox "ext+container:url=https://console.aws.amazon.com/&name=my-profile&color=red&icon=briefcase"
-```
+Switch to the "Containers" tab to:
+- View all active AWS profile containers
+- See container count
+- Clear all containers at once
 
 ## AWS Credentials File Format
 
@@ -265,13 +321,43 @@ def generate_console_url(self, profile_name):
     result = subprocess.run(['your-custom-script', profile_name], ...)
 ```
 
-## Security Notes
+## Security & Privacy
 
-1. **No credentials stored in browser**: Extension only reads via native script
-2. **Minimal permissions**: Only uses `nativeMessaging`, `contextualIdentities`, `tabs`, `storage`
-3. **No network access**: Extension can't send data anywhere
-4. **Container isolation**: Each profile is completely isolated
-5. **Local only**: All communication stays on your machine
+### What We Do
+- ✅ Read `~/.aws/credentials` (local filesystem only)
+- ✅ Send credentials to AWS Federation API (HTTPS, official AWS service)
+- ✅ Store profile names, favorites, recent list in browser local storage
+- ✅ Use native Firefox containers for isolation
+
+### What We Don't Do
+- ❌ Store credentials in browser storage
+- ❌ Send credentials to any server except AWS
+- ❌ Collect analytics or telemetry
+- ❌ Phone home or track usage
+- ❌ Share data with third parties
+
+### Minimal Permissions
+```json
+{
+  "permissions": [
+    "contextualIdentities",  // Create/manage Firefox containers
+    "cookies",               // Required for container isolation
+    "tabs",                  // Open tabs in containers
+    "storage",               // Store favorites/recent profiles
+    "nativeMessaging"        // Read credentials via Python bridge
+  ]
+}
+```
+
+### Data Flow
+All credential handling happens locally or with AWS:
+1. Extension → Python bridge: Profile name only
+2. Python bridge → AWS API: Temporary credentials
+3. AWS API → Python bridge: Signin token (12h expiry)
+4. Python bridge → Extension: Console URL with token
+5. Extension → Firefox: Opens URL in container
+
+**📖 For complete security documentation, see [SECURITY.md](SECURITY.md)**
 
 ## Development
 
@@ -318,15 +404,18 @@ granted-containers/
 
 ## Features Overview
 
-| Feature | Supported |
-|---------|----------|
-| Protocol | `ext+container` |
-| Profile Source | `~/.aws/credentials` |
-| Native Messaging | Yes |
-| Credential Monitoring | Yes |
-| Auto Color Coding | Yes |
-| Expiration Tracking | Yes |
-| Popup Profile List | Yes |
+| Feature | Status | Description |
+|---------|--------|-------------|
+| AWS Console Federation | ✅ | Automatic console URL generation |
+| Profile Detection | ✅ | Reads `~/.aws/credentials` |
+| Container Isolation | ✅ | Native Firefox containers |
+| Credential Monitoring | ✅ | Shows expiration status |
+| Auto Color Coding | ✅ | Environment-based colors |
+| Search/Filter | ✅ | Real-time profile filtering |
+| Favorites | ✅ | Star profiles for quick access |
+| Recent Profiles | ✅ | Tracks last 10 opened |
+| Region Selection | ✅ | 10 major AWS regions |
+| Native Messaging | ✅ | Python bridge for filesystem access |
 
 ## Compatibility
 
