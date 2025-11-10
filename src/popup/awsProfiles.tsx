@@ -37,7 +37,11 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             // Set up message listener
             port.onMessage.addListener((response: any) => {
                 if (response.action === "profileList") {
-                    setProfiles(response.profiles);
+                    // Sort profiles alphabetically by name
+                    const sortedProfiles = response.profiles.sort((a: AWSProfile, b: AWSProfile) =>
+                        a.name.localeCompare(b.name)
+                    );
+                    setProfiles(sortedProfiles);
                     setLoading(false);
                 } else if (response.action === "error") {
                     setError(response.message);
