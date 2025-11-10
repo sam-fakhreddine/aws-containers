@@ -16,13 +16,6 @@
         "48": "granted-icon.svg",
         "128": "granted-icon.svg"
     },
-    "protocol_handlers": [
-        {
-            "protocol": "ext+container",
-            "name": "Open links in AWS Containers",
-            "uriTemplate": "/opener.html#%s"
-        }
-    ],
     "permissions": ["contextualIdentities", "cookies", "tabs", "storage", "nativeMessaging"],
     "browser_specific_settings": {
         "gecko": {

@@ -10,6 +10,44 @@ interface AWSProfile {
     icon: string;
 }
 
+// Container management utilities
+async function lookupContainer(name: string) {
+    const containers = await browser.contextualIdentities.query({ name });
+    return containers.length >= 1 ? containers[0] : null;
+}
+
+async function prepareContainer(name: string, color: string, icon: string) {
+    const container = await lookupContainer(name);
+    if (!container) {
+        const created = await browser.contextualIdentities.create({
+            name,
+            color,
+            icon,
+        });
+        await saveContainerId(created.cookieStoreId);
+        return created;
+    } else {
+        // Update the existing container if the color or icon have changed
+        await browser.contextualIdentities.update(container.cookieStoreId, {
+            color,
+            icon,
+        });
+        return container;
+    }
+}
+
+async function saveContainerId(id: string) {
+    const obj = await browser.storage.local.get("containers");
+    const exists = "containers" in obj;
+    if (exists) {
+        await browser.storage.local.set({
+            containers: [...obj.containers, id],
+        });
+    } else {
+        await browser.storage.local.set({ containers: [id] });
+    }
+}
+
 const AWS_REGIONS = [
     { code: "us-east-1", name: "US East (N. Virginia)" },
     { code: "us-east-2", name: "US East (Ohio)" },
@@ -127,13 +165,18 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                         consoleUrl = urlObj.toString();
                     }
 
-                    // Build the container URL
-                    const encodedUrl = encodeURIComponent(consoleUrl);
-                    const encodedName = encodeURIComponent(response.profileName);
-                    const fullUrl = `ext+container:url=${encodedUrl}&name=${encodedName}&color=${response.color}&icon=${response.icon}`;
+                    // Create or get the container using native Firefox API
+                    const container = await prepareContainer(
+                        response.profileName,
+                        response.color,
+                        response.icon
+                    );
 
-                    // Open in new tab with the protocol handler
-                    await browser.tabs.create({ url: fullUrl });
+                    // Open tab directly in the container
+                    await browser.tabs.create({
+                        url: consoleUrl,
+                        cookieStoreId: container.cookieStoreId,
+                    });
 
                     // Close popup
                     window.close();
