@@ -15,19 +15,29 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Determine OS
+# Determine OS and architecture
 if [[ "$OSTYPE" == "darwin"* ]]; then
     OS="macos"
-    PLATFORM="darwin"
+    # Detect macOS architecture
+    ARCH=$(uname -m)
+    if [[ "$ARCH" == "arm64" ]]; then
+        PLATFORM="darwin-arm64"
+        ARCH_NAME="Apple Silicon (ARM64)"
+    else
+        PLATFORM="darwin-x86_64"
+        ARCH_NAME="Intel (x86_64)"
+    fi
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     OS="linux"
     PLATFORM="linux"
+    ARCH_NAME="Linux"
 else
     echo -e "${RED}Error: Unsupported operating system${NC}"
     exit 1
 fi
 
-echo "Building for: $OS"
+echo "Building for: $OS - $ARCH_NAME"
+echo "Platform identifier: $PLATFORM"
 echo ""
 
 # Check if Python is available

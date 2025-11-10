@@ -51,7 +51,8 @@ This method creates a standalone executable that includes Python and all depende
 
 1. Download the pre-built package for your platform from [GitHub Releases](https://github.com/sam-fakhreddine/aws-containers/releases):
    - `aws_profile_bridge-linux` for Linux
-   - `aws_profile_bridge-macos` for macOS
+   - `aws_profile_bridge-macos-intel` for macOS Intel (x86_64)
+   - `aws_profile_bridge-macos-arm64` for macOS Apple Silicon (M1/M2/M3)
 
 2. Make the downloaded file executable and place it in the `bin/` directory:
    ```bash
@@ -60,11 +61,18 @@ This method creates a standalone executable that includes Python and all depende
    mv ~/Downloads/aws_profile_bridge-linux bin/linux/aws_profile_bridge
    chmod +x bin/linux/aws_profile_bridge
 
-   # For macOS
-   mkdir -p bin/darwin
-   mv ~/Downloads/aws_profile_bridge-macos bin/darwin/aws_profile_bridge
-   chmod +x bin/darwin/aws_profile_bridge
+   # For macOS Intel (x86_64)
+   mkdir -p bin/darwin-x86_64
+   mv ~/Downloads/aws_profile_bridge-macos-intel bin/darwin-x86_64/aws_profile_bridge
+   chmod +x bin/darwin-x86_64/aws_profile_bridge
+
+   # For macOS Apple Silicon (ARM64)
+   mkdir -p bin/darwin-arm64
+   mv ~/Downloads/aws_profile_bridge-macos-arm64 bin/darwin-arm64/aws_profile_bridge
+   chmod +x bin/darwin-arm64/aws_profile_bridge
    ```
+
+   **Note:** The install script automatically detects your architecture. You only need to download the correct version for your Mac.
 
 3. Run the installation script:
    ```bash
@@ -217,7 +225,14 @@ If you see "Setup Required":
 
 - Native messaging host directory: `~/Library/Application Support/Mozilla/NativeMessagingHosts/`
 - Executable location: `~/.local/bin/`
-- You may need to grant permissions for the executable to run
+- **Architectures:**
+  - Intel Macs (x86_64): Use `aws_profile_bridge-macos-intel`
+  - Apple Silicon (M1/M2/M3): Use `aws_profile_bridge-macos-arm64`
+  - The install script automatically detects your architecture
+- You may need to grant permissions for the executable to run:
+  ```bash
+  xattr -d com.apple.quarantine ~/.local/bin/aws_profile_bridge
+  ```
 
 ### Windows
 

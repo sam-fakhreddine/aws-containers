@@ -14,10 +14,16 @@ jobs:
         include:
           - os: ubuntu-latest
             platform: linux
-          - os: macos-latest
-            platform: darwin
+            arch_name: Linux
+          - os: macos-13  # Intel x86_64
+            platform: darwin-x86_64
+            arch_name: macOS Intel
+          - os: macos-14  # Apple Silicon ARM64
+            platform: darwin-arm64
+            arch_name: macOS ARM64
           # - os: windows-latest  # Future: Add Windows support
           #   platform: windows
+          #   arch_name: Windows
 
     steps:
       - name: Checkout code
@@ -109,14 +115,24 @@ jobs:
           asset_name: aws_profile_bridge-linux
           asset_content_type: application/octet-stream
 
-      - name: Upload macOS native host to release
+      - name: Upload macOS Intel native host to release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./native-host-darwin/aws_profile_bridge
-          asset_name: aws_profile_bridge-macos
+          asset_path: ./native-host-darwin-x86_64/aws_profile_bridge
+          asset_name: aws_profile_bridge-macos-intel
+          asset_content_type: application/octet-stream
+
+      - name: Upload macOS ARM64 native host to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./native-host-darwin-arm64/aws_profile_bridge
+          asset_name: aws_profile_bridge-macos-arm64
           asset_content_type: application/octet-stream
 
       - name: Upload Firefox extension to release

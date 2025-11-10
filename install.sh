@@ -14,21 +14,31 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Determine OS and platform
+# Determine OS, platform, and architecture
 if [[ "$OSTYPE" == "darwin"* ]]; then
     OS="macos"
-    PLATFORM="darwin"
+    # Detect macOS architecture
+    ARCH=$(uname -m)
+    if [[ "$ARCH" == "arm64" ]]; then
+        PLATFORM="darwin-arm64"
+        ARCH_NAME="Apple Silicon (ARM64)"
+    else
+        PLATFORM="darwin-x86_64"
+        ARCH_NAME="Intel (x86_64)"
+    fi
     NATIVE_MESSAGING_DIR="$HOME/Library/Application Support/Mozilla/NativeMessagingHosts"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     OS="linux"
     PLATFORM="linux"
+    ARCH_NAME="Linux"
     NATIVE_MESSAGING_DIR="$HOME/.mozilla/native-messaging-hosts"
 else
     echo -e "${RED}Error: Unsupported operating system${NC}"
     exit 1
 fi
 
-echo "Detected OS: $OS"
+echo "Detected OS: $OS ($ARCH_NAME)"
+echo "Platform: $PLATFORM"
 echo ""
 
 # Step 1: Install native messaging host executable
