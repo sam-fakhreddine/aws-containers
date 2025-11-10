@@ -45,15 +45,20 @@ html {
     box-sizing: border-box;
     font-size: 12px;
     overscroll-behavior: none;
+    height: 100%;
+    width: 100%;
 }
 
 body {
     font-family: var(--fontInter);
     font-size: 13px;
-    inline-size: 352px;
+    inline-size: 100%;
+    width: 100%;
     letter-spacing: -0.125px;
-    min-inline-size: 352px;
+    min-inline-size: 300px;
     background-color: var(--bgColor);
+    margin: 0;
+    padding: 0;
 
     --highlight-blue: #1296f8;
     --hr-grey: #cececf91;
@@ -64,14 +69,22 @@ body {
 
 html,
 body {
-    block-size: 100%; /* Bugfix: issue 948 */
-    max-block-size: 650px;
+    block-size: 100%;
+    height: 100vh;
+    max-block-size: 100vh;
     min-block-size: 300px;
 
     /* stylelint-disable */
     scrollbar-width: none;
     /* stylelint-enable */
     transition: height 0.1s ease-in-out;
+}
+
+#popup {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 :root {
@@ -973,13 +986,15 @@ input[type="text"] {
     flex-direction: column;
     justify-content: space-between;
     position: relative;
-    max-block-size: 601px;
+    max-block-size: 100vh;
+    height: 100%;
     background-color: var(--bgColor);
     transition: height 0.1s ease-in-out;
 }
 
 .container-panel {
-    min-block-size: 500px;
+    min-block-size: 100%;
+    height: 100vh;
 }
 
 .delete-container-panel {
