@@ -8,6 +8,7 @@ interface AWSProfile {
     expired: boolean;
     color: string;
     icon: string;
+    is_sso?: boolean;
 }
 
 // Container management utilities
@@ -422,7 +423,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                             {profiles.length === 0 ? (
                                 <tr>
                                     <td style={{ padding: "20px", textAlign: "center" }}>
-                                        No AWS profiles found in ~/.aws/credentials
+                                        No AWS profiles found in ~/.aws/credentials or ~/.aws/config
                                     </td>
                                 </tr>
                             ) : (() => {
@@ -444,8 +445,20 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                                                 ></div>
                                             </div>
                                             <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-                                                <span className="menu-text">
+                                                <span className="menu-text" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                                                     {profile.name}
+                                                    {profile.is_sso && (
+                                                        <span style={{
+                                                            fontSize: "9px",
+                                                            background: "#0060df",
+                                                            color: "white",
+                                                            padding: "2px 4px",
+                                                            borderRadius: "2px",
+                                                            fontWeight: "bold"
+                                                        }}>
+                                                            SSO
+                                                        </span>
+                                                    )}
                                                 </span>
                                                 {profile.expiration && (
                                                     <span style={{

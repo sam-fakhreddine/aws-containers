@@ -17,8 +17,9 @@ A Firefox extension that reads your AWS credentials file and opens AWS profiles 
 ### Core Functionality
 - 🔐 **AWS Console Federation**: Automatically generates authenticated console URLs
 - 🔒 **Container Isolation**: Each AWS profile opens in its own Firefox container
-- 📁 **Automatic Profile Detection**: Reads profiles directly from `~/.aws/credentials`
-- ⏰ **Credential Monitoring**: Shows credential expiration status
+- 📁 **Automatic Profile Detection**: Reads profiles from `~/.aws/credentials` and `~/.aws/config`
+- 🔑 **AWS IAM Identity Center (SSO)**: Full support for SSO profiles
+- ⏰ **Credential Monitoring**: Shows credential expiration status for both credential-based and SSO profiles
 - 🌍 **Region Selector**: Choose AWS region before opening console
 
 ### UX Enhancements
@@ -154,7 +155,9 @@ Switch to the "Containers" tab to:
 
 ## AWS Credentials File Format
 
-The extension reads standard AWS credentials files:
+### Credential-Based Profiles
+
+The extension reads standard AWS credentials files from `~/.aws/credentials`:
 
 ```ini
 [production-account]
@@ -173,6 +176,38 @@ aws_secret_access_key = ...
 - Reads expiration from comments (`# Expires YYYY-MM-DD HH:MM:SS UTC`)
 - Shows time remaining or expired status
 - Works with both static and temporary credentials
+
+### AWS IAM Identity Center (SSO) Profiles
+
+The extension also reads SSO profiles from `~/.aws/config`:
+
+```ini
+[profile sso-dev]
+sso_start_url = https://my-sso-portal.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 123456789012
+sso_role_name = DeveloperAccess
+region = us-east-1
+
+[profile sso-prod]
+sso_start_url = https://my-sso-portal.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 987654321098
+sso_role_name = ReadOnlyAccess
+region = us-east-1
+```
+
+**SSO Setup:**
+1. Configure your SSO profiles in `~/.aws/config`
+2. Run `aws sso login --profile <profile-name>` to authenticate
+3. The extension will automatically use cached SSO tokens from `~/.aws/sso/cache/`
+4. When the token expires, simply run `aws sso login` again
+
+**SSO Features:**
+- Automatically detects SSO profiles from config
+- Shows "SSO" badge in the UI for SSO profiles
+- Monitors SSO token expiration
+- Works seamlessly alongside credential-based profiles
 
 ## Integration with Your Existing Scripts
 
@@ -251,7 +286,7 @@ Opens in container via ext+container:// protocol
 
 **Problem**: Your credentials have expired
 
-**Solutions**:
+**Solutions for credential-based profiles**:
 1. Use your existing refresh function:
    ```bash
    sso-faws account-name  # Refreshes and opens
@@ -259,6 +294,38 @@ Opens in container via ext+container:// protocol
 2. Or refresh manually with `faws`:
    ```bash
    faws2025 -A account-name env -d 43200
+   ```
+
+**Solutions for SSO profiles**:
+1. Re-authenticate with AWS SSO:
+   ```bash
+   aws sso login --profile <profile-name>
+   ```
+2. Or login to all profiles under the same SSO start URL:
+   ```bash
+   aws sso login
+   ```
+
+### SSO Profile Not Working
+
+**Problem**: SSO profile shows as expired or can't open console
+
+**Solutions**:
+1. Ensure you've logged in with AWS CLI:
+   ```bash
+   aws sso login --profile <profile-name>
+   ```
+2. Check your SSO configuration in `~/.aws/config`:
+   ```bash
+   cat ~/.aws/config
+   ```
+3. Verify your SSO cache:
+   ```bash
+   ls -la ~/.aws/sso/cache/
+   ```
+4. Check if AWS CLI is installed:
+   ```bash
+   aws --version
    ```
 
 ### Console URL Generation Fails
@@ -407,9 +474,10 @@ granted-containers/
 | Feature | Status | Description |
 |---------|--------|-------------|
 | AWS Console Federation | ✅ | Automatic console URL generation |
-| Profile Detection | ✅ | Reads `~/.aws/credentials` |
+| Profile Detection | ✅ | Reads `~/.aws/credentials` and `~/.aws/config` |
+| AWS IAM Identity Center | ✅ | Full SSO profile support |
 | Container Isolation | ✅ | Native Firefox containers |
-| Credential Monitoring | ✅ | Shows expiration status |
+| Credential Monitoring | ✅ | Shows expiration status for both credential and SSO profiles |
 | Auto Color Coding | ✅ | Environment-based colors |
 | Search/Filter | ✅ | Real-time profile filtering |
 | Favorites | ✅ | Star profiles for quick access |

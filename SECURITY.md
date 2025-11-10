@@ -8,12 +8,15 @@ AWS Profile Containers is a Firefox extension that reads your local AWS credenti
 
 ### Data Access
 1. **Reads** `~/.aws/credentials` file on your local machine
-2. **Reads** AWS access keys, secret keys, and session tokens from profiles
-3. **Never stores** credentials in browser storage or any persistent location
-4. **Never transmits** credentials to any server except AWS's official federation API
+2. **Reads** `~/.aws/config` file for SSO profile configuration
+3. **Reads** `~/.aws/sso/cache/` directory for cached SSO tokens
+4. **Reads** AWS access keys, secret keys, and session tokens from profiles
+5. **Never stores** credentials in browser storage or any persistent location
+6. **Never transmits** credentials to any server except AWS's official APIs (Federation and SSO)
 
 ### Data Flow
 
+#### Credential-Based Profiles
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ 1. User clicks profile in extension popup                      │
@@ -50,6 +53,61 @@ AWS Profile Containers is a Firefox extension that reads your local AWS credenti
                  ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ 6. Extension opens URL in Firefox container                    │
+│    AWS Console authenticates using signin token                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### AWS IAM Identity Center (SSO) Profiles
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. User clicks SSO profile in extension popup                  │
+└────────────────┬────────────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 2. Extension → Native Python bridge (local process)            │
+│    Sends: Profile name only                                     │
+└────────────────┬────────────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 3. Python bridge reads ~/.aws/config                           │
+│    Extracts: sso_start_url, sso_region, sso_account_id,        │
+│              sso_role_name for the selected profile             │
+└────────────────┬────────────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 4. Python bridge reads ~/.aws/sso/cache/                       │
+│    Finds cached SSO token matching start_url                   │
+│    Extracts: accessToken (previously obtained via aws sso login)│
+└────────────────┬────────────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 5. Python bridge → AWS SSO API (HTTPS)                         │
+│    URL: https://portal.sso.{region}.amazonaws.com              │
+│    Sends: SSO token to get temporary role credentials          │
+│    Receives: Temporary AWS credentials for the role            │
+└────────────────┬────────────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 6. Python bridge → AWS Federation API (HTTPS)                  │
+│    (Same as step 4 in credential-based flow)                   │
+│    Converts temporary credentials to console signin token      │
+└────────────────┬────────────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 7. Python bridge → Extension                                   │
+│    Sends: Federated console URL (contains signin token)        │
+│    Does NOT send: SSO token or temporary credentials           │
+└────────────────┬────────────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 8. Extension opens URL in Firefox container                    │
 │    AWS Console authenticates using signin token                │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -98,13 +156,21 @@ The Python bridge (`aws_profile_bridge.py`) runs as a **local process** with:
 
 ### Network Requests
 
-The extension makes **exactly ONE type of network request**:
+The extension makes requests to **official AWS endpoints only**:
 
+**For all profiles:**
 ```
 POST https://signin.aws.amazon.com/federation?Action=getSigninToken
 ```
+This is AWS's official federation endpoint for console access.
 
-This is AWS's official federation endpoint for console access. No other servers are contacted.
+**For SSO profiles only:**
+```
+GET https://portal.sso.{region}.amazonaws.com/federation/credentials
+```
+This is AWS's official SSO endpoint for retrieving temporary role credentials.
+
+**No other servers are contacted.** All requests are made over HTTPS to AWS-owned domains.
 
 ### Browser Permissions Required
 
