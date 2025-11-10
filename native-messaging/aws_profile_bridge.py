@@ -492,9 +492,15 @@ class AWSProfileBridge:
             profiles = self.get_all_profiles()
 
             # Add color and icon information
+            # Keep only necessary fields for the UI
             for profile in profiles:
                 profile['color'] = self.get_profile_color(profile['name'])
                 profile['icon'] = self.get_profile_icon(profile['name'])
+                # Keep sso_start_url for grouping in UI if it's an SSO profile
+                if not profile.get('is_sso'):
+                    # Remove SSO-specific fields for non-SSO profiles
+                    for key in ['sso_start_url', 'sso_region', 'sso_account_id', 'sso_role_name']:
+                        profile.pop(key, None)
 
             return {
                 'action': 'profileList',
