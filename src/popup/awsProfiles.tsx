@@ -521,7 +521,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                             onClick={loadProfiles}
                             style={{ flex: 1, textAlign: "center" }}
                         >
-                            ↻ Refresh
+                            Refresh
                         </div>
                     </div>
                 </>

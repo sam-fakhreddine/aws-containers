@@ -420,9 +420,21 @@ granted-containers/
 ## Compatibility
 
 - **Firefox**: 60+ (tested on latest)
-- **Operating Systems**: macOS, Linux
+- **Operating Systems**:
+  - ✅ **macOS** - Fully supported
+  - ✅ **Linux** - Fully supported
+  - ⚠️ **Windows** - Not currently supported (requires PowerShell installer and BAT wrapper)
 - **AWS CLI**: Optional (for advanced URL generation)
 - **Python**: 3.6+
+
+### Windows Support
+
+Windows support is **not currently implemented** but is technically feasible. Required changes:
+- PowerShell installation script (`install.ps1`)
+- Python wrapper batch file (`aws_profile_bridge.bat`)
+- Different manifest paths (`%APPDATA%\Mozilla\NativeMessagingHosts\`)
+
+If you need Windows support, please open an issue or contribute a PR.
 
 ## Contributing
 
