@@ -1,0 +1,130 @@
+name: Build Release
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build-native-host:
+    name: Build Native Messaging Host
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: darwin
+          # - os: windows-latest  # Future: Add Windows support
+          #   platform: windows
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller boto3 botocore
+
+      - name: Build executable
+        run: |
+          cd native-messaging
+          pyinstaller --clean aws_profile_bridge.spec
+          cd ..
+
+      - name: Prepare executable
+        run: |
+          mkdir -p bin/${{ matrix.platform }}
+          cp native-messaging/dist/aws_profile_bridge bin/${{ matrix.platform }}/
+          chmod +x bin/${{ matrix.platform }}/aws_profile_bridge
+
+      - name: Test executable (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          # Just verify it exists and is executable
+          ls -la bin/${{ matrix.platform }}/aws_profile_bridge
+          file bin/${{ matrix.platform }}/aws_profile_bridge
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-host-${{ matrix.platform }}
+          path: bin/${{ matrix.platform }}/aws_profile_bridge
+          retention-days: 90
+
+  build-extension:
+    name: Build Firefox Extension
+    runs-on: ubuntu-latest
+    needs: build-native-host
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-extension
+          path: web-ext-artifacts/*.zip
+          retention-days: 90
+
+  create-release-assets:
+    name: Create Release Assets
+    runs-on: ubuntu-latest
+    needs: [build-native-host, build-extension]
+    if: github.event_name == 'release'
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Display structure
+        run: ls -R
+
+      - name: Upload Linux native host to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./native-host-linux/aws_profile_bridge
+          asset_name: aws_profile_bridge-linux
+          asset_content_type: application/octet-stream
+
+      - name: Upload macOS native host to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./native-host-darwin/aws_profile_bridge
+          asset_name: aws_profile_bridge-macos
+          asset_content_type: application/octet-stream
+
+      - name: Upload Firefox extension to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./firefox-extension/aws_profile_containers-2.0.0.zip
+          asset_name: aws_profile_containers.xpi
+          asset_content_type: application/x-xpinstall

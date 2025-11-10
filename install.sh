@@ -14,12 +14,14 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Determine OS
+# Determine OS and platform
 if [[ "$OSTYPE" == "darwin"* ]]; then
     OS="macos"
+    PLATFORM="darwin"
     NATIVE_MESSAGING_DIR="$HOME/Library/Application Support/Mozilla/NativeMessagingHosts"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     OS="linux"
+    PLATFORM="linux"
     NATIVE_MESSAGING_DIR="$HOME/.mozilla/native-messaging-hosts"
 else
     echo -e "${RED}Error: Unsupported operating system${NC}"
@@ -29,15 +31,41 @@ fi
 echo "Detected OS: $OS"
 echo ""
 
-# Step 1: Install Python script
-echo "Step 1: Installing Python native messaging bridge..."
+# Step 1: Install native messaging host executable
+echo "Step 1: Installing native messaging host..."
 INSTALL_DIR="$HOME/.local/bin"
 mkdir -p "$INSTALL_DIR"
 
-cp native-messaging/aws_profile_bridge.py "$INSTALL_DIR/aws_profile_bridge.py"
-chmod +x "$INSTALL_DIR/aws_profile_bridge.py"
+# Check if pre-built executable exists
+EXECUTABLE_PATH="bin/$PLATFORM/aws_profile_bridge"
+if [ -f "$EXECUTABLE_PATH" ]; then
+    echo "Using pre-built standalone executable (no Python required)"
+    cp "$EXECUTABLE_PATH" "$INSTALL_DIR/aws_profile_bridge"
+    chmod +x "$INSTALL_DIR/aws_profile_bridge"
+    echo -e "${GREEN}✓${NC} Standalone executable installed to: $INSTALL_DIR/aws_profile_bridge"
+    INSTALLED_PATH="$INSTALL_DIR/aws_profile_bridge"
+elif [ -f "native-messaging/aws_profile_bridge.py" ]; then
+    echo -e "${YELLOW}!${NC} Pre-built executable not found, using Python script"
+    echo "  (Run ./build-native-host.sh to create standalone executable)"
 
-echo -e "${GREEN}✓${NC} Python script installed to: $INSTALL_DIR/aws_profile_bridge.py"
+    # Check if Python is available
+    if ! command -v python3 &> /dev/null; then
+        echo -e "${RED}✗${NC} Python 3 is required but not installed"
+        echo "  Please either:"
+        echo "  1. Run ./build-native-host.sh to create a standalone executable, or"
+        echo "  2. Install Python 3"
+        exit 1
+    fi
+
+    cp native-messaging/aws_profile_bridge.py "$INSTALL_DIR/aws_profile_bridge.py"
+    chmod +x "$INSTALL_DIR/aws_profile_bridge.py"
+    echo -e "${GREEN}✓${NC} Python script installed to: $INSTALL_DIR/aws_profile_bridge.py"
+    INSTALLED_PATH="$INSTALL_DIR/aws_profile_bridge.py"
+else
+    echo -e "${RED}✗${NC} Neither executable nor Python script found"
+    echo "  Please run ./build-native-host.sh first"
+    exit 1
+fi
 echo ""
 
 # Step 2: Update native messaging manifest with correct path
@@ -49,7 +77,7 @@ cat > "$NATIVE_MESSAGING_DIR/aws_profile_bridge.json" <<EOF
 {
   "name": "aws_profile_bridge",
   "description": "AWS Profile Bridge for reading credentials file",
-  "path": "$INSTALL_DIR/aws_profile_bridge.py",
+  "path": "$INSTALLED_PATH",
   "type": "stdio",
   "allowed_extensions": [
     "aws-profile-containers@yourname.local"
@@ -147,9 +175,12 @@ echo "3. Click on a profile to open it in a container"
 echo ""
 echo "If you see 'Setup Required', try:"
 echo "- Restarting Firefox"
-echo "- Checking that the Python script is executable:"
-echo "  ls -la $INSTALL_DIR/aws_profile_bridge.py"
+echo "- Checking that the native messaging host is executable:"
+echo "  ls -la $INSTALLED_PATH"
 echo "- Checking the native messaging manifest:"
 echo "  cat $NATIVE_MESSAGING_DIR/aws_profile_bridge.json"
+echo ""
+echo "For a fully self-contained installation (no Python required):"
+echo "  ./build-native-host.sh"
 echo ""
 echo -e "${GREEN}Happy containerizing!${NC}"
