@@ -12,6 +12,8 @@ import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
 import re
+import urllib.parse as parse
+import urllib.request as request
 
 
 class AWSProfileBridge:
@@ -126,35 +128,49 @@ class AWSProfileBridge:
     def generate_console_url(self, profile_name):
         """Generate AWS console federation URL for a profile."""
         try:
-            # Set the profile in environment
-            env = os.environ.copy()
-
             # Read credentials for the profile
             credentials = self.get_profile_credentials(profile_name)
             if not credentials:
                 return {'error': f'No credentials found for profile: {profile_name}'}
 
-            env['AWS_ACCESS_KEY_ID'] = credentials['aws_access_key_id']
-            env['AWS_SECRET_ACCESS_KEY'] = credentials['aws_secret_access_key']
-            if 'aws_session_token' in credentials:
-                env['AWS_SESSION_TOKEN'] = credentials['aws_session_token']
+            access_key = credentials.get('aws_access_key_id')
+            secret_key = credentials.get('aws_secret_access_key')
+            session_token = credentials.get('aws_session_token')
 
-            # Try to use aws_console.py if it exists
-            aws_console_script = Path.home() / '.local' / 'bin' / 'aws_console.py'
-            if aws_console_script.exists():
-                result = subprocess.run(
-                    ['python3', str(aws_console_script), '-u'],
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
-                if result.returncode == 0:
-                    url = result.stdout.strip().split()[0]
-                    return {'url': url}
+            if not access_key or not secret_key:
+                return {'error': f'Incomplete credentials for profile: {profile_name}'}
 
-            # Fallback: generate basic console URL
-            return {'url': 'https://console.aws.amazon.com/'}
+            # For profiles without session token (long-term credentials),
+            # just return the basic console URL
+            if not session_token:
+                return {'url': 'https://console.aws.amazon.com/'}
+
+            # Build the session credentials for federation
+            url_credentials = {
+                'sessionId': access_key,
+                'sessionKey': secret_key,
+                'sessionToken': session_token
+            }
+
+            # Request a signin token from AWS federation endpoint
+            request_parameters = "?Action=getSigninToken"
+            request_parameters += "&DurationSeconds=43200"
+            request_parameters += "&Session=" + parse.quote_plus(json.dumps(url_credentials))
+            request_url = "https://signin.aws.amazon.com/federation" + request_parameters
+
+            with request.urlopen(request_url, timeout=10) as response:
+                if response.status != 200:
+                    return {'error': 'Failed to get federation token from AWS'}
+                signin_token = json.loads(response.read())
+
+            # Build the console URL with the signin token
+            request_parameters = "?Action=login"
+            request_parameters += "&Destination=" + parse.quote_plus("https://console.aws.amazon.com/")
+            request_parameters += "&SigninToken=" + signin_token["SigninToken"]
+            request_parameters += "&Issuer=" + parse.quote_plus("https://example.com")
+            console_url = "https://signin.aws.amazon.com/federation" + request_parameters
+
+            return {'url': console_url}
 
         except Exception as e:
             return {'error': f'Failed to generate console URL: {str(e)}'}
