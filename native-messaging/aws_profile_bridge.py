@@ -44,6 +44,13 @@ class AWSProfileBridge:
         self.config_file = Path.home() / '.aws' / 'config'
         self.sso_cache_dir = Path.home() / '.aws' / 'sso' / 'cache'
 
+        # Cache for parsed files to avoid multiple reads
+        self._credentials_cache = None
+        self._credentials_cache_mtime = None
+        self._config_cache = None
+        self._config_cache_mtime = None
+        self._sso_token_cache = {}  # Cache SSO tokens by start URL
+
     def send_message(self, message):
         """Send a message to the extension via native messaging protocol."""
         encoded_content = json.dumps(message).encode('utf-8')
@@ -62,12 +69,18 @@ class AWSProfileBridge:
         return json.loads(text)
 
     def parse_credentials_file(self):
-        """Parse the AWS credentials file and extract profile information."""
-        profiles = []
-
+        """Parse the AWS credentials file and extract profile information with caching."""
         if not self.credentials_file.exists():
-            return profiles
+            return []
 
+        # Check if we can use cached data
+        current_mtime = self.credentials_file.stat().st_mtime
+        if (self._credentials_cache is not None and
+            self._credentials_cache_mtime == current_mtime):
+            return self._credentials_cache
+
+        # Parse file
+        profiles = []
         current_profile = None
         profile_data = {}
 
@@ -114,15 +127,25 @@ class AWSProfileBridge:
         if current_profile:
             profiles.append(profile_data)
 
+        # Cache the results
+        self._credentials_cache = profiles
+        self._credentials_cache_mtime = current_mtime
+
         return profiles
 
     def parse_config_file(self):
-        """Parse the AWS config file and extract SSO profile information."""
-        profiles = []
-
+        """Parse the AWS config file and extract SSO profile information with caching."""
         if not self.config_file.exists():
-            return profiles
+            return []
 
+        # Check if we can use cached data
+        current_mtime = self.config_file.stat().st_mtime
+        if (self._config_cache is not None and
+            self._config_cache_mtime == current_mtime):
+            return self._config_cache
+
+        # Parse file
+        profiles = []
         current_profile = None
         profile_data = {}
 
@@ -173,18 +196,31 @@ class AWSProfileBridge:
         if current_profile and profile_data.get('sso_start_url'):
             profiles.append(profile_data)
 
+        # Cache the results
+        self._config_cache = profiles
+        self._config_cache_mtime = current_mtime
+
         return profiles
 
     def get_sso_cached_token(self, start_url):
-        """Get cached SSO token for a given start URL."""
+        """Get cached SSO token for a given start URL with caching."""
         if not self.sso_cache_dir.exists():
             return None
 
+        # Check in-memory cache first
+        if start_url in self._sso_token_cache:
+            cached_token, cache_time = self._sso_token_cache[start_url]
+            # Check if token is still valid (cached less than 30 seconds ago and not expired)
+            if (datetime.now(timezone.utc) - cache_time).total_seconds() < 30:
+                if 'expiresAt' in cached_token:
+                    expires_at = datetime.fromisoformat(cached_token['expiresAt'].replace('Z', '+00:00'))
+                    if expires_at > datetime.now(timezone.utc):
+                        return cached_token
+
         # AWS CLI creates cache files with SHA1 hash of start URL as filename
         cache_key = hashlib.sha1(start_url.encode('utf-8')).hexdigest()
-        cache_files = list(self.sso_cache_dir.glob('*.json'))
 
-        # Try to find cache file by hashed name first
+        # Try to find cache file by hashed name first (fast path)
         cache_file = self.sso_cache_dir / f"{cache_key}.json"
         if cache_file.exists():
             try:
@@ -194,20 +230,30 @@ class AWSProfileBridge:
                     if 'expiresAt' in cache_data:
                         expires_at = datetime.fromisoformat(cache_data['expiresAt'].replace('Z', '+00:00'))
                         if expires_at > datetime.now(timezone.utc):
+                            # Cache the token in memory
+                            self._sso_token_cache[start_url] = (cache_data, datetime.now(timezone.utc))
                             return cache_data
             except Exception:
                 pass
 
-        # Fallback: search all cache files for matching start URL
-        for cache_file in cache_files:
+        # Fallback: search all cache files for matching start URL (slow path)
+        # Only do this if the hashed lookup failed
+        cache_files = list(self.sso_cache_dir.glob('*.json'))
+        for cache_file_path in cache_files:
+            # Skip the file we already tried
+            if cache_file_path.name == f"{cache_key}.json":
+                continue
+
             try:
-                with open(cache_file, 'r') as f:
+                with open(cache_file_path, 'r') as f:
                     cache_data = json.load(f)
                     if cache_data.get('startUrl') == start_url:
                         # Check if token is expired
                         if 'expiresAt' in cache_data:
                             expires_at = datetime.fromisoformat(cache_data['expiresAt'].replace('Z', '+00:00'))
                             if expires_at > datetime.now(timezone.utc):
+                                # Cache the token in memory
+                                self._sso_token_cache[start_url] = (cache_data, datetime.now(timezone.utc))
                                 return cache_data
             except Exception:
                 continue
@@ -326,13 +372,13 @@ class AWSProfileBridge:
                                 profile_data['has_credentials'] = False
                         else:
                             # Check if credentials exist in the credentials file
-                            cred_file_profiles = self.parse_credentials_file()
-                            for cred_profile in cred_file_profiles:
-                                if cred_profile['name'] == profile_name:
-                                    profile_data['has_credentials'] = cred_profile.get('has_credentials', False)
-                                    profile_data['expiration'] = cred_profile.get('expiration')
-                                    profile_data['expired'] = cred_profile.get('expired', False)
-                                    break
+                            # parse_credentials_file() now uses caching, so this is efficient
+                            cred_file_profiles_dict = {p['name']: p for p in self.parse_credentials_file()}
+                            if profile_name in cred_file_profiles_dict:
+                                cred_profile = cred_file_profiles_dict[profile_name]
+                                profile_data['has_credentials'] = cred_profile.get('has_credentials', False)
+                                profile_data['expiration'] = cred_profile.get('expiration')
+                                profile_data['expired'] = cred_profile.get('expired', False)
 
                         profiles.append(profile_data)
 
