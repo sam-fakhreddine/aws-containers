@@ -10,6 +10,19 @@ interface AWSProfile {
     icon: string;
 }
 
+const AWS_REGIONS = [
+    { code: "us-east-1", name: "US East (N. Virginia)" },
+    { code: "us-east-2", name: "US East (Ohio)" },
+    { code: "us-west-1", name: "US West (N. California)" },
+    { code: "us-west-2", name: "US West (Oregon)" },
+    { code: "eu-west-1", name: "EU (Ireland)" },
+    { code: "eu-west-2", name: "EU (London)" },
+    { code: "eu-central-1", name: "EU (Frankfurt)" },
+    { code: "ap-southeast-1", name: "Asia Pacific (Singapore)" },
+    { code: "ap-southeast-2", name: "Asia Pacific (Sydney)" },
+    { code: "ap-northeast-1", name: "Asia Pacific (Tokyo)" },
+];
+
 export const AWSProfilesPopup: FunctionComponent = () => {
     const [profiles, setProfiles] = useState<AWSProfile[]>([]);
     const [containers, setContainers] = useState<ContextualIdentities.ContextualIdentity[]>([]);
@@ -18,12 +31,24 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     const [view, setView] = useState<"profiles" | "containers">("profiles");
     const [isRemoving, setIsRemoving] = useState(false);
     const [nativeMessagingAvailable, setNativeMessagingAvailable] = useState(false);
+    const [searchFilter, setSearchFilter] = useState("");
+    const [selectedRegion, setSelectedRegion] = useState("us-east-1");
+    const [favorites, setFavorites] = useState<string[]>([]);
+    const [recentProfiles, setRecentProfiles] = useState<string[]>([]);
 
     useEffect(() => {
         browser.runtime.sendMessage({ popupMounted: true });
+        loadSettings();
         loadProfiles();
         refreshContainers();
     }, []);
+
+    const loadSettings = async () => {
+        const data = await browser.storage.local.get(["favorites", "recentProfiles", "selectedRegion"]);
+        if (data.favorites) setFavorites(data.favorites);
+        if (data.recentProfiles) setRecentProfiles(data.recentProfiles);
+        if (data.selectedRegion) setSelectedRegion(data.selectedRegion);
+    };
 
     const loadProfiles = async () => {
         setLoading(true);
@@ -82,12 +107,28 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
     const openProfile = async (profile: AWSProfile) => {
         try {
+            // Track in recent profiles
+            const updatedRecent = [
+                profile.name,
+                ...recentProfiles.filter(p => p !== profile.name)
+            ].slice(0, 10);
+            setRecentProfiles(updatedRecent);
+            await browser.storage.local.set({ recentProfiles: updatedRecent });
+
             const port = browser.runtime.connectNative("aws_profile_bridge");
 
             port.onMessage.addListener(async (response: any) => {
                 if (response.action === "consoleUrl") {
+                    // Add region to the console URL
+                    let consoleUrl = response.url;
+                    if (consoleUrl.includes("console.aws.amazon.com")) {
+                        const urlObj = new URL(consoleUrl);
+                        urlObj.searchParams.set("region", selectedRegion);
+                        consoleUrl = urlObj.toString();
+                    }
+
                     // Build the container URL
-                    const encodedUrl = encodeURIComponent(response.url);
+                    const encodedUrl = encodeURIComponent(consoleUrl);
                     const encodedName = encodeURIComponent(response.profileName);
                     const fullUrl = `ext+container:url=${encodedUrl}&name=${encodedName}&color=${response.color}&icon=${response.icon}`;
 
@@ -108,6 +149,45 @@ export const AWSProfilesPopup: FunctionComponent = () => {
         } catch (err) {
             setError(`Failed to open profile: ${err}`);
         }
+    };
+
+    const toggleFavorite = async (profileName: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const updatedFavorites = favorites.includes(profileName)
+            ? favorites.filter(f => f !== profileName)
+            : [...favorites, profileName];
+        setFavorites(updatedFavorites);
+        await browser.storage.local.set({ favorites: updatedFavorites });
+    };
+
+    const handleRegionChange = async (region: string) => {
+        setSelectedRegion(region);
+        await browser.storage.local.set({ selectedRegion: region });
+    };
+
+    const getFilteredAndSortedProfiles = () => {
+        // Filter by search term
+        const filtered = profiles.filter(p =>
+            p.name.toLowerCase().includes(searchFilter.toLowerCase())
+        );
+
+        // Separate into favorites, recent, and others
+        const favoriteProfiles = filtered.filter(p => favorites.includes(p.name));
+        const recentProfilesList = filtered.filter(p =>
+            recentProfiles.includes(p.name) && !favorites.includes(p.name)
+        );
+        const otherProfiles = filtered.filter(p =>
+            !favorites.includes(p.name) && !recentProfiles.includes(p.name)
+        );
+
+        // Sort each group
+        favoriteProfiles.sort((a, b) => a.name.localeCompare(b.name));
+        recentProfilesList.sort((a, b) =>
+            recentProfiles.indexOf(a.name) - recentProfiles.indexOf(b.name)
+        );
+        otherProfiles.sort((a, b) => a.name.localeCompare(b.name));
+
+        return { favoriteProfiles, recentProfilesList, otherProfiles };
     };
 
     const clearContainers = async () => {
@@ -259,6 +339,41 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                 </div>
             ) : view === "profiles" ? (
                 <>
+                    {/* Search and Region Controls */}
+                    <div style={{ padding: "5px" }}>
+                        <input
+                            type="text"
+                            placeholder="Search profiles..."
+                            value={searchFilter}
+                            onChange={(e) => setSearchFilter(e.target.value)}
+                            style={{
+                                width: "100%",
+                                padding: "6px 8px",
+                                fontSize: "12px",
+                                border: "1px solid #ccc",
+                                borderRadius: "3px",
+                                marginBottom: "5px"
+                            }}
+                        />
+                        <select
+                            value={selectedRegion}
+                            onChange={(e) => handleRegionChange(e.target.value)}
+                            style={{
+                                width: "100%",
+                                padding: "6px 8px",
+                                fontSize: "12px",
+                                border: "1px solid #ccc",
+                                borderRadius: "3px"
+                            }}
+                        >
+                            {AWS_REGIONS.map(region => (
+                                <option key={region.code} value={region.code}>
+                                    {region.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
                     <div className="scrollable identities-list">
                         <table className="menu" id="identities-list">
                             {profiles.length === 0 ? (
@@ -267,8 +382,10 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                                         No AWS profiles found in ~/.aws/credentials
                                     </td>
                                 </tr>
-                            ) : (
-                                profiles.map((profile) => (
+                            ) : (() => {
+                                const { favoriteProfiles, recentProfilesList, otherProfiles } = getFilteredAndSortedProfiles();
+
+                                const renderProfile = (profile: AWSProfile) => (
                                     <tr
                                         key={profile.name}
                                         className="menu-item hover-highlight"
@@ -283,7 +400,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                                                     data-identity-color={profile.color}
                                                 ></div>
                                             </div>
-                                            <div style={{ display: "flex", flexDirection: "column" }}>
+                                            <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
                                                 <span className="menu-text">
                                                     {profile.name}
                                                 </span>
@@ -297,10 +414,60 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                                                     </span>
                                                 )}
                                             </div>
+                                            <div
+                                                onClick={(e) => toggleFavorite(profile.name, e)}
+                                                style={{
+                                                    marginLeft: "auto",
+                                                    padding: "4px 8px",
+                                                    cursor: "pointer",
+                                                    fontSize: "14px"
+                                                }}
+                                            >
+                                                {favorites.includes(profile.name) ? "★" : "☆"}
+                                            </div>
                                         </td>
                                     </tr>
-                                ))
-                            )}
+                                );
+
+                                const renderSection = (title: string, profilesList: AWSProfile[]) => {
+                                    if (profilesList.length === 0) return null;
+                                    return (
+                                        <>
+                                            <tr>
+                                                <td style={{
+                                                    padding: "4px 8px",
+                                                    fontSize: "10px",
+                                                    fontWeight: "bold",
+                                                    color: "#666",
+                                                    background: "#f5f5f5",
+                                                    textTransform: "uppercase"
+                                                }}>
+                                                    {title}
+                                                </td>
+                                            </tr>
+                                            {profilesList.map(renderProfile)}
+                                        </>
+                                    );
+                                };
+
+                                if (favoriteProfiles.length === 0 && recentProfilesList.length === 0 && otherProfiles.length === 0) {
+                                    return (
+                                        <tr>
+                                            <td style={{ padding: "20px", textAlign: "center" }}>
+                                                No profiles match your search
+                                            </td>
+                                        </tr>
+                                    );
+                                }
+
+                                return (
+                                    <>
+                                        {renderSection("Favorites", favoriteProfiles)}
+                                        {renderSection("Recent", recentProfilesList)}
+                                        {renderSection("All Profiles", otherProfiles)}
+                                    </>
+                                );
+                            })()}
                         </table>
                     </div>
                     <div className="v-padding-hack-footer" />
