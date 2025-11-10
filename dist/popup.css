@@ -1985,35 +1985,75 @@ tr:hover > td > .trash-button {
     overflow-x: auto;
     padding: 4px;
     gap: 4px;
-    background: #f5f5f5;
+    background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
     border-radius: 8px;
     margin: 0 8px 8px 8px;
 }
 
 .org-tab {
     padding: 10px 18px;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 600;
-    background: transparent;
+    background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
     border: none;
     border-radius: 6px;
     cursor: pointer;
     white-space: nowrap;
     color: #1a1a1a;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .org-tab:hover {
-    background: #e8e8e8;
+    background: linear-gradient(135deg, #e8e8e8 0%, #d8d8d8 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
-.org-tab-active {
-    background: #0060df !important;
+.org-tab:nth-child(1) {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: #ffffff !important;
 }
 
+.org-tab:nth-child(2) {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: #ffffff !important;
+}
+
+.org-tab:nth-child(3) {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: #ffffff !important;
+}
+
+.org-tab:nth-child(4) {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: #ffffff !important;
+}
+
+.org-tab:nth-child(5) {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: #ffffff !important;
+}
+
+.org-tab:nth-child(6) {
+    background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+    color: #ffffff !important;
+}
+
+.org-tab:nth-child(n+7) {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    color: #1a1a1a;
+}
+
+.org-tab-active {
+    background: linear-gradient(135deg, #0060df 0%, #0050c8 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(0,96,223,0.4) !important;
+    transform: scale(1.05);
+}
+
 .org-tab-active:hover {
-    background: #0050c8 !important;
+    background: linear-gradient(135deg, #0050c8 0%, #0040a0 100%) !important;
 }
 
 /* OVERFLOW MENU */

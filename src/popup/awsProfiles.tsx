@@ -383,40 +383,6 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     return (
         <div className="panel menu-panel container-panel" id="container-panel">
             <h3 className="title" style={{ fontSize: "18px", padding: "12px" }}>AWS Profile Containers</h3>
-            <div style={{ display: "flex", justifyContent: "center", gap: "8px", padding: "8px" }}>
-                <button
-                    onClick={() => setView("profiles")}
-                    style={{
-                        flex: 1,
-                        padding: "10px",
-                        background: view === "profiles" ? "#0060df" : "#f5f5f5",
-                        color: view === "profiles" ? "white" : "black",
-                        border: "none",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        fontSize: "15px",
-                        fontWeight: view === "profiles" ? "bold" : "normal"
-                    }}
-                >
-                    AWS Profiles
-                </button>
-                <button
-                    onClick={() => setView("containers")}
-                    style={{
-                        flex: 1,
-                        padding: "10px",
-                        background: view === "containers" ? "#0060df" : "#f5f5f5",
-                        color: view === "containers" ? "white" : "black",
-                        border: "none",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        fontSize: "15px",
-                        fontWeight: view === "containers" ? "bold" : "normal"
-                    }}
-                >
-                    Containers ({containers.length})
-                </button>
-            </div>
             <hr />
 
             {loading ? (
@@ -428,18 +394,29 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                     {error}
                     <button onClick={loadProfiles} style={{
                         marginTop: "12px",
-                        padding: "10px 16px",
-                        fontSize: "15px",
-                        background: "#0060df",
+                        padding: "12px 18px",
+                        fontSize: "16px",
+                        background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
                         color: "white",
                         border: "none",
-                        borderRadius: "4px",
-                        cursor: "pointer"
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        fontWeight: "600",
+                        boxShadow: "0 4px 8px rgba(240,147,251,0.3)",
+                        transition: "all 0.3s ease"
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                        e.currentTarget.style.boxShadow = "0 6px 12px rgba(240,147,251,0.4)";
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.boxShadow = "0 4px 8px rgba(240,147,251,0.3)";
                     }}>
                         Retry
                     </button>
                 </div>
-            ) : view === "profiles" ? (
+            ) : (
                 <>
                     {/* Search and Region Controls */}
                     <div style={{ padding: "8px" }}>
@@ -450,8 +427,8 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                             onChange={(e) => setSearchFilter(e.target.value)}
                             style={{
                                 width: "100%",
-                                padding: "10px 12px",
-                                fontSize: "15px",
+                                padding: "12px 14px",
+                                fontSize: "17px",
                                 border: "1px solid #ccc",
                                 borderRadius: "4px",
                                 marginBottom: "8px"
@@ -462,8 +439,8 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                             onChange={(e) => handleRegionChange(e.target.value)}
                             style={{
                                 width: "100%",
-                                padding: "10px 12px",
-                                fontSize: "15px",
+                                padding: "12px 14px",
+                                fontSize: "17px",
                                 border: "1px solid #ccc",
                                 borderRadius: "4px"
                             }}
@@ -600,53 +577,26 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                             style={{
                                 flex: 1,
                                 textAlign: "center",
-                                fontSize: "15px",
-                                padding: "10px",
-                                fontWeight: "500"
+                                fontSize: "16px",
+                                padding: "12px",
+                                fontWeight: "600",
+                                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                color: "white",
+                                borderRadius: "6px",
+                                boxShadow: "0 4px 8px rgba(102,126,234,0.3)",
+                                transition: "all 0.3s ease"
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 6px 12px rgba(102,126,234,0.4)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 4px 8px rgba(102,126,234,0.3)";
                             }}
                         >
                             Refresh
                         </div>
-                    </div>
-                </>
-            ) : (
-                <>
-                    <div className="scrollable identities-list">
-                        <table className="menu" id="identities-list">
-                            {containers.length === 0 ? (
-                                <tr>
-                                    <td style={{ padding: "20px", textAlign: "center" }}>
-                                        No active containers
-                                    </td>
-                                </tr>
-                            ) : (
-                                containers.map((container) => (
-                                    <tr key={container.cookieStoreId} className="menu-item hover-highlight">
-                                        <td>
-                                            <div className="menu-icon hover-highlight">
-                                                <div
-                                                    className="usercontext-icon"
-                                                    data-identity-icon={container.icon}
-                                                    data-identity-color={container.color}
-                                                ></div>
-                                            </div>
-                                            <span className="menu-text">
-                                                {container.name}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </table>
-                    </div>
-                    <div className="v-padding-hack-footer" />
-                    <div
-                        className="bottom-btn keyboard-nav controller"
-                        tabIndex={0}
-                        onClick={() => setIsRemoving(true)}
-                        style={{ textAlign: "center" }}
-                    >
-                        Clear Containers
                     </div>
                 </>
             )}
