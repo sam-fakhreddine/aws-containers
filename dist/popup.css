@@ -1810,6 +1810,9 @@ tr:hover > td > .trash-button {
         --controllerHover: var(--highlight-blue);
         --controllerActive: rgb(90, 89, 102);
         --bgDark: #2b2932;
+        --tab-bg: #2b2932;
+        --tab-text: #e0e0e0;
+        --tab-hover: #3a3842;
     }
 
     body {
@@ -1955,6 +1958,65 @@ tr:hover > td > .trash-button {
         .usercontext-icon::before {
         fill: #fff !important;
     }
+
+    /* Dark mode tabs */
+    .org-tabs-container {
+        background: #2b2932;
+    }
+
+    .org-tab {
+        color: #e0e0e0;
+    }
+
+    .org-tab:hover {
+        background: #3a3842;
+    }
+
+    .org-tab-active {
+        background: #0078f2 !important;
+        color: #ffffff !important;
+    }
+
+    .org-tab-active:hover {
+        background: #0066d9 !important;
+    }
+}
+
+/* Organization Tabs */
+.org-tabs-container {
+    display: flex;
+    overflow-x: auto;
+    padding: 4px;
+    gap: 4px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    margin: 0 8px 8px 8px;
+}
+
+.org-tab {
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    color: #1a1a1a;
+    transition: all 0.2s ease;
+}
+
+.org-tab:hover {
+    background: #e8e8e8;
+}
+
+.org-tab-active {
+    background: #0060df !important;
+    color: #ffffff !important;
+}
+
+.org-tab-active:hover {
+    background: #0050c8 !important;
 }
 
 /* OVERFLOW MENU */

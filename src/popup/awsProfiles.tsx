@@ -481,45 +481,18 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                         const orgs = getOrganizations();
                         if (orgs.size > 1) {
                             return (
-                                <div style={{
-                                    display: "flex",
-                                    overflowX: "auto",
-                                    padding: "0 8px",
-                                    gap: "6px",
-                                    borderBottom: "1px solid #ddd",
-                                    marginBottom: "8px"
-                                }}>
+                                <div className="org-tabs-container">
                                     <button
+                                        className={`org-tab ${selectedOrgTab === "all" ? "org-tab-active" : ""}`}
                                         onClick={() => setSelectedOrgTab("all")}
-                                        style={{
-                                            padding: "10px 16px",
-                                            fontSize: "14px",
-                                            fontWeight: selectedOrgTab === "all" ? "bold" : "normal",
-                                            background: "transparent",
-                                            border: "none",
-                                            borderBottom: selectedOrgTab === "all" ? "3px solid #0060df" : "3px solid transparent",
-                                            cursor: "pointer",
-                                            whiteSpace: "nowrap",
-                                            color: selectedOrgTab === "all" ? "#0060df" : "#666"
-                                        }}
                                     >
                                         All ({profiles.length})
                                     </button>
                                     {Array.from(orgs.entries()).map(([key, org]) => (
                                         <button
                                             key={key}
+                                            className={`org-tab ${selectedOrgTab === key ? "org-tab-active" : ""}`}
                                             onClick={() => setSelectedOrgTab(key)}
-                                            style={{
-                                                padding: "10px 16px",
-                                                fontSize: "14px",
-                                                fontWeight: selectedOrgTab === key ? "bold" : "normal",
-                                                background: "transparent",
-                                                border: "none",
-                                                borderBottom: selectedOrgTab === key ? "3px solid #0060df" : "3px solid transparent",
-                                                cursor: "pointer",
-                                                whiteSpace: "nowrap",
-                                                color: selectedOrgTab === key ? "#0060df" : "#666"
-                                            }}
                                         >
                                             {org.name} ({org.profiles.length})
                                         </button>
