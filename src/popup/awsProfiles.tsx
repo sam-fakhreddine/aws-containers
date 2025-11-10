@@ -86,13 +86,27 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     }, []);
 
     const loadSettings = async () => {
-        const data = await browser.storage.local.get(["favorites", "recentProfiles", "selectedRegion"]);
+        const data = await browser.storage.local.get(["favorites", "recentProfiles", "selectedRegion", "cachedProfiles", "profilesCacheTime"]);
         if (data.favorites) setFavorites(data.favorites as string[]);
         if (data.recentProfiles) setRecentProfiles(data.recentProfiles as string[]);
         if (data.selectedRegion) setSelectedRegion(data.selectedRegion as string);
+
+        // Load cached profiles if available and recent (less than 5 minutes old)
+        if (data.cachedProfiles && data.profilesCacheTime) {
+            const cacheAge = Date.now() - (data.profilesCacheTime as number);
+            if (cacheAge < 5 * 60 * 1000) { // 5 minutes
+                setProfiles(data.cachedProfiles as AWSProfile[]);
+                setLoading(false);
+            }
+        }
     };
 
-    const loadProfiles = async () => {
+    const loadProfiles = async (forceRefresh: boolean = false) => {
+        // If not forcing refresh and we have profiles, don't reload
+        if (!forceRefresh && profiles.length > 0) {
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -102,7 +116,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             setNativeMessagingAvailable(true);
 
             // Set up message listener
-            port.onMessage.addListener((response: any) => {
+            port.onMessage.addListener(async (response: any) => {
                 if (response.action === "profileList") {
                     // Sort profiles alphabetically by name
                     const sortedProfiles = response.profiles.sort((a: AWSProfile, b: AWSProfile) =>
@@ -110,6 +124,12 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                     );
                     setProfiles(sortedProfiles);
                     setLoading(false);
+
+                    // Cache the profiles with timestamp
+                    await browser.storage.local.set({
+                        cachedProfiles: sortedProfiles,
+                        profilesCacheTime: Date.now()
+                    });
                 } else if (response.action === "error") {
                     setError(response.message);
                     setLoading(false);
@@ -336,7 +356,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                         ./install.sh
                     </pre>
                     <button
-                        onClick={loadProfiles}
+                        onClick={() => loadProfiles(true)}
                         style={{ margin: "10px", padding: "8px 16px" }}
                     >
                         Retry Connection
@@ -393,7 +413,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             ) : error ? (
                 <div style={{ padding: "16px", color: "red", fontSize: "15px" }}>
                     {error}
-                    <button onClick={loadProfiles} style={{
+                    <button onClick={() => loadProfiles(true)} style={{
                         marginTop: "12px",
                         padding: "12px 18px",
                         fontSize: "16px",
@@ -574,7 +594,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                         <div
                             className="bottom-btn keyboard-nav controller"
                             tabIndex={0}
-                            onClick={loadProfiles}
+                            onClick={() => loadProfiles(true)}
                             style={{
                                 flex: 1,
                                 textAlign: "center",

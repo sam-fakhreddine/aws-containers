@@ -218,8 +218,14 @@ class AWSProfileBridge:
         """Get temporary credentials for an SSO profile using cached token."""
         try:
             # Get cached SSO token
-            sso_token_data = self.get_sso_cached_token(profile_config['sso_start_url'])
+            sso_start_url = profile_config.get('sso_start_url')
+            if not sso_start_url:
+                print("SSO profile missing sso_start_url", file=sys.stderr)
+                return None
+
+            sso_token_data = self.get_sso_cached_token(sso_start_url)
             if not sso_token_data or 'accessToken' not in sso_token_data:
+                print(f"No valid SSO token found for {sso_start_url}", file=sys.stderr)
                 return None
 
             access_token = sso_token_data['accessToken']
@@ -228,6 +234,7 @@ class AWSProfileBridge:
             role_name = profile_config.get('sso_role_name')
 
             if not account_id or not role_name:
+                print(f"SSO profile missing account_id or role_name: account={account_id}, role={role_name}", file=sys.stderr)
                 return None
 
             # Call AWS SSO API to get role credentials
@@ -238,6 +245,8 @@ class AWSProfileBridge:
                 'account_id': account_id,
                 'role_name': role_name
             }
+
+            print(f"Fetching SSO credentials for account={account_id}, role={role_name}", file=sys.stderr)
 
             api_request = request.Request(
                 f"{api_url}?account_id={account_id}&role_name={role_name}",
@@ -251,6 +260,7 @@ class AWSProfileBridge:
                     creds = json.loads(response.read())
 
                     # Convert to standard credential format
+                    print(f"Successfully fetched SSO credentials", file=sys.stderr)
                     return {
                         'aws_access_key_id': creds['roleCredentials']['accessKeyId'],
                         'aws_secret_access_key': creds['roleCredentials']['secretAccessKey'],
@@ -260,8 +270,14 @@ class AWSProfileBridge:
                             tz=timezone.utc
                         ).isoformat()
                     }
+                else:
+                    print(f"SSO API returned status {response.status}", file=sys.stderr)
+                    return None
         except Exception as e:
             # Failed to get SSO credentials
+            print(f"Error fetching SSO credentials: {str(e)}", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
             return None
 
         return None
@@ -271,6 +287,7 @@ class AWSProfileBridge:
         profiles = []
 
         # Use boto3 to enumerate all available profiles if available
+        # This is fast - just reads config files, doesn't validate credentials
         if BOTO3_AVAILABLE:
             try:
                 available_profiles = boto3.Session().available_profiles
@@ -278,9 +295,6 @@ class AWSProfileBridge:
 
                 for profile_name in available_profiles:
                     try:
-                        # Get profile configuration using boto3
-                        session = boto3.Session(profile_name=profile_name)
-
                         profile_data = {
                             'name': profile_name,
                             'has_credentials': False,
@@ -288,30 +302,6 @@ class AWSProfileBridge:
                             'expired': False,
                             'is_sso': False
                         }
-
-                        # Try to get credentials to check if they exist and are valid
-                        try:
-                            credentials = session.get_credentials()
-                            if credentials:
-                                profile_data['has_credentials'] = True
-
-                                # Check if credentials are frozen (have expiry)
-                                frozen_creds = credentials.get_frozen_credentials()
-                                if hasattr(credentials, '_expiry_time') and credentials._expiry_time:
-                                    profile_data['expiration'] = credentials._expiry_time.isoformat()
-                                    profile_data['expired'] = credentials._expiry_time < datetime.now(timezone.utc)
-                                else:
-                                    # Check if credentials exist in the credentials file with expiration comment
-                                    cred_file_profiles = self.parse_credentials_file()
-                                    for cred_profile in cred_file_profiles:
-                                        if cred_profile['name'] == profile_name:
-                                            profile_data['expiration'] = cred_profile.get('expiration')
-                                            profile_data['expired'] = cred_profile.get('expired', False)
-                                            break
-                        except Exception as e:
-                            # Credentials not available or expired
-                            profile_data['has_credentials'] = False
-                            profile_data['expired'] = True
 
                         # Check if this is an SSO profile by reading config
                         profile_config = self.get_profile_config(profile_name)
@@ -323,7 +313,7 @@ class AWSProfileBridge:
                             profile_data['sso_role_name'] = profile_config.get('sso_role_name')
                             profile_data['aws_region'] = profile_config.get('region')
 
-                            # Check SSO token status
+                            # Check SSO token status (fast - just reads cache file)
                             sso_token = self.get_sso_cached_token(profile_config['sso_start_url'])
                             if sso_token and 'expiresAt' in sso_token:
                                 expires_at = datetime.fromisoformat(sso_token['expiresAt'].replace('Z', '+00:00'))
@@ -334,6 +324,15 @@ class AWSProfileBridge:
                                 # No valid SSO token
                                 profile_data['expired'] = True
                                 profile_data['has_credentials'] = False
+                        else:
+                            # Check if credentials exist in the credentials file
+                            cred_file_profiles = self.parse_credentials_file()
+                            for cred_profile in cred_file_profiles:
+                                if cred_profile['name'] == profile_name:
+                                    profile_data['has_credentials'] = cred_profile.get('has_credentials', False)
+                                    profile_data['expiration'] = cred_profile.get('expiration')
+                                    profile_data['expired'] = cred_profile.get('expired', False)
+                                    break
 
                         profiles.append(profile_data)
 
