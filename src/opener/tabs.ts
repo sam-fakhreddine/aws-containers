@@ -1,4 +1,4 @@
-import { browser, ContextualIdentities } from "webextension-polyfill-ts";
+import browser, { type ContextualIdentities } from "webextension-polyfill";
 
 export async function newTab(
     container: ContextualIdentities.ContextualIdentity,

@@ -1,5 +1,5 @@
 import React, { FunctionComponent, useEffect, useState } from "react";
-import { browser, ContextualIdentities } from "webextension-polyfill-ts";
+import browser, { type ContextualIdentities } from "webextension-polyfill";
 
 interface AWSProfile {
     name: string;
@@ -42,8 +42,9 @@ async function saveContainerId(id: string) {
     const obj = await browser.storage.local.get("containers");
     const exists = "containers" in obj;
     if (exists) {
+        const containers = (obj.containers as string[]) || [];
         await browser.storage.local.set({
-            containers: [...obj.containers, id],
+            containers: [...containers, id],
         });
     } else {
         await browser.storage.local.set({ containers: [id] });
@@ -86,9 +87,9 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
     const loadSettings = async () => {
         const data = await browser.storage.local.get(["favorites", "recentProfiles", "selectedRegion"]);
-        if (data.favorites) setFavorites(data.favorites);
-        if (data.recentProfiles) setRecentProfiles(data.recentProfiles);
-        if (data.selectedRegion) setSelectedRegion(data.selectedRegion);
+        if (data.favorites) setFavorites(data.favorites as string[]);
+        if (data.recentProfiles) setRecentProfiles(data.recentProfiles as string[]);
+        if (data.selectedRegion) setSelectedRegion(data.selectedRegion as string);
     };
 
     const loadProfiles = async () => {
@@ -139,7 +140,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             browser.storage.local.get("containers"),
         ]);
         const containerIds: string[] =
-            "containers" in storageData ? storageData.containers : [];
+            "containers" in storageData ? (storageData.containers as string[]) || [] : [];
 
         setContainers(
             identities.filter((i) => containerIds.includes(i.cookieStoreId))
