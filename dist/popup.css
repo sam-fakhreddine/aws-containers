@@ -45,15 +45,20 @@ html {
     box-sizing: border-box;
     font-size: 12px;
     overscroll-behavior: none;
+    min-height: 100vh;
+    width: 100%;
 }
 
 body {
     font-family: var(--fontInter);
     font-size: 13px;
-    inline-size: 352px;
+    inline-size: 100%;
+    width: 100%;
     letter-spacing: -0.125px;
-    min-inline-size: 352px;
+    min-inline-size: 300px;
     background-color: var(--bgColor);
+    margin: 0;
+    padding: 0;
 
     --highlight-blue: #1296f8;
     --hr-grey: #cececf91;
@@ -64,14 +69,21 @@ body {
 
 html,
 body {
-    block-size: 100%; /* Bugfix: issue 948 */
-    max-block-size: 650px;
+    block-size: auto;
+    min-height: 100vh;
     min-block-size: 300px;
 
     /* stylelint-disable */
     scrollbar-width: none;
     /* stylelint-enable */
     transition: height 0.1s ease-in-out;
+}
+
+#popup {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 :root {
@@ -973,13 +985,13 @@ input[type="text"] {
     flex-direction: column;
     justify-content: space-between;
     position: relative;
-    max-block-size: 601px;
+    min-height: 100vh;
     background-color: var(--bgColor);
     transition: height 0.1s ease-in-out;
 }
 
 .container-panel {
-    min-block-size: 500px;
+    min-height: 100vh;
 }
 
 .delete-container-panel {
@@ -1795,6 +1807,9 @@ tr:hover > td > .trash-button {
         --controllerHover: var(--highlight-blue);
         --controllerActive: rgb(90, 89, 102);
         --bgDark: #2b2932;
+        --tab-bg: #2b2932;
+        --tab-text: #e0e0e0;
+        --tab-hover: #3a3842;
     }
 
     body {
@@ -1940,6 +1955,65 @@ tr:hover > td > .trash-button {
         .usercontext-icon::before {
         fill: #fff !important;
     }
+
+    /* Dark mode tabs */
+    .org-tabs-container {
+        background: #2b2932;
+    }
+
+    .org-tab {
+        color: #e0e0e0;
+    }
+
+    .org-tab:hover {
+        background: #3a3842;
+    }
+
+    .org-tab-active {
+        background: #0078f2 !important;
+        color: #ffffff !important;
+    }
+
+    .org-tab-active:hover {
+        background: #0066d9 !important;
+    }
+}
+
+/* Organization Tabs */
+.org-tabs-container {
+    display: flex;
+    overflow-x: auto;
+    padding: 4px;
+    gap: 4px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    margin: 0 8px 8px 8px;
+}
+
+.org-tab {
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    color: #1a1a1a;
+    transition: all 0.2s ease;
+}
+
+.org-tab:hover {
+    background: #e8e8e8;
+}
+
+.org-tab-active {
+    background: #0060df !important;
+    color: #ffffff !important;
+}
+
+.org-tab-active:hover {
+    background: #0050c8 !important;
 }
 
 /* OVERFLOW MENU */

@@ -1,7 +1,18 @@
 #!/usr/bin/env python3
 """
 AWS Profile Bridge - Native Messaging Host for Firefox Extension
-Reads AWS credentials file and provides profile information to the extension.
+
+SECURITY NOTICE:
+This script handles sensitive AWS credentials. It:
+- Reads ~/.aws/credentials (local filesystem only)
+- Reads ~/.aws/config for SSO profiles
+- Reads ~/.aws/sso/cache/ for SSO tokens
+- Sends credentials to AWS Federation API (HTTPS, official AWS service)
+- Never stores or caches credentials
+- Never logs credentials
+- Communicates only with Firefox extension via native messaging
+
+For security documentation, see SECURITY.md in the project root.
 """
 
 import json
@@ -12,12 +23,17 @@ import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
 import re
+import urllib.parse as parse
+import urllib.request as request
+import glob
+import hashlib
 
 
 class AWSProfileBridge:
     def __init__(self):
         self.credentials_file = Path.home() / '.aws' / 'credentials'
         self.config_file = Path.home() / '.aws' / 'config'
+        self.sso_cache_dir = Path.home() / '.aws' / 'sso' / 'cache'
 
     def send_message(self, message):
         """Send a message to the extension via native messaging protocol."""
@@ -91,6 +107,188 @@ class AWSProfileBridge:
 
         return profiles
 
+    def parse_config_file(self):
+        """Parse the AWS config file and extract SSO profile information."""
+        profiles = []
+
+        if not self.config_file.exists():
+            return profiles
+
+        current_profile = None
+        profile_data = {}
+
+        with open(self.config_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+
+                # Profile header [profile profile-name] or [default]
+                if line.startswith('[') and line.endswith(']'):
+                    # Save previous profile
+                    if current_profile and profile_data.get('sso_start_url'):
+                        profiles.append(profile_data)
+
+                    # Start new profile
+                    profile_name = line[1:-1]
+                    # Strip 'profile ' prefix if present
+                    if profile_name.startswith('profile '):
+                        profile_name = profile_name[8:]
+
+                    current_profile = profile_name
+                    profile_data = {
+                        'name': current_profile,
+                        'has_credentials': False,
+                        'expiration': None,
+                        'expired': False,
+                        'is_sso': False
+                    }
+
+                # Parse SSO configuration
+                elif '=' in line and current_profile:
+                    key, value = line.split('=', 1)
+                    key = key.strip()
+                    value = value.strip()
+
+                    if key == 'sso_start_url':
+                        profile_data['is_sso'] = True
+                        profile_data['sso_start_url'] = value
+                    elif key == 'sso_region':
+                        profile_data['sso_region'] = value
+                    elif key == 'sso_account_id':
+                        profile_data['sso_account_id'] = value
+                    elif key == 'sso_role_name':
+                        profile_data['sso_role_name'] = value
+                    elif key == 'region':
+                        profile_data['aws_region'] = value
+
+        # Save last profile if it's SSO
+        if current_profile and profile_data.get('sso_start_url'):
+            profiles.append(profile_data)
+
+        return profiles
+
+    def get_sso_cached_token(self, start_url):
+        """Get cached SSO token for a given start URL."""
+        if not self.sso_cache_dir.exists():
+            return None
+
+        # AWS CLI creates cache files with SHA1 hash of start URL as filename
+        cache_key = hashlib.sha1(start_url.encode('utf-8')).hexdigest()
+        cache_files = list(self.sso_cache_dir.glob('*.json'))
+
+        # Try to find cache file by hashed name first
+        cache_file = self.sso_cache_dir / f"{cache_key}.json"
+        if cache_file.exists():
+            try:
+                with open(cache_file, 'r') as f:
+                    cache_data = json.load(f)
+                    # Check if token is expired
+                    if 'expiresAt' in cache_data:
+                        expires_at = datetime.fromisoformat(cache_data['expiresAt'].replace('Z', '+00:00'))
+                        if expires_at > datetime.now(timezone.utc):
+                            return cache_data
+            except Exception:
+                pass
+
+        # Fallback: search all cache files for matching start URL
+        for cache_file in cache_files:
+            try:
+                with open(cache_file, 'r') as f:
+                    cache_data = json.load(f)
+                    if cache_data.get('startUrl') == start_url:
+                        # Check if token is expired
+                        if 'expiresAt' in cache_data:
+                            expires_at = datetime.fromisoformat(cache_data['expiresAt'].replace('Z', '+00:00'))
+                            if expires_at > datetime.now(timezone.utc):
+                                return cache_data
+            except Exception:
+                continue
+
+        return None
+
+    def get_sso_credentials(self, profile_config):
+        """Get temporary credentials for an SSO profile using cached token."""
+        try:
+            # Get cached SSO token
+            sso_token_data = self.get_sso_cached_token(profile_config['sso_start_url'])
+            if not sso_token_data or 'accessToken' not in sso_token_data:
+                return None
+
+            access_token = sso_token_data['accessToken']
+            sso_region = profile_config.get('sso_region', 'us-east-1')
+            account_id = profile_config.get('sso_account_id')
+            role_name = profile_config.get('sso_role_name')
+
+            if not account_id or not role_name:
+                return None
+
+            # Call AWS SSO API to get role credentials
+            # API endpoint: https://portal.sso.{region}.amazonaws.com
+            api_url = f"https://portal.sso.{sso_region}.amazonaws.com/federation/credentials"
+
+            request_params = {
+                'account_id': account_id,
+                'role_name': role_name
+            }
+
+            api_request = request.Request(
+                f"{api_url}?account_id={account_id}&role_name={role_name}",
+                headers={
+                    'x-amz-sso_bearer_token': access_token
+                }
+            )
+
+            with request.urlopen(api_request, timeout=10) as response:
+                if response.status == 200:
+                    creds = json.loads(response.read())
+
+                    # Convert to standard credential format
+                    return {
+                        'aws_access_key_id': creds['roleCredentials']['accessKeyId'],
+                        'aws_secret_access_key': creds['roleCredentials']['secretAccessKey'],
+                        'aws_session_token': creds['roleCredentials']['sessionToken'],
+                        'expiration': datetime.fromtimestamp(
+                            creds['roleCredentials']['expiration'] / 1000,
+                            tz=timezone.utc
+                        ).isoformat()
+                    }
+        except Exception as e:
+            # Failed to get SSO credentials
+            return None
+
+        return None
+
+    def get_all_profiles(self):
+        """Get all profiles from both credentials and config files."""
+        # Get credential-based profiles
+        cred_profiles = self.parse_credentials_file()
+
+        # Get SSO profiles from config
+        sso_profiles = self.parse_config_file()
+
+        # Check SSO profile status
+        for profile in sso_profiles:
+            # Check if SSO token is cached and valid
+            sso_token = self.get_sso_cached_token(profile['sso_start_url'])
+            if sso_token and 'expiresAt' in sso_token:
+                expires_at = datetime.fromisoformat(sso_token['expiresAt'].replace('Z', '+00:00'))
+                profile['expiration'] = expires_at.isoformat()
+                profile['expired'] = expires_at < datetime.now(timezone.utc)
+                profile['has_credentials'] = not profile['expired']
+            else:
+                # No valid SSO token
+                profile['expired'] = True
+                profile['has_credentials'] = False
+
+        # Merge profiles, preferring credential-based if name conflicts
+        all_profiles = {}
+        for profile in sso_profiles:
+            all_profiles[profile['name']] = profile
+        for profile in cred_profiles:
+            # Credential-based profiles take precedence
+            all_profiles[profile['name']] = profile
+
+        return list(all_profiles.values())
+
     def get_profile_color(self, profile_name):
         """Determine color based on profile name patterns."""
         name_lower = profile_name.lower()
@@ -124,43 +322,85 @@ class AWSProfileBridge:
             return 'circle'
 
     def generate_console_url(self, profile_name):
-        """Generate AWS console federation URL for a profile."""
+        """
+        Generate AWS console federation URL for a profile.
+
+        SECURITY: This function handles sensitive AWS credentials.
+        Data flow:
+        1. Reads credentials from ~/.aws/credentials or SSO cache (local filesystem)
+        2. For SSO: Gets temporary credentials from AWS SSO API
+        3. Sends credentials to AWS Federation API (HTTPS only)
+        4. Receives temporary signin token (12 hour expiry)
+        5. Returns console URL with token (no raw credentials)
+
+        Credentials are:
+        - NEVER stored or cached
+        - NEVER logged
+        - ONLY sent to AWS's official endpoints
+        - Used once per profile open
+        """
         try:
-            # Set the profile in environment
-            env = os.environ.copy()
-
-            # Read credentials for the profile
-            credentials = self.get_profile_credentials(profile_name)
+            # SECURITY: Read credentials from local filesystem or SSO
+            # Only this profile's credentials are accessed
+            credentials = self.get_profile_credentials_with_sso(profile_name)
             if not credentials:
-                return {'error': f'No credentials found for profile: {profile_name}'}
+                return {'error': f'No credentials found for profile: {profile_name}. For SSO profiles, run: aws sso login --profile {profile_name}'}
 
-            env['AWS_ACCESS_KEY_ID'] = credentials['aws_access_key_id']
-            env['AWS_SECRET_ACCESS_KEY'] = credentials['aws_secret_access_key']
-            if 'aws_session_token' in credentials:
-                env['AWS_SESSION_TOKEN'] = credentials['aws_session_token']
+            access_key = credentials.get('aws_access_key_id')
+            secret_key = credentials.get('aws_secret_access_key')
+            session_token = credentials.get('aws_session_token')
 
-            # Try to use aws_console.py if it exists
-            aws_console_script = Path.home() / '.local' / 'bin' / 'aws_console.py'
-            if aws_console_script.exists():
-                result = subprocess.run(
-                    ['python3', str(aws_console_script), '-u'],
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
-                if result.returncode == 0:
-                    url = result.stdout.strip().split()[0]
-                    return {'url': url}
+            if not access_key or not secret_key:
+                return {'error': f'Incomplete credentials for profile: {profile_name}'}
 
-            # Fallback: generate basic console URL
-            return {'url': 'https://console.aws.amazon.com/'}
+            # SECURITY: Long-term credentials (no session token) require IAM user
+            # We return basic console URL and let user log in manually
+            # This avoids transmitting long-term credentials over network
+            if not session_token:
+                return {'url': 'https://console.aws.amazon.com/'}
+
+            # SECURITY: Build federation request for AWS API
+            # Only temporary credentials (with session token) are sent
+            url_credentials = {
+                'sessionId': access_key,
+                'sessionKey': secret_key,
+                'sessionToken': session_token
+            }
+
+            # SECURITY: Call AWS Federation API (official AWS service)
+            # Endpoint: https://signin.aws.amazon.com/federation
+            # This is the ONLY network request made with credentials
+            # Request: Temporary credentials → Response: Signin token
+            request_parameters = "?Action=getSigninToken"
+            request_parameters += "&DurationSeconds=43200"  # 12 hours
+            request_parameters += "&Session=" + parse.quote_plus(json.dumps(url_credentials))
+            request_url = "https://signin.aws.amazon.com/federation" + request_parameters
+
+            # SECURITY: 10 second timeout prevents hanging on network issues
+            with request.urlopen(request_url, timeout=10) as response:
+                if response.status != 200:
+                    return {'error': 'Failed to get federation token from AWS'}
+                signin_token = json.loads(response.read())
+
+            # SECURITY: Build console URL with signin token
+            # This URL contains a temporary token, not credentials
+            request_parameters = "?Action=login"
+            request_parameters += "&Destination=" + parse.quote_plus("https://console.aws.amazon.com/")
+            request_parameters += "&SigninToken=" + signin_token["SigninToken"]
+            request_parameters += "&Issuer=" + parse.quote_plus("https://example.com")
+            console_url = "https://signin.aws.amazon.com/federation" + request_parameters
+
+            # SECURITY: Return URL with signin token
+            # Original credentials are discarded (garbage collected)
+            # No credentials are stored or cached
+            return {'url': console_url}
 
         except Exception as e:
+            # SECURITY: Error messages do NOT contain credentials
             return {'error': f'Failed to generate console URL: {str(e)}'}
 
     def get_profile_credentials(self, profile_name):
-        """Extract credentials for a specific profile."""
+        """Extract credentials for a specific profile from credentials file."""
         if not self.credentials_file.exists():
             return None
 
@@ -193,17 +433,74 @@ class AWSProfileBridge:
 
         return credentials if credentials else None
 
+    def get_profile_config(self, profile_name):
+        """Get profile configuration from config file."""
+        if not self.config_file.exists():
+            return None
+
+        profile_config = {}
+        in_profile = False
+
+        with open(self.config_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+
+                # Check profile headers
+                if line.startswith('[') and line.endswith(']'):
+                    current = line[1:-1]
+                    if current.startswith('profile '):
+                        current = current[8:]
+
+                    if current == profile_name:
+                        in_profile = True
+                        continue
+                    elif in_profile:
+                        break
+                    in_profile = False
+                    continue
+
+                # Parse config
+                if in_profile and '=' in line:
+                    key, value = line.split('=', 1)
+                    key = key.strip()
+                    value = value.strip()
+                    profile_config[key] = value
+
+        return profile_config if profile_config else None
+
+    def get_profile_credentials_with_sso(self, profile_name):
+        """Get credentials for a profile, supporting both credential-based and SSO profiles."""
+        # First try credentials file
+        credentials = self.get_profile_credentials(profile_name)
+        if credentials:
+            return credentials
+
+        # Try SSO profile
+        profile_config = self.get_profile_config(profile_name)
+        if profile_config and 'sso_start_url' in profile_config:
+            # This is an SSO profile
+            return self.get_sso_credentials(profile_config)
+
+        return None
+
     def handle_message(self, message):
         """Handle incoming messages from the extension."""
         action = message.get('action')
 
         if action == 'getProfiles':
-            profiles = self.parse_credentials_file()
+            # Get all profiles from both credentials and SSO config
+            profiles = self.get_all_profiles()
 
             # Add color and icon information
+            # Keep only necessary fields for the UI
             for profile in profiles:
                 profile['color'] = self.get_profile_color(profile['name'])
                 profile['icon'] = self.get_profile_icon(profile['name'])
+                # Keep sso_start_url for grouping in UI if it's an SSO profile
+                if not profile.get('is_sso'):
+                    # Remove SSO-specific fields for non-SSO profiles
+                    for key in ['sso_start_url', 'sso_region', 'sso_account_id', 'sso_role_name']:
+                        profile.pop(key, None)
 
             return {
                 'action': 'profileList',

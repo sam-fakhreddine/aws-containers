@@ -8,7 +8,60 @@ interface AWSProfile {
     expired: boolean;
     color: string;
     icon: string;
+    is_sso?: boolean;
+    sso_start_url?: string;
 }
+
+// Container management utilities
+async function lookupContainer(name: string) {
+    const containers = await browser.contextualIdentities.query({ name });
+    return containers.length >= 1 ? containers[0] : null;
+}
+
+async function prepareContainer(name: string, color: string, icon: string) {
+    const container = await lookupContainer(name);
+    if (!container) {
+        const created = await browser.contextualIdentities.create({
+            name,
+            color,
+            icon,
+        });
+        await saveContainerId(created.cookieStoreId);
+        return created;
+    } else {
+        // Update the existing container if the color or icon have changed
+        await browser.contextualIdentities.update(container.cookieStoreId, {
+            color,
+            icon,
+        });
+        return container;
+    }
+}
+
+async function saveContainerId(id: string) {
+    const obj = await browser.storage.local.get("containers");
+    const exists = "containers" in obj;
+    if (exists) {
+        await browser.storage.local.set({
+            containers: [...obj.containers, id],
+        });
+    } else {
+        await browser.storage.local.set({ containers: [id] });
+    }
+}
+
+const AWS_REGIONS = [
+    { code: "us-east-1", name: "US East (N. Virginia)" },
+    { code: "us-east-2", name: "US East (Ohio)" },
+    { code: "us-west-1", name: "US West (N. California)" },
+    { code: "us-west-2", name: "US West (Oregon)" },
+    { code: "eu-west-1", name: "EU (Ireland)" },
+    { code: "eu-west-2", name: "EU (London)" },
+    { code: "eu-central-1", name: "EU (Frankfurt)" },
+    { code: "ap-southeast-1", name: "Asia Pacific (Singapore)" },
+    { code: "ap-southeast-2", name: "Asia Pacific (Sydney)" },
+    { code: "ap-northeast-1", name: "Asia Pacific (Tokyo)" },
+];
 
 export const AWSProfilesPopup: FunctionComponent = () => {
     const [profiles, setProfiles] = useState<AWSProfile[]>([]);
@@ -18,12 +71,25 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     const [view, setView] = useState<"profiles" | "containers">("profiles");
     const [isRemoving, setIsRemoving] = useState(false);
     const [nativeMessagingAvailable, setNativeMessagingAvailable] = useState(false);
+    const [searchFilter, setSearchFilter] = useState("");
+    const [selectedRegion, setSelectedRegion] = useState("us-east-1");
+    const [favorites, setFavorites] = useState<string[]>([]);
+    const [recentProfiles, setRecentProfiles] = useState<string[]>([]);
+    const [selectedOrgTab, setSelectedOrgTab] = useState<string>("all");
 
     useEffect(() => {
         browser.runtime.sendMessage({ popupMounted: true });
+        loadSettings();
         loadProfiles();
         refreshContainers();
     }, []);
+
+    const loadSettings = async () => {
+        const data = await browser.storage.local.get(["favorites", "recentProfiles", "selectedRegion"]);
+        if (data.favorites) setFavorites(data.favorites);
+        if (data.recentProfiles) setRecentProfiles(data.recentProfiles);
+        if (data.selectedRegion) setSelectedRegion(data.selectedRegion);
+    };
 
     const loadProfiles = async () => {
         setLoading(true);
@@ -37,7 +103,11 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             // Set up message listener
             port.onMessage.addListener((response: any) => {
                 if (response.action === "profileList") {
-                    setProfiles(response.profiles);
+                    // Sort profiles alphabetically by name
+                    const sortedProfiles = response.profiles.sort((a: AWSProfile, b: AWSProfile) =>
+                        a.name.localeCompare(b.name)
+                    );
+                    setProfiles(sortedProfiles);
                     setLoading(false);
                 } else if (response.action === "error") {
                     setError(response.message);
@@ -78,20 +148,44 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
     const openProfile = async (profile: AWSProfile) => {
         try {
+            // Track in recent profiles
+            const updatedRecent = [
+                profile.name,
+                ...recentProfiles.filter(p => p !== profile.name)
+            ].slice(0, 10);
+            setRecentProfiles(updatedRecent);
+            await browser.storage.local.set({ recentProfiles: updatedRecent });
+
             const port = browser.runtime.connectNative("aws_profile_bridge");
 
             port.onMessage.addListener(async (response: any) => {
                 if (response.action === "consoleUrl") {
-                    // Build the container URL
-                    const encodedUrl = encodeURIComponent(response.url);
-                    const encodedName = encodeURIComponent(response.profileName);
-                    const fullUrl = `ext+container:url=${encodedUrl}&name=${encodedName}&color=${response.color}&icon=${response.icon}`;
+                    // Add region to the console URL
+                    let consoleUrl = response.url;
+                    if (consoleUrl.includes("console.aws.amazon.com")) {
+                        const urlObj = new URL(consoleUrl);
+                        urlObj.searchParams.set("region", selectedRegion);
+                        consoleUrl = urlObj.toString();
+                    }
 
-                    // Open in new tab with the protocol handler
-                    await browser.tabs.create({ url: fullUrl });
+                    // Create or get the container using native Firefox API
+                    const container = await prepareContainer(
+                        response.profileName,
+                        response.color,
+                        response.icon
+                    );
 
-                    // Close popup
-                    window.close();
+                    // Open tab directly in the container
+                    await browser.tabs.create({
+                        url: consoleUrl,
+                        cookieStoreId: container.cookieStoreId,
+                    });
+
+                    // Close popup only if in popup mode, not sidebar
+                    // Sidebar detection: popup windows are typically smaller
+                    if (window.innerWidth < 400) {
+                        window.close();
+                    }
                 } else if (response.action === "error") {
                     setError(response.message);
                 }
@@ -104,6 +198,87 @@ export const AWSProfilesPopup: FunctionComponent = () => {
         } catch (err) {
             setError(`Failed to open profile: ${err}`);
         }
+    };
+
+    const toggleFavorite = async (profileName: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const updatedFavorites = favorites.includes(profileName)
+            ? favorites.filter(f => f !== profileName)
+            : [...favorites, profileName];
+        setFavorites(updatedFavorites);
+        await browser.storage.local.set({ favorites: updatedFavorites });
+    };
+
+    const handleRegionChange = async (region: string) => {
+        setSelectedRegion(region);
+        await browser.storage.local.set({ selectedRegion: region });
+    };
+
+    const getOrganizations = () => {
+        const orgs = new Map<string, { name: string, profiles: AWSProfile[] }>();
+
+        // Credential accounts group
+        const credentialProfiles = profiles.filter(p => !p.is_sso);
+        if (credentialProfiles.length > 0) {
+            orgs.set("credentials", {
+                name: "Credential Accounts",
+                profiles: credentialProfiles.sort((a, b) => a.name.localeCompare(b.name))
+            });
+        }
+
+        // Group SSO profiles by start URL
+        const ssoProfiles = profiles.filter(p => p.is_sso);
+        const ssoGroups = new Map<string, AWSProfile[]>();
+
+        ssoProfiles.forEach(profile => {
+            const startUrl = profile.sso_start_url || "unknown";
+            if (!ssoGroups.has(startUrl)) {
+                ssoGroups.set(startUrl, []);
+            }
+            ssoGroups.get(startUrl)!.push(profile);
+        });
+
+        // Create organization entries for each SSO group
+        ssoGroups.forEach((profileList, startUrl) => {
+            // Extract org name from URL (e.g., "my-org" from "https://my-org.awsapps.com/start")
+            let orgName = "SSO Organization";
+            try {
+                const url = new URL(startUrl);
+                const hostname = url.hostname;
+                const match = hostname.match(/^([^.]+)/);
+                if (match) {
+                    orgName = match[1].charAt(0).toUpperCase() + match[1].slice(1);
+                }
+            } catch (e) {
+                // Keep default name
+            }
+
+            orgs.set(startUrl, {
+                name: orgName,
+                profiles: profileList.sort((a, b) => a.name.localeCompare(b.name))
+            });
+        });
+
+        return orgs;
+    };
+
+    const getFilteredProfiles = () => {
+        const orgs = getOrganizations();
+
+        // If a specific org is selected, filter to only that org
+        if (selectedOrgTab !== "all") {
+            const selectedOrg = orgs.get(selectedOrgTab);
+            if (!selectedOrg) return [];
+
+            return selectedOrg.profiles.filter(p =>
+                p.name.toLowerCase().includes(searchFilter.toLowerCase())
+            );
+        }
+
+        // Otherwise show all profiles with search filter
+        return profiles
+            .filter(p => p.name.toLowerCase().includes(searchFilter.toLowerCase()))
+            .sort((a, b) => a.name.localeCompare(b.name));
     };
 
     const clearContainers = async () => {
@@ -207,19 +382,20 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
     return (
         <div className="panel menu-panel container-panel" id="container-panel">
-            <h3 className="title">AWS Profile Containers</h3>
-            <div style={{ display: "flex", justifyContent: "center", gap: "5px", padding: "5px" }}>
+            <h3 className="title" style={{ fontSize: "18px", padding: "12px" }}>AWS Profile Containers</h3>
+            <div style={{ display: "flex", justifyContent: "center", gap: "8px", padding: "8px" }}>
                 <button
                     onClick={() => setView("profiles")}
                     style={{
                         flex: 1,
-                        padding: "5px",
+                        padding: "10px",
                         background: view === "profiles" ? "#0060df" : "#f5f5f5",
                         color: view === "profiles" ? "white" : "black",
                         border: "none",
-                        borderRadius: "3px",
+                        borderRadius: "4px",
                         cursor: "pointer",
-                        fontSize: "12px"
+                        fontSize: "15px",
+                        fontWeight: view === "profiles" ? "bold" : "normal"
                     }}
                 >
                     AWS Profiles
@@ -228,13 +404,14 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                     onClick={() => setView("containers")}
                     style={{
                         flex: 1,
-                        padding: "5px",
+                        padding: "10px",
                         background: view === "containers" ? "#0060df" : "#f5f5f5",
                         color: view === "containers" ? "white" : "black",
                         border: "none",
-                        borderRadius: "3px",
+                        borderRadius: "4px",
                         cursor: "pointer",
-                        fontSize: "12px"
+                        fontSize: "15px",
+                        fontWeight: view === "containers" ? "bold" : "normal"
                     }}
                 >
                     Containers ({containers.length})
@@ -243,71 +420,192 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             <hr />
 
             {loading ? (
-                <div style={{ padding: "20px", textAlign: "center" }}>
+                <div style={{ padding: "30px", textAlign: "center", fontSize: "16px" }}>
                     Loading profiles...
                 </div>
             ) : error ? (
-                <div style={{ padding: "10px", color: "red", fontSize: "12px" }}>
+                <div style={{ padding: "16px", color: "red", fontSize: "15px" }}>
                     {error}
-                    <button onClick={loadProfiles} style={{ marginTop: "10px" }}>
+                    <button onClick={loadProfiles} style={{
+                        marginTop: "12px",
+                        padding: "10px 16px",
+                        fontSize: "15px",
+                        background: "#0060df",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer"
+                    }}>
                         Retry
                     </button>
                 </div>
             ) : view === "profiles" ? (
                 <>
+                    {/* Search and Region Controls */}
+                    <div style={{ padding: "8px" }}>
+                        <input
+                            type="text"
+                            placeholder="Search profiles..."
+                            value={searchFilter}
+                            onChange={(e) => setSearchFilter(e.target.value)}
+                            style={{
+                                width: "100%",
+                                padding: "10px 12px",
+                                fontSize: "15px",
+                                border: "1px solid #ccc",
+                                borderRadius: "4px",
+                                marginBottom: "8px"
+                            }}
+                        />
+                        <select
+                            value={selectedRegion}
+                            onChange={(e) => handleRegionChange(e.target.value)}
+                            style={{
+                                width: "100%",
+                                padding: "10px 12px",
+                                fontSize: "15px",
+                                border: "1px solid #ccc",
+                                borderRadius: "4px"
+                            }}
+                        >
+                            {AWS_REGIONS.map(region => (
+                                <option key={region.code} value={region.code}>
+                                    {region.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Organization Tabs */}
+                    {(() => {
+                        const orgs = getOrganizations();
+                        if (orgs.size > 1) {
+                            return (
+                                <div className="org-tabs-container">
+                                    <button
+                                        className={`org-tab ${selectedOrgTab === "all" ? "org-tab-active" : ""}`}
+                                        onClick={() => setSelectedOrgTab("all")}
+                                    >
+                                        All ({profiles.length})
+                                    </button>
+                                    {Array.from(orgs.entries()).map(([key, org]) => (
+                                        <button
+                                            key={key}
+                                            className={`org-tab ${selectedOrgTab === key ? "org-tab-active" : ""}`}
+                                            onClick={() => setSelectedOrgTab(key)}
+                                        >
+                                            {org.name} ({org.profiles.length})
+                                        </button>
+                                    ))}
+                                </div>
+                            );
+                        }
+                        return null;
+                    })()}
+
                     <div className="scrollable identities-list">
-                        <table className="menu" id="identities-list">
+                        <table className="menu" id="identities-list" style={{ width: "100%" }}>
                             {profiles.length === 0 ? (
                                 <tr>
-                                    <td style={{ padding: "20px", textAlign: "center" }}>
-                                        No AWS profiles found in ~/.aws/credentials
+                                    <td style={{ padding: "20px", textAlign: "center", fontSize: "15px" }}>
+                                        No AWS profiles found in ~/.aws/credentials or ~/.aws/config
                                     </td>
                                 </tr>
-                            ) : (
-                                profiles.map((profile) => (
+                            ) : (() => {
+                                const filteredProfiles = getFilteredProfiles();
+
+                                const renderProfile = (profile: AWSProfile) => (
                                     <tr
                                         key={profile.name}
                                         className="menu-item hover-highlight"
                                         onClick={() => openProfile(profile)}
                                         style={{ cursor: "pointer" }}
                                     >
-                                        <td>
-                                            <div className="menu-icon hover-highlight">
+                                        <td style={{ padding: "12px 8px" }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                                <div className="menu-icon hover-highlight">
+                                                    <div
+                                                        className="usercontext-icon"
+                                                        data-identity-icon={profile.icon}
+                                                        data-identity-color={profile.color}
+                                                        style={{ width: "24px", height: "24px" }}
+                                                    ></div>
+                                                </div>
+                                                <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px" }}>
+                                                        <span style={{ fontSize: "16px", fontWeight: "500" }}>
+                                                            {profile.name}
+                                                        </span>
+                                                        {profile.is_sso && (
+                                                            <span style={{
+                                                                fontSize: "11px",
+                                                                background: "#0060df",
+                                                                color: "white",
+                                                                padding: "3px 6px",
+                                                                borderRadius: "3px",
+                                                                fontWeight: "bold"
+                                                            }}>
+                                                                SSO
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {profile.expiration && (
+                                                        <span style={{
+                                                            fontSize: "13px",
+                                                            color: profile.expired ? "#d70022" : "#666"
+                                                        }}>
+                                                            {formatExpiration(profile.expiration, profile.expired)}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div
-                                                    className="usercontext-icon"
-                                                    data-identity-icon={profile.icon}
-                                                    data-identity-color={profile.color}
-                                                ></div>
-                                            </div>
-                                            <div style={{ display: "flex", flexDirection: "column" }}>
-                                                <span className="menu-text">
-                                                    {profile.name}
-                                                </span>
-                                                {profile.expiration && (
-                                                    <span style={{
-                                                        fontSize: "10px",
-                                                        color: profile.expired ? "#d70022" : "#666",
-                                                        marginLeft: "32px"
-                                                    }}>
-                                                        {formatExpiration(profile.expiration, profile.expired)}
-                                                    </span>
-                                                )}
+                                                    onClick={(e) => toggleFavorite(profile.name, e)}
+                                                    style={{
+                                                        padding: "6px 10px",
+                                                        cursor: "pointer",
+                                                        fontSize: "20px"
+                                                    }}
+                                                >
+                                                    {favorites.includes(profile.name) ? "★" : "☆"}
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
-                                ))
-                            )}
+                                );
+
+                                if (filteredProfiles.length === 0) {
+                                    return (
+                                        <tr>
+                                            <td style={{ padding: "20px", textAlign: "center", fontSize: "15px" }}>
+                                                No profiles match your search
+                                            </td>
+                                        </tr>
+                                    );
+                                }
+
+                                return (
+                                    <>
+                                        {filteredProfiles.map(renderProfile)}
+                                    </>
+                                );
+                            })()}
                         </table>
                     </div>
                     <div className="v-padding-hack-footer" />
-                    <div style={{ display: "flex", gap: "5px", padding: "5px" }}>
+                    <div style={{ display: "flex", gap: "8px", padding: "8px" }}>
                         <div
                             className="bottom-btn keyboard-nav controller"
                             tabIndex={0}
                             onClick={loadProfiles}
-                            style={{ flex: 1, textAlign: "center" }}
+                            style={{
+                                flex: 1,
+                                textAlign: "center",
+                                fontSize: "15px",
+                                padding: "10px",
+                                fontWeight: "500"
+                            }}
                         >
-                            ↻ Refresh
+                            Refresh
                         </div>
                     </div>
                 </>

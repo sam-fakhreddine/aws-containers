@@ -7,6 +7,20 @@
         "default_icon": "granted-icon.svg",
         "default_popup": "popup.html"
     },
+    "sidebar_action": {
+        "default_icon": "granted-icon.svg",
+        "default_title": "AWS Profile Containers",
+        "default_panel": "popup.html",
+        "open_at_install": false
+    },
+    "commands": {
+        "_execute_sidebar_action": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+P",
+                "mac": "Command+Shift+P"
+            }
+        }
+    },
     "background": {
         "scripts": ["js/backgroundPage.js"],
         "persistent": false
@@ -16,13 +30,6 @@
         "48": "granted-icon.svg",
         "128": "granted-icon.svg"
     },
-    "protocol_handlers": [
-        {
-            "protocol": "ext+container",
-            "name": "Open links in AWS Containers",
-            "uriTemplate": "/opener.html#%s"
-        }
-    ],
     "permissions": ["contextualIdentities", "cookies", "tabs", "storage", "nativeMessaging"],
     "browser_specific_settings": {
         "gecko": {
