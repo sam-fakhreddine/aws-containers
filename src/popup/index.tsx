@@ -1,9 +1,13 @@
 import * as React from "react";
-import * as ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 import { browser } from "webextension-polyfill-ts";
 import { AWSProfilesPopup } from "./awsProfiles";
 // import "../scss/app.scss";
 
 browser.tabs.query({ active: true, currentWindow: true }).then(() => {
-    ReactDOM.render(<AWSProfilesPopup />, document.getElementById("popup"));
+    const container = document.getElementById("popup");
+    if (container) {
+        const root = createRoot(container);
+        root.render(<AWSProfilesPopup />);
+    }
 });
