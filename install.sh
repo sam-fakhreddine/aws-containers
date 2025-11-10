@@ -1,0 +1,155 @@
+#!/bin/bash
+# Installation script for AWS Profile Containers Firefox Extension
+
+set -e
+
+echo "=========================================="
+echo "AWS Profile Containers - Installation"
+echo "=========================================="
+echo ""
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Determine OS
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    OS="macos"
+    NATIVE_MESSAGING_DIR="$HOME/Library/Application Support/Mozilla/NativeMessagingHosts"
+elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    OS="linux"
+    NATIVE_MESSAGING_DIR="$HOME/.mozilla/native-messaging-hosts"
+else
+    echo -e "${RED}Error: Unsupported operating system${NC}"
+    exit 1
+fi
+
+echo "Detected OS: $OS"
+echo ""
+
+# Step 1: Install Python script
+echo "Step 1: Installing Python native messaging bridge..."
+INSTALL_DIR="$HOME/.local/bin"
+mkdir -p "$INSTALL_DIR"
+
+cp native-messaging/aws_profile_bridge.py "$INSTALL_DIR/aws_profile_bridge.py"
+chmod +x "$INSTALL_DIR/aws_profile_bridge.py"
+
+echo -e "${GREEN}✓${NC} Python script installed to: $INSTALL_DIR/aws_profile_bridge.py"
+echo ""
+
+# Step 2: Update native messaging manifest with correct path
+echo "Step 2: Installing native messaging host manifest..."
+mkdir -p "$NATIVE_MESSAGING_DIR"
+
+# Create manifest with correct path
+cat > "$NATIVE_MESSAGING_DIR/aws_profile_bridge.json" <<EOF
+{
+  "name": "aws_profile_bridge",
+  "description": "AWS Profile Bridge for reading credentials file",
+  "path": "$INSTALL_DIR/aws_profile_bridge.py",
+  "type": "stdio",
+  "allowed_extensions": [
+    "aws-profile-containers@yourname.local"
+  ]
+}
+EOF
+
+echo -e "${GREEN}✓${NC} Native messaging manifest installed to: $NATIVE_MESSAGING_DIR/aws_profile_bridge.json"
+echo ""
+
+# Step 3: Check for Node.js and Yarn
+echo "Step 3: Checking build dependencies..."
+
+if ! command -v node &> /dev/null; then
+    echo -e "${RED}✗${NC} Node.js not found. Please install Node.js first."
+    exit 1
+fi
+
+if ! command -v yarn &> /dev/null; then
+    echo -e "${YELLOW}!${NC} Yarn not found. Installing dependencies with npm instead..."
+    USE_NPM=true
+else
+    USE_NPM=false
+fi
+
+echo -e "${GREEN}✓${NC} Build tools available"
+echo ""
+
+# Step 4: Install dependencies
+echo "Step 4: Installing extension dependencies..."
+
+if [ "$USE_NPM" = true ]; then
+    npm install
+else
+    yarn install --frozen-lockfile
+fi
+
+echo -e "${GREEN}✓${NC} Dependencies installed"
+echo ""
+
+# Step 5: Build extension
+echo "Step 5: Building extension..."
+
+if [ "$USE_NPM" = true ]; then
+    npm run build
+else
+    yarn build
+fi
+
+echo -e "${GREEN}✓${NC} Extension built successfully"
+echo ""
+
+# Step 6: Check for AWS credentials file
+echo "Step 6: Checking AWS credentials..."
+
+if [ -f "$HOME/.aws/credentials" ]; then
+    PROFILE_COUNT=$(grep -c '^\[' "$HOME/.aws/credentials" || echo "0")
+    echo -e "${GREEN}✓${NC} Found AWS credentials file with $PROFILE_COUNT profiles"
+else
+    echo -e "${YELLOW}!${NC} AWS credentials file not found at: $HOME/.aws/credentials"
+    echo "  You'll need to set up AWS credentials before using the extension."
+fi
+echo ""
+
+# Step 7: Instructions for loading in Firefox
+echo "=========================================="
+echo "Installation Complete!"
+echo "=========================================="
+echo ""
+echo "Next steps:"
+echo ""
+echo "1. Open Firefox and navigate to: about:debugging#/runtime/this-firefox"
+echo ""
+echo "2. Click 'Load Temporary Add-on'"
+echo ""
+echo "3. Navigate to and select this file:"
+echo "   $(pwd)/dist/manifest.json"
+echo ""
+echo "4. The extension icon should appear in your toolbar"
+echo ""
+echo "5. Click the extension icon to see your AWS profiles"
+echo ""
+echo -e "${YELLOW}Note:${NC} Temporary extensions are removed when Firefox restarts."
+echo "      For permanent installation, you'll need to sign the extension."
+echo ""
+echo "=========================================="
+echo "Testing the Installation"
+echo "=========================================="
+echo ""
+echo "To test if everything is working:"
+echo ""
+echo "1. Click the extension icon in Firefox"
+echo "2. You should see a list of your AWS profiles"
+echo "3. Click on a profile to open it in a container"
+echo ""
+echo "If you see 'Setup Required', try:"
+echo "- Restarting Firefox"
+echo "- Checking that the Python script is executable:"
+echo "  ls -la $INSTALL_DIR/aws_profile_bridge.py"
+echo "- Checking the native messaging manifest:"
+echo "  cat $NATIVE_MESSAGING_DIR/aws_profile_bridge.json"
+echo ""
+echo -e "${GREEN}Happy containerizing!${NC}"

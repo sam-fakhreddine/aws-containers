@@ -1,0 +1,32 @@
+{
+    "manifest_version": 2,
+    "name": "AWS Profile Containers",
+    "description": "Open AWS profiles from credentials file in separate containers.",
+    "version": "2.0.0",
+    "browser_action": {
+        "default_icon": "granted-icon.svg",
+        "default_popup": "popup.html"
+    },
+    "background": {
+        "scripts": ["js/backgroundPage.js"],
+        "persistent": false
+    },
+    "icons": {
+        "16": "granted-icon.svg",
+        "48": "granted-icon.svg",
+        "128": "granted-icon.svg"
+    },
+    "protocol_handlers": [
+        {
+            "protocol": "ext+container",
+            "name": "Open links in AWS Containers",
+            "uriTemplate": "/opener.html#%s"
+        }
+    ],
+    "permissions": ["contextualIdentities", "cookies", "tabs", "storage", "nativeMessaging"],
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "aws-profile-containers@yourname.local"
+        }
+    }
+}
