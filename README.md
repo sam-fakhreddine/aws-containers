@@ -97,6 +97,10 @@ For releases, pre-built executables are available:
 1. Download from [Releases](https://github.com/sam-fakhreddine/aws-containers/releases)
 2. Extract and run `./install.sh`
 
+**Platforms:** Linux, macOS Intel, macOS Apple Silicon
+
+**Note:** macOS binaries are unsigned (code signing optional for now). See [INSTALL.md](INSTALL.md) for Gatekeeper bypass instructions.
+
 No Python, no dependencies, just works! ✨
 
 ### For Developers: Build from Source

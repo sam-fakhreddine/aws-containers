@@ -50,9 +50,9 @@ This method creates a standalone executable that includes Python and all depende
 ### For End Users (Download from Releases)
 
 1. Download the pre-built package for your platform from [GitHub Releases](https://github.com/sam-fakhreddine/aws-containers/releases):
-   - `aws_profile_bridge-linux` for Linux
-   - `aws_profile_bridge-macos-intel` for macOS Intel (x86_64)
-   - `aws_profile_bridge-macos-arm64` for macOS Apple Silicon (M1/M2/M3)
+   - ✅ `aws_profile_bridge-linux` for Linux
+   - ✅ `aws_profile_bridge-macos-intel` for macOS Intel (x86_64) - *Unsigned*
+   - ✅ `aws_profile_bridge-macos-arm64` for macOS Apple Silicon (M1/M2/M3) - *Unsigned*
 
 2. Make the downloaded file executable and place it in the `bin/` directory:
    ```bash
@@ -65,14 +65,18 @@ This method creates a standalone executable that includes Python and all depende
    mkdir -p bin/darwin-x86_64
    mv ~/Downloads/aws_profile_bridge-macos-intel bin/darwin-x86_64/aws_profile_bridge
    chmod +x bin/darwin-x86_64/aws_profile_bridge
+   # Remove quarantine flag (macOS only)
+   xattr -d com.apple.quarantine bin/darwin-x86_64/aws_profile_bridge 2>/dev/null || true
 
    # For macOS Apple Silicon (ARM64)
    mkdir -p bin/darwin-arm64
    mv ~/Downloads/aws_profile_bridge-macos-arm64 bin/darwin-arm64/aws_profile_bridge
    chmod +x bin/darwin-arm64/aws_profile_bridge
+   # Remove quarantine flag (macOS only)
+   xattr -d com.apple.quarantine bin/darwin-arm64/aws_profile_bridge 2>/dev/null || true
    ```
 
-   **Note:** The install script automatically detects your architecture. You only need to download the correct version for your Mac.
+   **Note for macOS users:** Binaries are currently **unsigned**. You'll need to bypass Gatekeeper (see Platform-Specific Notes below). Code signing coming soon!
 
 3. Run the installation script:
    ```bash
@@ -81,7 +85,7 @@ This method creates a standalone executable that includes Python and all depende
 
 ### For Developers (Build from Source)
 
-If you want to build the standalone executable yourself:
+If you want to build the standalone executable yourself (works on Linux and macOS):
 
 #### Prerequisites
 
@@ -99,11 +103,16 @@ This will:
 - Create a virtual environment
 - Install PyInstaller and dependencies
 - Build a standalone executable in `bin/<platform>/`
+  - Linux: `bin/linux/aws_profile_bridge`
+  - macOS Intel: `bin/darwin-x86_64/aws_profile_bridge`
+  - macOS ARM64: `bin/darwin-arm64/aws_profile_bridge`
 - The executable is ~15-20MB and includes:
   - ✓ Python runtime
   - ✓ boto3 library
   - ✓ botocore library
   - ✓ All required dependencies
+
+**macOS Note:** Building from source works! Pre-built binaries are available in releases (unsigned - code signing optional for now).
 
 ```bash
 # Install everything (uses the newly built executable)
@@ -229,10 +238,27 @@ If you see "Setup Required":
   - Intel Macs (x86_64): Use `aws_profile_bridge-macos-intel`
   - Apple Silicon (M1/M2/M3): Use `aws_profile_bridge-macos-arm64`
   - The install script automatically detects your architecture
-- You may need to grant permissions for the executable to run:
-  ```bash
-  xattr -d com.apple.quarantine ~/.local/bin/aws_profile_bridge
-  ```
+
+**Bypassing Gatekeeper for Unsigned Binaries:**
+
+Since the macOS binaries are currently unsigned, you'll need to bypass Gatekeeper:
+
+1. **Remove quarantine flag:**
+   ```bash
+   xattr -d com.apple.quarantine ~/.local/bin/aws_profile_bridge
+   ```
+
+2. **If you still get "unidentified developer" warnings:**
+   - Right-click the executable in Finder
+   - Select "Open"
+   - Click "Open" in the security dialog
+
+3. **Alternative: Allow in System Settings:**
+   - System Settings → Privacy & Security
+   - Scroll to "Security" section
+   - Click "Allow Anyway" next to the blocked executable
+
+**Note:** Code signing will be added in a future release to eliminate these steps.
 
 ### Windows
 
