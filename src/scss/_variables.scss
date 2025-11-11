@@ -1,0 +1,16 @@
+/**
+ * SCSS Variables
+ * Define project-wide variables for consistency
+ */
+
+// Popup dimensions
+$popup-min-width: 300px;
+$popup-min-height: 300px;
+
+// Spacing
+$spacing-unit: 8px;
+
+// Z-index layers
+$z-index-base: 1;
+$z-index-dropdown: 10;
+$z-index-modal: 100;
