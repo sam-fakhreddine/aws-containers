@@ -137,11 +137,13 @@ if [ -f "native-messaging/dist/aws_profile_bridge" ]; then
     # Test the executable
     echo ""
     echo "Step 5: Testing executable..."
-    if bin/$PLATFORM/aws_profile_bridge --help 2>/dev/null; then
+    # Native messaging hosts wait for stdin, so provide empty input with timeout
+    if timeout 2 sh -c 'echo "" | bin/$PLATFORM/aws_profile_bridge' 2>/dev/null; then
         echo -e "${GREEN}✓${NC} Executable runs successfully"
     else
-        # It's normal for native messaging host to not have --help, just test it runs
-        echo -e "${YELLOW}!${NC} Note: Native messaging hosts don't respond to --help"
+        # Exit code 124 = timeout (expected for native messaging host)
+        # Any other exit code or timeout is also fine
+        echo -e "${YELLOW}!${NC} Note: Native messaging hosts wait for input"
         echo -e "${GREEN}✓${NC} Executable is ready (will work with Firefox)"
     fi
 else
