@@ -13,9 +13,10 @@ browser.runtime.onMessage.addListener((request: unknown) => {
     }
 
     const message = request as { popupMounted?: boolean };
-    // Log statement if request.popupMounted is true
+    // Handle popup mounted notification
     // NOTE: this request is sent in `popup/component.tsx`
     if (message.popupMounted) {
-        console.log("backgroundPage notified that Popup.tsx has mounted.");
+        // Popup has mounted successfully
+        // Debug logging removed for production
     }
 });

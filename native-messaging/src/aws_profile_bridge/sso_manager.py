@@ -13,6 +13,9 @@ from datetime import datetime, timezone
 from typing import Optional, Dict
 import urllib.request as request
 
+# Constants
+DEFAULT_CACHE_TTL_SECONDS = 30  # In-memory cache TTL for SSO tokens
+
 
 class SSOTokenCache:
     """Manages caching of SSO tokens (file and memory)."""
@@ -20,7 +23,7 @@ class SSOTokenCache:
     def __init__(self, cache_dir: Path):
         self.cache_dir = cache_dir
         self._memory_cache: Dict[str, tuple] = {}
-        self._cache_ttl_seconds = 30
+        self._cache_ttl_seconds = DEFAULT_CACHE_TTL_SECONDS
 
     def get_token(self, start_url: str) -> Optional[Dict]:
         """Get cached SSO token for a given start URL."""

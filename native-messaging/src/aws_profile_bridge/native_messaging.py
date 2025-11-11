@@ -9,8 +9,17 @@ Follows Single Responsibility Principle.
 import json
 import struct
 import sys
+import logging
 from typing import Optional, Dict, BinaryIO
 from abc import ABC, abstractmethod
+
+# Configure logging
+logging.basicConfig(
+    level=logging.ERROR,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.FileHandler('/tmp/aws_profile_bridge.log'), logging.StreamHandler(sys.stderr)]
+)
+logger = logging.getLogger(__name__)
 
 
 class MessageReader(ABC):
@@ -69,7 +78,14 @@ class NativeMessagingReader(MessageReader):
             message_text = message_bytes.decode('utf-8')
             return json.loads(message_text)
 
-        except Exception:
+        except ValueError as e:
+            logger.error(f"Message format error: {e}")
+            return None
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error reading message: {e}", exc_info=True)
             return None
 
 
@@ -102,9 +118,12 @@ class NativeMessagingWriter(MessageWriter):
             # Flush to ensure message is sent
             self.output_stream.flush()
 
-        except Exception:
-            # Silently fail - can't communicate errors in native messaging
-            pass
+        except IOError as e:
+            # Log I/O errors but don't crash - stream may be closed
+            logger.error(f"Failed to write message (I/O error): {e}")
+        except Exception as e:
+            # Log unexpected errors with full traceback
+            logger.error(f"Unexpected error writing message: {e}", exc_info=True)
 
 
 class MessageHandler(ABC):

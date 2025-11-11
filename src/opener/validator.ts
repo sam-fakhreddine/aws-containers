@@ -58,22 +58,37 @@ export function sanitizeURLSearchParams(
 /**
  * Validates and normalizes a URL parameter
  * Attempts to add https:// prefix if URL parsing fails
+ * Only allows HTTP and HTTPS protocols for security
  * @param p - The URL string to validate
  * @returns The validated URL string
- * @throws Error if URL is invalid even with https:// prefix
+ * @throws Error if URL is invalid or uses dangerous protocol
  */
 export function url(p: any): any {
     if (isEmpty(p)) {
         return p;
     }
 
-    try {
-        return new URL(p).toString();
-    } catch {} // eslint-disable-line no-empty
+    let urlObj: URL;
 
-    // let's try to add 'https://' prefix and try again
-    p = "https://" + p;
-    return new URL(p).toString();
+    try {
+        urlObj = new URL(p);
+    } catch (firstError) {
+        // If first parse fails, try adding https:// prefix
+        try {
+            urlObj = new URL("https://" + p);
+        } catch (secondError) {
+            throw new Error(`Invalid URL: ${p}`);
+        }
+    }
+
+    // Security: Only allow http and https protocols
+    // Reject javascript:, data:, file:, and other dangerous protocols
+    const allowedProtocols = ['http:', 'https:'];
+    if (!allowedProtocols.includes(urlObj.protocol)) {
+        throw new Error(`URL protocol "${urlObj.protocol}" is not allowed. Only HTTP and HTTPS are permitted.`);
+    }
+
+    return urlObj.toString();
 }
 
 /**

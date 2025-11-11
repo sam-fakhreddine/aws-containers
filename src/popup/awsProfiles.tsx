@@ -1,259 +1,141 @@
-import React, { FunctionComponent, useEffect, useState, useMemo } from "react";
-import browser, { type ContextualIdentities } from "webextension-polyfill";
+/**
+ * AWS Profiles Popup - Main Component
+ * Orchestrates all hooks and components for the popup interface
+ * Refactored to use custom hooks and extracted components
+ */
 
-interface AWSProfile {
-    name: string;
-    has_credentials: boolean;
-    expiration: string | null;
-    expired: boolean;
-    color: string;
-    icon: string;
-    is_sso?: boolean;
-    sso_start_url?: string;
-}
+import React, { FunctionComponent, useEffect, useState, useMemo, useCallback } from "react";
+import browser from "webextension-polyfill";
+import { POPUP_WIDTH_THRESHOLD, NATIVE_MESSAGING_HOST_NAME } from "./constants";
+import { AWSProfile, isConsoleUrlResponse, isErrorResponse } from "./types";
+import { prepareContainer } from "../utils/containerManager";
 
-// Container management utilities
-export async function lookupContainer(name: string) {
-    const containers = await browser.contextualIdentities.query({ name });
-    return containers.length >= 1 ? containers[0] : null;
-}
+// Custom hooks
+import {
+    useProfiles,
+    useFavorites,
+    useContainers,
+    useRecentProfiles,
+    useRegion,
+} from "./hooks";
 
-export async function prepareContainer(name: string, color: string, icon: string) {
-    const container = await lookupContainer(name);
-    if (!container) {
-        const created = await browser.contextualIdentities.create({
-            name,
-            color,
-            icon,
-        });
-        await saveContainerId(created.cookieStoreId);
-        return created;
-    } else {
-        // Update the existing container if the color or icon have changed
-        await browser.contextualIdentities.update(container.cookieStoreId, {
-            color,
-            icon,
-        });
-        return container;
-    }
-}
+// UI Components
+import {
+    ProfileList,
+    ProfileSearch,
+    OrganizationTabs,
+    LoadingState,
+    ErrorState,
+} from "./components";
 
-export async function saveContainerId(id: string) {
-    const obj = await browser.storage.local.get("containers");
-    const exists = "containers" in obj;
-    if (exists) {
-        const containers = (obj.containers as string[]) || [];
-        await browser.storage.local.set({
-            containers: [...containers, id],
-        });
-    } else {
-        await browser.storage.local.set({ containers: [id] });
-    }
-}
-
+/**
+ * Complete list of AWS commercial regions
+ */
 const AWS_REGIONS = [
+    // US Regions
     { code: "us-east-1", name: "US East (N. Virginia)" },
     { code: "us-east-2", name: "US East (Ohio)" },
     { code: "us-west-1", name: "US West (N. California)" },
     { code: "us-west-2", name: "US West (Oregon)" },
-    { code: "eu-west-1", name: "EU (Ireland)" },
-    { code: "eu-west-2", name: "EU (London)" },
-    { code: "eu-central-1", name: "EU (Frankfurt)" },
+    // Canada
+    { code: "ca-central-1", name: "Canada (Central)" },
+    { code: "ca-west-1", name: "Canada (Calgary)" },
+    // South America
+    { code: "sa-east-1", name: "South America (São Paulo)" },
+    // Europe
+    { code: "eu-central-1", name: "Europe (Frankfurt)" },
+    { code: "eu-central-2", name: "Europe (Zurich)" },
+    { code: "eu-west-1", name: "Europe (Ireland)" },
+    { code: "eu-west-2", name: "Europe (London)" },
+    { code: "eu-west-3", name: "Europe (Paris)" },
+    { code: "eu-south-1", name: "Europe (Milan)" },
+    { code: "eu-south-2", name: "Europe (Spain)" },
+    { code: "eu-north-1", name: "Europe (Stockholm)" },
+    // Asia Pacific
+    { code: "ap-east-1", name: "Asia Pacific (Hong Kong)" },
+    { code: "ap-south-1", name: "Asia Pacific (Mumbai)" },
+    { code: "ap-south-2", name: "Asia Pacific (Hyderabad)" },
     { code: "ap-southeast-1", name: "Asia Pacific (Singapore)" },
     { code: "ap-southeast-2", name: "Asia Pacific (Sydney)" },
+    { code: "ap-southeast-3", name: "Asia Pacific (Jakarta)" },
+    { code: "ap-southeast-4", name: "Asia Pacific (Melbourne)" },
     { code: "ap-northeast-1", name: "Asia Pacific (Tokyo)" },
+    { code: "ap-northeast-2", name: "Asia Pacific (Seoul)" },
+    { code: "ap-northeast-3", name: "Asia Pacific (Osaka)" },
+    // Middle East
+    { code: "me-south-1", name: "Middle East (Bahrain)" },
+    { code: "me-central-1", name: "Middle East (UAE)" },
+    // Africa
+    { code: "af-south-1", name: "Africa (Cape Town)" },
+    // Israel
+    { code: "il-central-1", name: "Israel (Tel Aviv)" },
 ];
 
+/**
+ * Main AWS Profiles Popup Component
+ */
 export const AWSProfilesPopup: FunctionComponent = () => {
-    const [profiles, setProfiles] = useState<AWSProfile[]>([]);
-    const [containers, setContainers] = useState<ContextualIdentities.ContextualIdentity[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [view, setView] = useState<"profiles" | "containers">("profiles");
-    const [isRemoving, setIsRemoving] = useState(false);
-    const [nativeMessagingAvailable, setNativeMessagingAvailable] = useState(false);
-    const [searchFilter, setSearchFilter] = useState("");
-    const [selectedRegion, setSelectedRegion] = useState("us-east-1");
-    const [favorites, setFavorites] = useState<string[]>([]);
-    const [recentProfiles, setRecentProfiles] = useState<string[]>([]);
-    const [selectedOrgTab, setSelectedOrgTab] = useState<string>("all");
+    // Custom hooks for state management
+    const {
+        profiles,
+        loading: profilesLoading,
+        error: profilesError,
+        nativeMessagingAvailable,
+        loadProfiles,
+        refreshProfiles,
+    } = useProfiles();
 
+    const { favorites, toggleFavorite } = useFavorites();
+    const { containers, clearContainers } = useContainers();
+    const { recentProfiles, addRecentProfile } = useRecentProfiles();
+    const { selectedRegion, setRegion } = useRegion();
+
+    // Local UI state
+    const [searchFilter, setSearchFilter] = useState("");
+    const [debouncedSearchFilter, setDebouncedSearchFilter] = useState("");
+    const [selectedOrgTab, setSelectedOrgTab] = useState<string>("all");
+    const [isRemoving, setIsRemoving] = useState(false);
+    const [openProfileError, setOpenProfileError] = useState<string | null>(null);
+
+    /**
+     * Notify background page that popup mounted
+     */
     useEffect(() => {
         browser.runtime.sendMessage({ popupMounted: true });
-        loadSettings();
         loadProfiles();
-        refreshContainers();
-    }, []);
+    }, [loadProfiles]);
 
-    const loadSettings = async () => {
-        const data = await browser.storage.local.get(["favorites", "recentProfiles", "selectedRegion", "cachedProfiles", "profilesCacheTime"]);
-        if (data.favorites) setFavorites(data.favorites as string[]);
-        if (data.recentProfiles) setRecentProfiles(data.recentProfiles as string[]);
-        if (data.selectedRegion) setSelectedRegion(data.selectedRegion as string);
+    /**
+     * Debounce search filter to reduce re-renders during typing
+     */
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchFilter(searchFilter);
+        }, 300);
 
-        // Load cached profiles if available and recent (less than 5 minutes old)
-        if (data.cachedProfiles && data.profilesCacheTime) {
-            const cacheAge = Date.now() - (data.profilesCacheTime as number);
-            if (cacheAge < 5 * 60 * 1000) { // 5 minutes
-                setProfiles(data.cachedProfiles as AWSProfile[]);
-                setLoading(false);
-            }
-        }
-    };
+        return () => clearTimeout(timer);
+    }, [searchFilter]);
 
-    const loadProfiles = async (forceRefresh: boolean = false) => {
-        // If not forcing refresh and we have profiles, don't reload
-        if (!forceRefresh && profiles.length > 0) {
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-
-        try {
-            // Try to connect to native messaging host
-            const port = browser.runtime.connectNative("aws_profile_bridge");
-            setNativeMessagingAvailable(true);
-
-            // Set up message listener
-            port.onMessage.addListener(async (response: any) => {
-                if (response.action === "profileList") {
-                    // Sort profiles alphabetically by name
-                    const sortedProfiles = response.profiles.sort((a: AWSProfile, b: AWSProfile) =>
-                        a.name.localeCompare(b.name)
-                    );
-                    setProfiles(sortedProfiles);
-                    setLoading(false);
-
-                    // Cache the profiles with timestamp
-                    await browser.storage.local.set({
-                        cachedProfiles: sortedProfiles,
-                        profilesCacheTime: Date.now()
-                    });
-                } else if (response.action === "error") {
-                    setError(response.message);
-                    setLoading(false);
-                }
-            });
-
-            // Set up disconnect listener
-            port.onDisconnect.addListener(() => {
-                if (browser.runtime.lastError) {
-                    setError(`Native messaging error: ${browser.runtime.lastError.message}`);
-                    setNativeMessagingAvailable(false);
-                }
-                setLoading(false);
-            });
-
-            // Request profile list
-            port.postMessage({ action: "getProfiles" });
-        } catch (err) {
-            setError(`Failed to connect to native messaging host: ${err}`);
-            setNativeMessagingAvailable(false);
-            setLoading(false);
-        }
-    };
-
-    const refreshContainers = async () => {
-        const [identities, storageData] = await Promise.all([
-            browser.contextualIdentities.query({}),
-            browser.storage.local.get("containers"),
-        ]);
-        const containerIds: string[] =
-            "containers" in storageData ? (storageData.containers as string[]) || [] : [];
-
-        setContainers(
-            identities.filter((i) => containerIds.includes(i.cookieStoreId))
-        );
-    };
-
-    const openProfile = async (profile: AWSProfile) => {
-        try {
-            // Track in recent profiles
-            const updatedRecent = [
-                profile.name,
-                ...recentProfiles.filter(p => p !== profile.name)
-            ].slice(0, 10);
-            setRecentProfiles(updatedRecent);
-            await browser.storage.local.set({ recentProfiles: updatedRecent });
-
-            const port = browser.runtime.connectNative("aws_profile_bridge");
-
-            port.onMessage.addListener(async (response: any) => {
-                if (response.action === "consoleUrl") {
-                    // Add region to the console URL
-                    let consoleUrl = response.url;
-                    if (consoleUrl.includes("console.aws.amazon.com")) {
-                        const urlObj = new URL(consoleUrl);
-                        urlObj.searchParams.set("region", selectedRegion);
-                        consoleUrl = urlObj.toString();
-                    }
-
-                    // Create or get the container using native Firefox API
-                    const container = await prepareContainer(
-                        response.profileName,
-                        response.color,
-                        response.icon
-                    );
-
-                    // Open tab directly in the container
-                    await browser.tabs.create({
-                        url: consoleUrl,
-                        cookieStoreId: container.cookieStoreId,
-                    });
-
-                    // Close popup only if in popup mode, not sidebar
-                    // Sidebar detection: popup windows are typically smaller
-                    if (window.innerWidth < 400) {
-                        window.close();
-                    }
-                } else if (response.action === "error") {
-                    setError(response.message);
-                }
-            });
-
-            port.postMessage({
-                action: "openProfile",
-                profileName: profile.name,
-            });
-        } catch (err) {
-            setError(`Failed to open profile: ${err}`);
-        }
-    };
-
-    const toggleFavorite = async (profileName: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        const updatedFavorites = favorites.includes(profileName)
-            ? favorites.filter(f => f !== profileName)
-            : [...favorites, profileName];
-        setFavorites(updatedFavorites);
-        await browser.storage.local.set({ favorites: updatedFavorites });
-    };
-
-    const handleRegionChange = async (region: string) => {
-        setSelectedRegion(region);
-        await browser.storage.local.set({ selectedRegion: region });
-    };
-
-    // Memoize organizations to avoid recalculating on every render
+    /**
+     * Memoize organizations grouping
+     */
     const organizations = useMemo(() => {
-        const orgs = new Map<string, { name: string, profiles: AWSProfile[] }>();
+        const orgs = new Map<string, { name: string; profiles: AWSProfile[] }>();
 
         // Credential accounts group
-        // No need to sort - profiles array is already sorted alphabetically
-        const credentialProfiles = profiles.filter(p => !p.is_sso);
+        const credentialProfiles = profiles.filter((p) => !p.is_sso);
         if (credentialProfiles.length > 0) {
             orgs.set("credentials", {
                 name: "Credential Accounts",
-                profiles: credentialProfiles
+                profiles: credentialProfiles,
             });
         }
 
         // Group SSO profiles by start URL
-        const ssoProfiles = profiles.filter(p => p.is_sso);
+        const ssoProfiles = profiles.filter((p) => p.is_sso);
         const ssoGroups = new Map<string, AWSProfile[]>();
 
-        ssoProfiles.forEach(profile => {
+        ssoProfiles.forEach((profile) => {
             const startUrl = profile.sso_start_url || "unknown";
             if (!ssoGroups.has(startUrl)) {
                 ssoGroups.set(startUrl, []);
@@ -262,9 +144,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
         });
 
         // Create organization entries for each SSO group
-        // No need to sort - profiles maintain their sorted order from the filter
         ssoGroups.forEach((profileList, startUrl) => {
-            // Extract org name from URL (e.g., "my-org" from "https://my-org.awsapps.com/start")
             let orgName = "SSO Organization";
             try {
                 const url = new URL(startUrl);
@@ -279,90 +159,194 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
             orgs.set(startUrl, {
                 name: orgName,
-                profiles: profileList
+                profiles: profileList,
             });
         });
 
         return orgs;
     }, [profiles]);
 
-    // Memoize filtered profiles to avoid recalculating on every render
+    /**
+     * Memoize filtered profiles
+     * Uses debounced search filter to reduce re-renders during typing
+     */
     const filteredProfiles = useMemo(() => {
         // If a specific org is selected, filter to only that org
         if (selectedOrgTab !== "all") {
             const selectedOrg = organizations.get(selectedOrgTab);
             if (!selectedOrg) return [];
 
-            return selectedOrg.profiles.filter(p =>
-                p.name.toLowerCase().includes(searchFilter.toLowerCase())
+            return selectedOrg.profiles.filter((p) =>
+                p.name.toLowerCase().includes(debouncedSearchFilter.toLowerCase())
             );
         }
 
         // Otherwise show all profiles with search filter
-        // No need to sort again - profiles are already sorted in organizations
-        const lowerSearch = searchFilter.toLowerCase();
-        return profiles.filter(p => p.name.toLowerCase().includes(lowerSearch));
-    }, [profiles, organizations, selectedOrgTab, searchFilter]);
+        const lowerSearch = debouncedSearchFilter.toLowerCase();
+        return profiles.filter((p) => p.name.toLowerCase().includes(lowerSearch));
+    }, [profiles, organizations, selectedOrgTab, debouncedSearchFilter]);
 
-    const clearContainers = async () => {
-        await Promise.all(
-            containers.map((container) =>
-                browser.contextualIdentities.remove(container.cookieStoreId)
-            )
-        );
-        await refreshContainers();
-        setIsRemoving(false);
-    };
+    /**
+     * Open a profile in a container
+     * Memoized to prevent child component re-renders
+     */
+    const handleOpenProfile = useCallback(async (profile: AWSProfile) => {
+        try {
+            setOpenProfileError(null);
 
-    const formatExpiration = (expiration: string | null, expired: boolean) => {
-        if (!expiration) return "";
+            // Track in recent profiles
+            await addRecentProfile(profile.name);
 
-        if (expired) {
-            return "⚠️ Expired";
+            // Connect to native messaging host
+            const port = browser.runtime.connectNative(NATIVE_MESSAGING_HOST_NAME);
+
+            port.onMessage.addListener(async (response: unknown) => {
+                try {
+                    if (isConsoleUrlResponse(response)) {
+                        // Add region to the console URL
+                        let consoleUrl = response.url;
+                        if (consoleUrl.includes("console.aws.amazon.com")) {
+                            const urlObj = new URL(consoleUrl);
+                            urlObj.searchParams.set("region", selectedRegion);
+                            consoleUrl = urlObj.toString();
+                        }
+
+                        // Create or get the container
+                        const container = await prepareContainer(
+                            response.profileName,
+                            response.color,
+                            response.icon
+                        );
+
+                        // Open tab in the container
+                        await browser.tabs.create({
+                            url: consoleUrl,
+                            cookieStoreId: container.cookieStoreId,
+                        });
+
+                        // Close popup if in popup mode (not sidebar)
+                        if (window.innerWidth < POPUP_WIDTH_THRESHOLD) {
+                            window.close();
+                        }
+                    } else if (isErrorResponse(response)) {
+                        setOpenProfileError(response.message);
+                    } else {
+                        setOpenProfileError("Received invalid response");
+                    }
+                } catch (err) {
+                    console.error("Error handling open profile response:", err);
+                    setOpenProfileError(`Failed to open profile: ${err}`);
+                }
+            });
+
+            port.postMessage({
+                action: "openProfile",
+                profileName: profile.name,
+            });
+        } catch (err) {
+            console.error("Failed to open profile:", err);
+            setOpenProfileError(`Failed to open profile: ${err}`);
         }
+    }, [addRecentProfile, selectedRegion]);
 
-        const expDate = new Date(expiration);
-        const now = new Date();
-        const diffMinutes = Math.floor((expDate.getTime() - now.getTime()) / 60000);
-
-        if (diffMinutes < 60) {
-            return `⏰ ${diffMinutes}m`;
-        } else if (diffMinutes < 1440) {
-            const hours = Math.floor(diffMinutes / 60);
-            return `⏰ ${hours}h`;
-        } else {
-            return `✓ Valid`;
+    /**
+     * Handle favorite toggle
+     * Memoized to prevent child component re-renders
+     */
+    const handleFavoriteToggle = useCallback(async (profileName: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await toggleFavorite(profileName);
+        } catch (err) {
+            console.error("Failed to toggle favorite:", err);
         }
-    };
+    }, [toggleFavorite]);
+
+    /**
+     * Handle container clearing
+     * Memoized for performance
+     */
+    const handleClearContainers = useCallback(async () => {
+        try {
+            await clearContainers();
+            setIsRemoving(false);
+        } catch (err) {
+            console.error("Failed to clear containers:", err);
+            setIsRemoving(false);
+        }
+    }, [clearContainers]);
 
     // Installation instructions view
-    if (!nativeMessagingAvailable && !loading) {
+    if (!nativeMessagingAvailable && !profilesLoading) {
         return (
             <div className="panel menu-panel container-panel" id="container-panel">
-                <h3 className="title">Setup Required</h3>
+                <h3 className="title">⚠️ Setup Required</h3>
                 <hr />
                 <div className="panel-content">
-                    <p style={{ padding: "10px", fontSize: "12px" }}>
-                        Native messaging host not configured.
+                    <p style={{ padding: "10px", fontSize: "14px", fontWeight: "600", color: "#d70022" }}>
+                        AWS Profile Bridge Not Found
                     </p>
+                    <p style={{ padding: "10px", fontSize: "12px", lineHeight: "1.6" }}>
+                        The native messaging host is required to read AWS credentials from your system.
+                    </p>
+                    <div style={{ background: "#f0f0f0", padding: "12px", margin: "10px", borderRadius: "4px" }}>
+                        <p style={{ fontSize: "11px", fontWeight: "600", marginBottom: "8px" }}>
+                            📋 Installation Steps:
+                        </p>
+                        <ol style={{ fontSize: "11px", paddingLeft: "20px", lineHeight: "1.8" }}>
+                            <li>Open a terminal in the extension directory</li>
+                            <li>Run the installation script:</li>
+                        </ol>
+                        <pre
+                            style={{
+                                padding: "10px",
+                                background: "#2a2a2a",
+                                color: "#00ff00",
+                                fontSize: "11px",
+                                overflowX: "auto",
+                                margin: "10px 0",
+                                borderRadius: "4px",
+                                fontFamily: "monospace",
+                            }}
+                        >
+                            ./install.sh
+                        </pre>
+                        <p style={{ fontSize: "10px", color: "#666", fontStyle: "italic" }}>
+                            This will install the native messaging bridge and set up permissions.
+                        </p>
+                    </div>
                     <p style={{ padding: "10px", fontSize: "11px", color: "#666" }}>
-                        Run the installation script to set up the native messaging bridge:
+                        After installation, restart Firefox and click Retry Connection below.
                     </p>
-                    <pre style={{
-                        padding: "8px",
-                        background: "#f5f5f5",
-                        fontSize: "10px",
-                        overflowX: "auto",
-                        margin: "10px"
-                    }}>
-                        ./install.sh
-                    </pre>
                     <button
                         onClick={() => loadProfiles(true)}
-                        style={{ margin: "10px", padding: "8px 16px" }}
+                        style={{
+                            margin: "10px",
+                            padding: "10px 20px",
+                            fontSize: "13px",
+                            background: "#0060df",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontWeight: "600"
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = "#003eaa"}
+                        onMouseLeave={(e) => e.currentTarget.style.background = "#0060df"}
                     >
-                        Retry Connection
+                        🔄 Retry Connection
                     </button>
+                    <p style={{ padding: "10px", fontSize: "10px", color: "#999" }}>
+                        Need help? Check the{" "}
+                        <a
+                            href="https://github.com/sam-fakhreddine/aws-containers"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: "#0060df" }}
+                        >
+                            documentation
+                        </a>
+                    </p>
                 </div>
             </div>
         );
@@ -376,7 +360,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                 <button
                     className="btn-return arrow-left controller"
                     onClick={() => setIsRemoving(false)}
-                ></button>
+                />
                 <hr />
                 <div className="panel-content delete-container-confirm">
                     <p className="delete-warning">
@@ -394,7 +378,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                     <a
                         href="#"
                         className="button expanded primary footer-button"
-                        onClick={clearContainers}
+                        onClick={handleClearContainers}
                     >
                         Confirm
                     </a>
@@ -403,192 +387,58 @@ export const AWSProfilesPopup: FunctionComponent = () => {
         );
     }
 
+    // Main view
     return (
         <div className="panel menu-panel container-panel" id="container-panel">
-            <h3 className="title" style={{ fontSize: "18px", padding: "12px" }}>AWS Profile Containers</h3>
+            <h3 className="title" style={{ fontSize: "18px", padding: "12px" }}>
+                AWS Profile Containers
+            </h3>
             <hr />
 
-            {loading ? (
-                <div style={{ padding: "30px", textAlign: "center", fontSize: "16px" }}>
-                    Loading profiles...
-                </div>
-            ) : error ? (
-                <div style={{ padding: "16px", color: "red", fontSize: "15px" }}>
-                    {error}
-                    <button onClick={() => loadProfiles(true)} style={{
-                        marginTop: "12px",
-                        padding: "12px 18px",
-                        fontSize: "16px",
-                        background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "6px",
-                        cursor: "pointer",
-                        fontWeight: "600",
-                        boxShadow: "0 4px 8px rgba(240,147,251,0.3)",
-                        transition: "all 0.3s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = "translateY(-2px)";
-                        e.currentTarget.style.boxShadow = "0 6px 12px rgba(240,147,251,0.4)";
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = "0 4px 8px rgba(240,147,251,0.3)";
-                    }}>
-                        Retry
-                    </button>
-                </div>
+            {profilesLoading ? (
+                <LoadingState />
+            ) : profilesError || openProfileError ? (
+                <ErrorState
+                    error={profilesError || openProfileError || ""}
+                    onRetry={() => refreshProfiles()}
+                />
             ) : (
                 <>
-                    {/* Search and Region Controls */}
-                    <div style={{ padding: "8px" }}>
-                        <input
-                            type="text"
-                            placeholder="Search profiles..."
-                            value={searchFilter}
-                            onChange={(e) => setSearchFilter(e.target.value)}
-                            style={{
-                                width: "100%",
-                                padding: "12px 14px",
-                                fontSize: "17px",
-                                border: "1px solid #ccc",
-                                borderRadius: "4px",
-                                marginBottom: "8px"
-                            }}
-                        />
-                        <select
-                            value={selectedRegion}
-                            onChange={(e) => handleRegionChange(e.target.value)}
-                            style={{
-                                width: "100%",
-                                padding: "12px 14px",
-                                fontSize: "17px",
-                                border: "1px solid #ccc",
-                                borderRadius: "4px"
-                            }}
-                        >
-                            {AWS_REGIONS.map(region => (
-                                <option key={region.code} value={region.code}>
-                                    {region.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <ProfileSearch
+                        searchFilter={searchFilter}
+                        onSearchChange={setSearchFilter}
+                        selectedRegion={selectedRegion}
+                        onRegionChange={setRegion}
+                        regions={AWS_REGIONS}
+                    />
 
-                    {/* Organization Tabs */}
-                    {organizations.size > 1 && (
-                        <div className="org-tabs-container">
-                            <button
-                                className={`org-tab ${selectedOrgTab === "all" ? "org-tab-active" : ""}`}
-                                onClick={() => setSelectedOrgTab("all")}
-                            >
-                                All ({profiles.length})
-                            </button>
-                            {Array.from(organizations.entries()).map(([key, org]) => (
-                                <button
-                                    key={key}
-                                    className={`org-tab ${selectedOrgTab === key ? "org-tab-active" : ""}`}
-                                    onClick={() => setSelectedOrgTab(key)}
-                                >
-                                    {org.name} ({org.profiles.length})
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    <OrganizationTabs
+                        organizations={organizations}
+                        selectedTab={selectedOrgTab}
+                        onTabChange={setSelectedOrgTab}
+                        totalProfiles={profiles.length}
+                    />
 
                     <div className="scrollable identities-list">
-                        <table className="menu" id="identities-list" style={{ width: "100%" }}>
-                            {profiles.length === 0 ? (
-                                <tr>
-                                    <td style={{ padding: "20px", textAlign: "center", fontSize: "15px" }}>
-                                        No AWS profiles found in ~/.aws/credentials or ~/.aws/config
-                                    </td>
-                                </tr>
-                            ) : (() => {
-                                const renderProfile = (profile: AWSProfile) => (
-                                    <tr
-                                        key={profile.name}
-                                        className="menu-item hover-highlight"
-                                        onClick={() => openProfile(profile)}
-                                        style={{ cursor: "pointer" }}
-                                    >
-                                        <td style={{ padding: "12px 8px" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                                                <div className="menu-icon hover-highlight">
-                                                    <div
-                                                        className="usercontext-icon"
-                                                        data-identity-icon={profile.icon}
-                                                        data-identity-color={profile.color}
-                                                        style={{ width: "24px", height: "24px" }}
-                                                    ></div>
-                                                </div>
-                                                <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-                                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px" }}>
-                                                        <span style={{ fontSize: "16px", fontWeight: "500" }}>
-                                                            {profile.name}
-                                                        </span>
-                                                        {profile.is_sso && (
-                                                            <span style={{
-                                                                fontSize: "11px",
-                                                                background: "#0060df",
-                                                                color: "white",
-                                                                padding: "3px 6px",
-                                                                borderRadius: "3px",
-                                                                fontWeight: "bold"
-                                                            }}>
-                                                                SSO
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    {profile.expiration && (
-                                                        <span style={{
-                                                            fontSize: "13px",
-                                                            color: profile.expired ? "#d70022" : "#666"
-                                                        }}>
-                                                            {formatExpiration(profile.expiration, profile.expired)}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div
-                                                    onClick={(e) => toggleFavorite(profile.name, e)}
-                                                    style={{
-                                                        padding: "6px 10px",
-                                                        cursor: "pointer",
-                                                        fontSize: "20px"
-                                                    }}
-                                                >
-                                                    {favorites.includes(profile.name) ? "★" : "☆"}
-                                                </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-
-                                if (filteredProfiles.length === 0) {
-                                    return (
-                                        <tr>
-                                            <td style={{ padding: "20px", textAlign: "center", fontSize: "15px" }}>
-                                                No profiles match your search
-                                            </td>
-                                        </tr>
-                                    );
-                                }
-
-                                return (
-                                    <>
-                                        {filteredProfiles.map(renderProfile)}
-                                    </>
-                                );
-                            })()}
-                        </table>
+                        <ProfileList
+                            profiles={filteredProfiles}
+                            favorites={favorites}
+                            onProfileClick={handleOpenProfile}
+                            onFavoriteToggle={handleFavoriteToggle}
+                            emptyMessage={
+                                profiles.length === 0
+                                    ? "No AWS profiles found in ~/.aws/credentials or ~/.aws/config"
+                                    : "No profiles match your search"
+                            }
+                        />
                     </div>
+
                     <div className="v-padding-hack-footer" />
                     <div style={{ display: "flex", gap: "8px", padding: "8px" }}>
                         <div
                             className="bottom-btn keyboard-nav controller"
                             tabIndex={0}
-                            onClick={() => loadProfiles(true)}
+                            onClick={() => refreshProfiles()}
                             style={{
                                 flex: 1,
                                 textAlign: "center",
@@ -599,15 +449,17 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                                 color: "white",
                                 borderRadius: "6px",
                                 boxShadow: "0 4px 8px rgba(102,126,234,0.3)",
-                                transition: "all 0.3s ease"
+                                transition: "all 0.3s ease",
                             }}
                             onMouseEnter={(e) => {
                                 e.currentTarget.style.transform = "translateY(-2px)";
-                                e.currentTarget.style.boxShadow = "0 6px 12px rgba(102,126,234,0.4)";
+                                e.currentTarget.style.boxShadow =
+                                    "0 6px 12px rgba(102,126,234,0.4)";
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.transform = "translateY(0)";
-                                e.currentTarget.style.boxShadow = "0 4px 8px rgba(102,126,234,0.3)";
+                                e.currentTarget.style.boxShadow =
+                                    "0 4px 8px rgba(102,126,234,0.3)";
                             }}
                         >
                             Refresh
