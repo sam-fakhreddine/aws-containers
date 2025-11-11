@@ -264,32 +264,73 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     if (!nativeMessagingAvailable && !profilesLoading) {
         return (
             <div className="panel menu-panel container-panel" id="container-panel">
-                <h3 className="title">Setup Required</h3>
+                <h3 className="title">⚠️ Setup Required</h3>
                 <hr />
                 <div className="panel-content">
-                    <p style={{ padding: "10px", fontSize: "12px" }}>
-                        Native messaging host not configured.
+                    <p style={{ padding: "10px", fontSize: "14px", fontWeight: "600", color: "#d70022" }}>
+                        AWS Profile Bridge Not Found
                     </p>
+                    <p style={{ padding: "10px", fontSize: "12px", lineHeight: "1.6" }}>
+                        The native messaging host is required to read AWS credentials from your system.
+                    </p>
+                    <div style={{ background: "#f0f0f0", padding: "12px", margin: "10px", borderRadius: "4px" }}>
+                        <p style={{ fontSize: "11px", fontWeight: "600", marginBottom: "8px" }}>
+                            📋 Installation Steps:
+                        </p>
+                        <ol style={{ fontSize: "11px", paddingLeft: "20px", lineHeight: "1.8" }}>
+                            <li>Open a terminal in the extension directory</li>
+                            <li>Run the installation script:</li>
+                        </ol>
+                        <pre
+                            style={{
+                                padding: "10px",
+                                background: "#2a2a2a",
+                                color: "#00ff00",
+                                fontSize: "11px",
+                                overflowX: "auto",
+                                margin: "10px 0",
+                                borderRadius: "4px",
+                                fontFamily: "monospace",
+                            }}
+                        >
+                            ./install.sh
+                        </pre>
+                        <p style={{ fontSize: "10px", color: "#666", fontStyle: "italic" }}>
+                            This will install the native messaging bridge and set up permissions.
+                        </p>
+                    </div>
                     <p style={{ padding: "10px", fontSize: "11px", color: "#666" }}>
-                        Run the installation script to set up the native messaging bridge:
+                        After installation, restart Firefox and click Retry Connection below.
                     </p>
-                    <pre
-                        style={{
-                            padding: "8px",
-                            background: "#f5f5f5",
-                            fontSize: "10px",
-                            overflowX: "auto",
-                            margin: "10px",
-                        }}
-                    >
-                        ./install.sh
-                    </pre>
                     <button
                         onClick={() => loadProfiles(true)}
-                        style={{ margin: "10px", padding: "8px 16px" }}
+                        style={{
+                            margin: "10px",
+                            padding: "10px 20px",
+                            fontSize: "13px",
+                            background: "#0060df",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontWeight: "600"
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = "#003eaa"}
+                        onMouseLeave={(e) => e.currentTarget.style.background = "#0060df"}
                     >
-                        Retry Connection
+                        🔄 Retry Connection
                     </button>
+                    <p style={{ padding: "10px", fontSize: "10px", color: "#999" }}>
+                        Need help? Check the{" "}
+                        <a
+                            href="https://github.com/sam-fakhreddine/aws-containers"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: "#0060df" }}
+                        >
+                            documentation
+                        </a>
+                    </p>
                 </div>
             </div>
         );

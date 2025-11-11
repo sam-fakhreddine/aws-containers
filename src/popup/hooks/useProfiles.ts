@@ -168,7 +168,12 @@ export function useProfiles(): UseProfilesReturn {
                 // Request profile list
                 port.postMessage({ action: "getProfiles" });
             } catch (err) {
-                setError(`Failed to connect to native messaging host: ${err}`);
+                console.error("Native messaging connection error:", err);
+                setError(
+                    "Could not connect to AWS Profile Bridge. " +
+                    "Please run ./install.sh to set up the native messaging host. " +
+                    "After installation, restart Firefox and try again."
+                );
                 setNativeMessagingAvailable(false);
                 setLoading(false);
             }
