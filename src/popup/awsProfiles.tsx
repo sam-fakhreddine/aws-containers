@@ -1,5 +1,5 @@
-import React, { FunctionComponent, useEffect, useState } from "react";
-import { browser, ContextualIdentities } from "webextension-polyfill-ts";
+import React, { FunctionComponent, useEffect, useState, useMemo } from "react";
+import browser, { type ContextualIdentities } from "webextension-polyfill";
 
 interface AWSProfile {
     name: string;
@@ -42,8 +42,9 @@ async function saveContainerId(id: string) {
     const obj = await browser.storage.local.get("containers");
     const exists = "containers" in obj;
     if (exists) {
+        const containers = (obj.containers as string[]) || [];
         await browser.storage.local.set({
-            containers: [...obj.containers, id],
+            containers: [...containers, id],
         });
     } else {
         await browser.storage.local.set({ containers: [id] });
@@ -85,13 +86,27 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     }, []);
 
     const loadSettings = async () => {
-        const data = await browser.storage.local.get(["favorites", "recentProfiles", "selectedRegion"]);
-        if (data.favorites) setFavorites(data.favorites);
-        if (data.recentProfiles) setRecentProfiles(data.recentProfiles);
-        if (data.selectedRegion) setSelectedRegion(data.selectedRegion);
+        const data = await browser.storage.local.get(["favorites", "recentProfiles", "selectedRegion", "cachedProfiles", "profilesCacheTime"]);
+        if (data.favorites) setFavorites(data.favorites as string[]);
+        if (data.recentProfiles) setRecentProfiles(data.recentProfiles as string[]);
+        if (data.selectedRegion) setSelectedRegion(data.selectedRegion as string);
+
+        // Load cached profiles if available and recent (less than 5 minutes old)
+        if (data.cachedProfiles && data.profilesCacheTime) {
+            const cacheAge = Date.now() - (data.profilesCacheTime as number);
+            if (cacheAge < 5 * 60 * 1000) { // 5 minutes
+                setProfiles(data.cachedProfiles as AWSProfile[]);
+                setLoading(false);
+            }
+        }
     };
 
-    const loadProfiles = async () => {
+    const loadProfiles = async (forceRefresh: boolean = false) => {
+        // If not forcing refresh and we have profiles, don't reload
+        if (!forceRefresh && profiles.length > 0) {
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -101,7 +116,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             setNativeMessagingAvailable(true);
 
             // Set up message listener
-            port.onMessage.addListener((response: any) => {
+            port.onMessage.addListener(async (response: any) => {
                 if (response.action === "profileList") {
                     // Sort profiles alphabetically by name
                     const sortedProfiles = response.profiles.sort((a: AWSProfile, b: AWSProfile) =>
@@ -109,6 +124,12 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                     );
                     setProfiles(sortedProfiles);
                     setLoading(false);
+
+                    // Cache the profiles with timestamp
+                    await browser.storage.local.set({
+                        cachedProfiles: sortedProfiles,
+                        profilesCacheTime: Date.now()
+                    });
                 } else if (response.action === "error") {
                     setError(response.message);
                     setLoading(false);
@@ -139,7 +160,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             browser.storage.local.get("containers"),
         ]);
         const containerIds: string[] =
-            "containers" in storageData ? storageData.containers : [];
+            "containers" in storageData ? (storageData.containers as string[]) || [] : [];
 
         setContainers(
             identities.filter((i) => containerIds.includes(i.cookieStoreId))
@@ -214,15 +235,17 @@ export const AWSProfilesPopup: FunctionComponent = () => {
         await browser.storage.local.set({ selectedRegion: region });
     };
 
-    const getOrganizations = () => {
+    // Memoize organizations to avoid recalculating on every render
+    const organizations = useMemo(() => {
         const orgs = new Map<string, { name: string, profiles: AWSProfile[] }>();
 
         // Credential accounts group
+        // No need to sort - profiles array is already sorted alphabetically
         const credentialProfiles = profiles.filter(p => !p.is_sso);
         if (credentialProfiles.length > 0) {
             orgs.set("credentials", {
                 name: "Credential Accounts",
-                profiles: credentialProfiles.sort((a, b) => a.name.localeCompare(b.name))
+                profiles: credentialProfiles
             });
         }
 
@@ -239,6 +262,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
         });
 
         // Create organization entries for each SSO group
+        // No need to sort - profiles maintain their sorted order from the filter
         ssoGroups.forEach((profileList, startUrl) => {
             // Extract org name from URL (e.g., "my-org" from "https://my-org.awsapps.com/start")
             let orgName = "SSO Organization";
@@ -255,19 +279,18 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
             orgs.set(startUrl, {
                 name: orgName,
-                profiles: profileList.sort((a, b) => a.name.localeCompare(b.name))
+                profiles: profileList
             });
         });
 
         return orgs;
-    };
+    }, [profiles]);
 
-    const getFilteredProfiles = () => {
-        const orgs = getOrganizations();
-
+    // Memoize filtered profiles to avoid recalculating on every render
+    const filteredProfiles = useMemo(() => {
         // If a specific org is selected, filter to only that org
         if (selectedOrgTab !== "all") {
-            const selectedOrg = orgs.get(selectedOrgTab);
+            const selectedOrg = organizations.get(selectedOrgTab);
             if (!selectedOrg) return [];
 
             return selectedOrg.profiles.filter(p =>
@@ -276,10 +299,10 @@ export const AWSProfilesPopup: FunctionComponent = () => {
         }
 
         // Otherwise show all profiles with search filter
-        return profiles
-            .filter(p => p.name.toLowerCase().includes(searchFilter.toLowerCase()))
-            .sort((a, b) => a.name.localeCompare(b.name));
-    };
+        // No need to sort again - profiles are already sorted in organizations
+        const lowerSearch = searchFilter.toLowerCase();
+        return profiles.filter(p => p.name.toLowerCase().includes(lowerSearch));
+    }, [profiles, organizations, selectedOrgTab, searchFilter]);
 
     const clearContainers = async () => {
         await Promise.all(
@@ -335,7 +358,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                         ./install.sh
                     </pre>
                     <button
-                        onClick={loadProfiles}
+                        onClick={() => loadProfiles(true)}
                         style={{ margin: "10px", padding: "8px 16px" }}
                     >
                         Retry Connection
@@ -392,7 +415,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             ) : error ? (
                 <div style={{ padding: "16px", color: "red", fontSize: "15px" }}>
                     {error}
-                    <button onClick={loadProfiles} style={{
+                    <button onClick={() => loadProfiles(true)} style={{
                         marginTop: "12px",
                         padding: "12px 18px",
                         fontSize: "16px",
@@ -454,31 +477,25 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                     </div>
 
                     {/* Organization Tabs */}
-                    {(() => {
-                        const orgs = getOrganizations();
-                        if (orgs.size > 1) {
-                            return (
-                                <div className="org-tabs-container">
-                                    <button
-                                        className={`org-tab ${selectedOrgTab === "all" ? "org-tab-active" : ""}`}
-                                        onClick={() => setSelectedOrgTab("all")}
-                                    >
-                                        All ({profiles.length})
-                                    </button>
-                                    {Array.from(orgs.entries()).map(([key, org]) => (
-                                        <button
-                                            key={key}
-                                            className={`org-tab ${selectedOrgTab === key ? "org-tab-active" : ""}`}
-                                            onClick={() => setSelectedOrgTab(key)}
-                                        >
-                                            {org.name} ({org.profiles.length})
-                                        </button>
-                                    ))}
-                                </div>
-                            );
-                        }
-                        return null;
-                    })()}
+                    {organizations.size > 1 && (
+                        <div className="org-tabs-container">
+                            <button
+                                className={`org-tab ${selectedOrgTab === "all" ? "org-tab-active" : ""}`}
+                                onClick={() => setSelectedOrgTab("all")}
+                            >
+                                All ({profiles.length})
+                            </button>
+                            {Array.from(organizations.entries()).map(([key, org]) => (
+                                <button
+                                    key={key}
+                                    className={`org-tab ${selectedOrgTab === key ? "org-tab-active" : ""}`}
+                                    onClick={() => setSelectedOrgTab(key)}
+                                >
+                                    {org.name} ({org.profiles.length})
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     <div className="scrollable identities-list">
                         <table className="menu" id="identities-list" style={{ width: "100%" }}>
@@ -489,8 +506,6 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                                     </td>
                                 </tr>
                             ) : (() => {
-                                const filteredProfiles = getFilteredProfiles();
-
                                 const renderProfile = (profile: AWSProfile) => (
                                     <tr
                                         key={profile.name}
@@ -573,7 +588,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                         <div
                             className="bottom-btn keyboard-nav controller"
                             tabIndex={0}
-                            onClick={loadProfiles}
+                            onClick={() => loadProfiles(true)}
                             style={{
                                 flex: 1,
                                 textAlign: "center",

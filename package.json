@@ -39,6 +39,7 @@
         "@types/node": "^24.10.0",
         "@types/react": "^19.2.2",
         "@types/react-dom": "^19.2.2",
+        "@types/webextension-polyfill": "^0.12.1",
         "@typescript-eslint/eslint-plugin": "^8.46.4",
         "@typescript-eslint/parser": "^8.46.4",
         "babel-jest": "^30.2.0",
@@ -58,16 +59,17 @@
         "ts-loader": "^9.5.1",
         "typescript": "^5.4.5",
         "web-ext": "^9.1.0",
-        "webextension-polyfill-ts": "^0.26.0",
         "webpack": "^5.91.0",
         "webpack-cli": "^6.0.1",
         "webpack-merge": "^6.0.1"
     },
     "dependencies": {
+        "@popperjs/core": "^2.11.8",
         "bootstrap": "^5.3.8",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
         "react-test-renderer": "^19.2.0",
-        "sass": "^1.49.8"
+        "sass": "^1.80.0",
+        "webextension-polyfill": "^0.12.0"
     }
 }

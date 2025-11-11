@@ -78,31 +78,64 @@ A Firefox extension that reads your AWS credentials file and opens AWS profiles 
 
 ## Installation
 
-### 1. Run the Installation Script
+### Quick Start (No Python Required) ⚡
+
+The extension comes with a **self-contained native messaging host** that includes Python and all dependencies. **No need to install Python!**
 
 ```bash
-cd /home/user/granted-containers
+# Clone the repository
+git clone https://github.com/sam-fakhreddine/aws-containers.git
+cd aws-containers
+
+# Install everything (uses pre-built executable if available)
 ./install.sh
 ```
 
-This will:
-- Install the Python bridge script to `~/.local/bin/`
-- Configure Firefox native messaging
-- Install dependencies
-- Build the extension
+### Alternative: Download Pre-Built Package
 
-### 2. Load the Extension in Firefox
+For releases, pre-built executables are available:
+1. Download from [Releases](https://github.com/sam-fakhreddine/aws-containers/releases)
+2. Extract and run `./install.sh`
+
+**Platforms:** Linux, macOS Intel, macOS Apple Silicon
+
+**Note:** macOS binaries are unsigned (code signing optional for now). See [INSTALL.md](INSTALL.md) for Gatekeeper bypass instructions.
+
+No Python, no dependencies, just works! ✨
+
+### For Developers: Build from Source
+
+If you want to build the standalone executable yourself:
+
+```bash
+# Build the self-contained native messaging host
+./build-native-host.sh
+
+# Install everything
+./install.sh
+```
+
+This creates a ~15-20MB standalone binary that includes:
+- ✓ Python runtime
+- ✓ boto3 & botocore
+- ✓ All dependencies
+
+### Load the Extension in Firefox
 
 1. Open Firefox and navigate to: `about:debugging#/runtime/this-firefox`
 2. Click "Load Temporary Add-on"
-3. Navigate to: `/home/user/granted-containers/dist/manifest.json`
-4. Click "Open"
+3. Navigate to and select: `dist/manifest.json` in the project directory
+4. The extension icon should appear in your toolbar
 
-### 3. Test It Out
+### Test It Out
 
 1. Click the extension icon in your Firefox toolbar
 2. You should see a list of all your AWS profiles from `~/.aws/credentials`
 3. Click on any profile to open it in a container
+
+### Detailed Installation Guide
+
+For comprehensive installation instructions, troubleshooting, and platform-specific notes, see **[INSTALL.md](INSTALL.md)**
 
 ## Usage
 
