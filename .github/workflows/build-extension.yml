@@ -1,0 +1,83 @@
+name: Build Extension
+
+on:
+  workflow_dispatch:  # Manual trigger only
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-extension:
+    name: Build Firefox Extension
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run linter
+        run: yarn lint
+        continue-on-error: true
+
+      - name: Run tests
+        run: yarn test
+
+      - name: Calculate next version
+        id: version
+        run: |
+          NEXT_VERSION=$(npx semantic-release --dry-run | grep 'The next release version is' | sed -E 's/.* ([0-9]+\.[0-9]+\.[0-9]+)$/\1/')
+          if [ -z "$NEXT_VERSION" ]; then
+            CURRENT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.1.0")
+            NEXT_VERSION=${CURRENT_VERSION#v}
+          fi
+          DEV_VERSION="${NEXT_VERSION}-dev.$(git rev-parse --short HEAD)"
+          echo "version=${DEV_VERSION}" >> $GITHUB_OUTPUT
+          echo "Building version: ${DEV_VERSION}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build extension
+        run: yarn build
+
+      - name: Validate build output
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Error: dist directory not found"
+            exit 1
+          fi
+          if [ ! -f "dist/manifest.json" ]; then
+            echo "Error: manifest.json not found"
+            exit 1
+          fi
+          echo "Build validation passed"
+
+      - name: List build artifacts
+        run: |
+          echo "### Build Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          ls -lh web-ext-artifacts/ >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-extension-dev-${{ steps.version.outputs.version }}
+          path: web-ext-artifacts/*.zip
+          retention-days: 90
+
+      - name: Build summary
+        run: |
+          echo "## Build Complete ✅" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** $(git rev-parse HEAD)" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${GITHUB_REF#refs/heads/}" >> $GITHUB_STEP_SUMMARY
