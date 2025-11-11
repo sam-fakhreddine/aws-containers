@@ -8,3 +8,14 @@ yarn-error.log
 
 .DS_Store
 web-ext-artifacts
+
+# Python build artifacts
+venv-build/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+native-messaging/build/
+native-messaging/dist/
+*.spec.backup
