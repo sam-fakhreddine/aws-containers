@@ -6,6 +6,14 @@
 
 import React, { FunctionComponent, useEffect, useState, useMemo, useCallback } from "react";
 import browser from "webextension-polyfill";
+import Container from "@cloudscape-design/components/container";
+import Header from "@cloudscape-design/components/header";
+import Button from "@cloudscape-design/components/button";
+import SpaceBetween from "@cloudscape-design/components/space-between";
+import Box from "@cloudscape-design/components/box";
+import Alert from "@cloudscape-design/components/alert";
+import Modal from "@cloudscape-design/components/modal";
+import Link from "@cloudscape-design/components/link";
 import { POPUP_WIDTH_THRESHOLD, NATIVE_MESSAGING_HOST_NAME } from "./constants";
 import { AWSProfile, isConsoleUrlResponse, isErrorResponse } from "./types";
 import { prepareContainer } from "../utils/containerManager";
@@ -279,194 +287,150 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     // Installation instructions view
     if (!nativeMessagingAvailable && !profilesLoading) {
         return (
-            <div className="panel menu-panel container-panel" id="container-panel">
-                <h3 className="title">⚠️ Setup Required</h3>
-                <hr />
-                <div className="panel-content">
-                    <p style={{ padding: "10px", fontSize: "14px", fontWeight: "600", color: "#d70022" }}>
-                        AWS Profile Bridge Not Found
-                    </p>
-                    <p style={{ padding: "10px", fontSize: "12px", lineHeight: "1.6" }}>
-                        The native messaging host is required to read AWS credentials from your system.
-                    </p>
-                    <div style={{ background: "#f0f0f0", padding: "12px", margin: "10px", borderRadius: "4px" }}>
-                        <p style={{ fontSize: "11px", fontWeight: "600", marginBottom: "8px" }}>
-                            📋 Installation Steps:
-                        </p>
-                        <ol style={{ fontSize: "11px", paddingLeft: "20px", lineHeight: "1.8" }}>
+            <Container header={<Header variant="h2">Setup Required</Header>}>
+                <SpaceBetween size="l">
+                    <Alert type="warning" header="AWS Profile Bridge Not Found">
+                        The native messaging host is required to read AWS credentials from
+                        your system.
+                    </Alert>
+
+                    <Box variant="p">
+                        <strong>Installation Steps:</strong>
+                    </Box>
+
+                    <Box>
+                        <ol>
                             <li>Open a terminal in the extension directory</li>
                             <li>Run the installation script:</li>
                         </ol>
-                        <pre
-                            style={{
-                                padding: "10px",
-                                background: "#2a2a2a",
-                                color: "#00ff00",
-                                fontSize: "11px",
-                                overflowX: "auto",
-                                margin: "10px 0",
-                                borderRadius: "4px",
-                                fontFamily: "monospace",
-                            }}
+                        <Box
+                            margin={{ top: "s", bottom: "s" }}
+                            padding="s"
+                            fontSize="body-s"
                         >
-                            ./install.sh
-                        </pre>
-                        <p style={{ fontSize: "10px", color: "#666", fontStyle: "italic" }}>
-                            This will install the native messaging bridge and set up permissions.
-                        </p>
-                    </div>
-                    <p style={{ padding: "10px", fontSize: "11px", color: "#666" }}>
+                            <pre
+                                style={{
+                                    background: "#232f3e",
+                                    color: "#00ff00",
+                                    padding: "12px",
+                                    borderRadius: "4px",
+                                    overflow: "auto",
+                                    fontFamily: "monospace",
+                                }}
+                            >
+                                ./install.sh
+                            </pre>
+                        </Box>
+                        <Box variant="small" color="text-body-secondary">
+                            This will install the native messaging bridge and set up
+                            permissions.
+                        </Box>
+                    </Box>
+
+                    <Box variant="p">
                         After installation, restart Firefox and click Retry Connection below.
-                    </p>
-                    <button
-                        onClick={() => loadProfiles(true)}
-                        style={{
-                            margin: "10px",
-                            padding: "10px 20px",
-                            fontSize: "13px",
-                            background: "#0060df",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            fontWeight: "600"
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = "#003eaa"}
-                        onMouseLeave={(e) => e.currentTarget.style.background = "#0060df"}
-                    >
-                        🔄 Retry Connection
-                    </button>
-                    <p style={{ padding: "10px", fontSize: "10px", color: "#999" }}>
+                    </Box>
+
+                    <Button variant="primary" onClick={() => loadProfiles(true)}>
+                        Retry Connection
+                    </Button>
+
+                    <Box variant="small" color="text-body-secondary">
                         Need help? Check the{" "}
-                        <a
+                        <Link
                             href="https://github.com/sam-fakhreddine/aws-containers"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ color: "#0060df" }}
+                            external
                         >
                             documentation
-                        </a>
-                    </p>
-                </div>
-            </div>
+                        </Link>
+                    </Box>
+                </SpaceBetween>
+            </Container>
         );
     }
 
-    // Delete confirmation view
-    if (isRemoving) {
-        return (
-            <div className="panel delete-container-panel" id="delete-container-panel">
-                <h3 className="title">Clear Containers</h3>
-                <button
-                    className="btn-return arrow-left controller"
-                    onClick={() => setIsRemoving(false)}
-                />
-                <hr />
-                <div className="panel-content delete-container-confirm">
-                    <p className="delete-warning">
-                        Are you sure you want to clear all AWS containers?
-                    </p>
-                </div>
-                <div className="panel-footer">
-                    <a
-                        href="#"
-                        className="button expanded secondary footer-button cancel-button"
-                        onClick={() => setIsRemoving(false)}
-                    >
-                        Back
-                    </a>
-                    <a
-                        href="#"
-                        className="button expanded primary footer-button"
-                        onClick={handleClearContainers}
-                    >
-                        Confirm
-                    </a>
-                </div>
-            </div>
-        );
-    }
 
     // Main view
     return (
-        <div className="panel menu-panel container-panel" id="container-panel">
-            <h3 className="title" style={{ fontSize: "18px", padding: "12px" }}>
-                AWS Profile Containers
-            </h3>
-            <hr />
-
-            {profilesLoading ? (
-                <LoadingState />
-            ) : profilesError || openProfileError ? (
-                <ErrorState
-                    error={profilesError || openProfileError || ""}
-                    onRetry={() => refreshProfiles()}
-                />
-            ) : (
-                <>
-                    <ProfileSearch
-                        searchFilter={searchFilter}
-                        onSearchChange={setSearchFilter}
-                        selectedRegion={selectedRegion}
-                        onRegionChange={setRegion}
-                        regions={AWS_REGIONS}
+        <>
+            <Container
+                header={<Header variant="h2">AWS Profile Containers</Header>}
+            >
+                {profilesLoading ? (
+                    <LoadingState />
+                ) : profilesError || openProfileError ? (
+                    <ErrorState
+                        error={profilesError || openProfileError || ""}
+                        onRetry={() => refreshProfiles()}
                     />
-
-                    <OrganizationTabs
-                        organizations={organizations}
-                        selectedTab={selectedOrgTab}
-                        onTabChange={setSelectedOrgTab}
-                        totalProfiles={profiles.length}
-                    />
-
-                    <div className="scrollable identities-list">
-                        <ProfileList
-                            profiles={filteredProfiles}
-                            favorites={favorites}
-                            onProfileClick={handleOpenProfile}
-                            onFavoriteToggle={handleFavoriteToggle}
-                            emptyMessage={
-                                profiles.length === 0
-                                    ? "No AWS profiles found in ~/.aws/credentials or ~/.aws/config"
-                                    : "No profiles match your search"
-                            }
+                ) : (
+                    <SpaceBetween size="m">
+                        <ProfileSearch
+                            searchFilter={searchFilter}
+                            onSearchChange={setSearchFilter}
+                            selectedRegion={selectedRegion}
+                            onRegionChange={setRegion}
+                            regions={AWS_REGIONS}
                         />
-                    </div>
 
-                    <div className="v-padding-hack-footer" />
-                    <div style={{ display: "flex", gap: "8px", padding: "8px" }}>
+                        <OrganizationTabs
+                            organizations={organizations}
+                            selectedTab={selectedOrgTab}
+                            onTabChange={setSelectedOrgTab}
+                            totalProfiles={profiles.length}
+                        />
+
                         <div
-                            className="bottom-btn keyboard-nav controller"
-                            tabIndex={0}
-                            onClick={() => refreshProfiles()}
                             style={{
-                                flex: 1,
-                                textAlign: "center",
-                                fontSize: "16px",
-                                padding: "12px",
-                                fontWeight: "600",
-                                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                                color: "white",
-                                borderRadius: "6px",
-                                boxShadow: "0 4px 8px rgba(102,126,234,0.3)",
-                                transition: "all 0.3s ease",
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = "translateY(-2px)";
-                                e.currentTarget.style.boxShadow =
-                                    "0 6px 12px rgba(102,126,234,0.4)";
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = "translateY(0)";
-                                e.currentTarget.style.boxShadow =
-                                    "0 4px 8px rgba(102,126,234,0.3)";
+                                maxHeight: "400px",
+                                overflowY: "auto",
                             }}
                         >
-                            Refresh
+                            <ProfileList
+                                profiles={filteredProfiles}
+                                favorites={favorites}
+                                onProfileClick={handleOpenProfile}
+                                onFavoriteToggle={handleFavoriteToggle}
+                                emptyMessage={
+                                    profiles.length === 0
+                                        ? "No AWS profiles found in ~/.aws/credentials or ~/.aws/config"
+                                        : "No profiles match your search"
+                                }
+                            />
                         </div>
-                    </div>
-                </>
-            )}
-        </div>
+
+                        <Box padding={{ top: "s" }}>
+                            <Button
+                                variant="primary"
+                                onClick={() => refreshProfiles()}
+                                fullWidth
+                            >
+                                Refresh Profiles
+                            </Button>
+                        </Box>
+                    </SpaceBetween>
+                )}
+            </Container>
+
+            <Modal
+                visible={isRemoving}
+                onDismiss={() => setIsRemoving(false)}
+                header="Clear Containers"
+                footer={
+                    <Box float="right">
+                        <SpaceBetween direction="horizontal" size="xs">
+                            <Button variant="link" onClick={() => setIsRemoving(false)}>
+                                Cancel
+                            </Button>
+                            <Button variant="primary" onClick={handleClearContainers}>
+                                Confirm
+                            </Button>
+                        </SpaceBetween>
+                    </Box>
+                }
+            >
+                Are you sure you want to clear all AWS containers?
+            </Modal>
+        </>
     );
 };

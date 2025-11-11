@@ -16,7 +16,7 @@ module.exports = {
     module: {
         rules: [
             {
-                exclude: /node_modules/,
+                exclude: [/node_modules/, /__tests__/, /\.test\.tsx?$/, /\.spec\.tsx?$/],
                 test: /\.tsx?$/,
                 use: "ts-loader",
             },
@@ -32,6 +32,18 @@ module.exports = {
                     },
                     {
                         loader: "sass-loader", // Compiles Sass to CSS
+                    },
+                ],
+            },
+            {
+                // Handle CSS files from node_modules (for Cloudscape)
+                test: /\.css$/,
+                use: [
+                    {
+                        loader: "style-loader",
+                    },
+                    {
+                        loader: "css-loader",
                     },
                 ],
             },

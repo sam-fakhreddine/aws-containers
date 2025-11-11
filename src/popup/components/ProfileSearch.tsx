@@ -5,6 +5,9 @@
  */
 
 import React, { FunctionComponent, memo } from "react";
+import Input from "@cloudscape-design/components/input";
+import Select from "@cloudscape-design/components/select";
+import SpaceBetween from "@cloudscape-design/components/space-between";
 
 interface AWSRegion {
     code: string;
@@ -30,39 +33,35 @@ const ProfileSearchComponent: FunctionComponent<ProfileSearchProps> = ({
     onRegionChange,
     regions,
 }) => {
+    const regionOptions = regions.map((region) => ({
+        label: region.name,
+        value: region.code,
+    }));
+
+    const selectedOption =
+        regionOptions.find((opt) => opt.value === selectedRegion) ||
+        regionOptions[0];
+
     return (
         <div style={{ padding: "8px" }}>
-            <input
-                type="text"
-                placeholder="Search profiles..."
-                value={searchFilter}
-                onChange={(e) => onSearchChange(e.target.value)}
-                style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    fontSize: "17px",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                    marginBottom: "8px",
-                }}
-            />
-            <select
-                value={selectedRegion}
-                onChange={(e) => onRegionChange(e.target.value)}
-                style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    fontSize: "17px",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                }}
-            >
-                {regions.map((region) => (
-                    <option key={region.code} value={region.code}>
-                        {region.name}
-                    </option>
-                ))}
-            </select>
+            <SpaceBetween size="s" direction="vertical">
+                <Input
+                    type="search"
+                    placeholder="Search profiles..."
+                    value={searchFilter}
+                    onChange={(event) => onSearchChange(event.detail.value)}
+                    clearAriaLabel="Clear search"
+                />
+                <Select
+                    selectedOption={selectedOption}
+                    onChange={(event) =>
+                        onRegionChange(event.detail.selectedOption.value || "")
+                    }
+                    options={regionOptions}
+                    placeholder="Select region"
+                    selectedAriaLabel="Selected"
+                />
+            </SpaceBetween>
         </div>
     );
 };

@@ -69,7 +69,6 @@
     "jest-environment-jsdom": "^30.2.0",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.2.5",
-    "sass-loader": "^16.0.6",
     "semantic-release": "^25.0.2",
     "style-loader": "^4.0.0",
     "terser-webpack-plugin": "^5.3.10",
@@ -83,12 +82,12 @@
     "webpack-merge": "^6.0.1"
   },
   "dependencies": {
-    "@popperjs/core": "^2.11.8",
-    "bootstrap": "^5.3.8",
+    "@cloudscape-design/components": "^3.0.1128",
+    "@cloudscape-design/design-tokens": "^3.0.63",
+    "@cloudscape-design/global-styles": "^1.0.47",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-test-renderer": "^19.2.0",
-    "sass": "^1.80.0",
     "webextension-polyfill": "^0.12.0"
   }
 }

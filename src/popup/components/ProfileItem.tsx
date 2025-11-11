@@ -5,6 +5,8 @@
  */
 
 import React, { FunctionComponent, memo } from "react";
+import Box from "@cloudscape-design/components/box";
+import Badge from "@cloudscape-design/components/badge";
 import { AWSProfile } from "../types";
 import {
     MILLISECONDS_PER_MINUTE,
@@ -56,78 +58,77 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
     onFavoriteToggle,
 }) => {
     return (
-        <tr
-            className="menu-item hover-highlight"
-            onClick={() => onProfileClick(profile)}
-            style={{ cursor: "pointer" }}
+        <Box
+            padding={{ vertical: "xs", horizontal: "s" }}
+            margin={{ bottom: "xxxs" }}
         >
-            <td style={{ padding: "12px 8px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <div className="menu-icon hover-highlight">
-                        <div
-                            className="usercontext-icon"
-                            data-identity-icon={profile.icon}
-                            data-identity-color={profile.color}
-                            style={{ width: "24px", height: "24px" }}
-                        />
-                    </div>
+            <div
+                onClick={() => onProfileClick(profile)}
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    cursor: "pointer",
+                    padding: "8px",
+                    borderRadius: "8px",
+                    transition: "background-color 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#f2f3f3";
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                }}
+            >
+                <div className="menu-icon hover-highlight">
+                    <div
+                        className="usercontext-icon"
+                        data-identity-icon={profile.icon}
+                        data-identity-color={profile.color}
+                        style={{ width: "24px", height: "24px" }}
+                    />
+                </div>
+                <div
+                    style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        flex: 1,
+                        gap: "4px",
+                    }}
+                >
                     <div
                         style={{
                             display: "flex",
-                            flexDirection: "column",
-                            flex: 1,
+                            alignItems: "center",
+                            gap: "8px",
                         }}
                     >
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                marginBottom: "2px",
-                            }}
+                        <Box fontSize="body-m" fontWeight="bold">
+                            {profile.name}
+                        </Box>
+                        {profile.is_sso && <Badge color="blue">SSO</Badge>}
+                    </div>
+                    {profile.expiration && (
+                        <Box
+                            fontSize="body-s"
+                            color={profile.expired ? "text-status-error" : "text-body-secondary"}
                         >
-                            <span style={{ fontSize: "16px", fontWeight: "500" }}>
-                                {profile.name}
-                            </span>
-                            {profile.is_sso && (
-                                <span
-                                    style={{
-                                        fontSize: "11px",
-                                        background: "#0060df",
-                                        color: "white",
-                                        padding: "3px 6px",
-                                        borderRadius: "3px",
-                                        fontWeight: "bold",
-                                    }}
-                                >
-                                    SSO
-                                </span>
-                            )}
-                        </div>
-                        {profile.expiration && (
-                            <span
-                                style={{
-                                    fontSize: "13px",
-                                    color: profile.expired ? "#d70022" : "#666",
-                                }}
-                            >
-                                {formatExpiration(profile.expiration, profile.expired)}
-                            </span>
-                        )}
-                    </div>
-                    <div
-                        onClick={(e) => onFavoriteToggle(profile.name, e)}
-                        style={{
-                            padding: "6px 10px",
-                            cursor: "pointer",
-                            fontSize: "20px",
-                        }}
-                    >
-                        {isFavorite ? "★" : "☆"}
-                    </div>
+                            {formatExpiration(profile.expiration, profile.expired)}
+                        </Box>
+                    )}
                 </div>
-            </td>
-        </tr>
+                <div
+                    onClick={(e) => onFavoriteToggle(profile.name, e)}
+                    style={{
+                        padding: "6px 10px",
+                        cursor: "pointer",
+                        fontSize: "20px",
+                    }}
+                >
+                    {isFavorite ? "★" : "☆"}
+                </div>
+            </div>
+        </Box>
     );
 };
 

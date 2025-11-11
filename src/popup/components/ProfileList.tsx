@@ -5,6 +5,8 @@
  */
 
 import React, { FunctionComponent, memo } from "react";
+import Box from "@cloudscape-design/components/box";
+import Container from "@cloudscape-design/components/container";
 import { AWSProfile } from "../types";
 import { ProfileItem } from "./ProfileItem";
 
@@ -29,38 +31,24 @@ const ProfileListComponent: FunctionComponent<ProfileListProps> = ({
 }) => {
     if (profiles.length === 0) {
         return (
-            <table className="menu" id="identities-list" style={{ width: "100%" }}>
-                <tbody>
-                    <tr>
-                        <td
-                            style={{
-                                padding: "20px",
-                                textAlign: "center",
-                                fontSize: "15px",
-                            }}
-                        >
-                            {emptyMessage}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <Box padding="l" textAlign="center">
+                {emptyMessage}
+            </Box>
         );
     }
 
     return (
-        <table className="menu" id="identities-list" style={{ width: "100%" }}>
-            <tbody>
-                {profiles.map((profile) => (
-                    <ProfileItem
-                        key={profile.name}
-                        profile={profile}
-                        isFavorite={favorites.includes(profile.name)}
-                        onProfileClick={onProfileClick}
-                        onFavoriteToggle={onFavoriteToggle}
-                    />
-                ))}
-            </tbody>
-        </table>
+        <div id="identities-list" style={{ width: "100%" }}>
+            {profiles.map((profile) => (
+                <ProfileItem
+                    key={profile.name}
+                    profile={profile}
+                    isFavorite={favorites.includes(profile.name)}
+                    onProfileClick={onProfileClick}
+                    onFavoriteToggle={onFavoriteToggle}
+                />
+            ))}
+        </div>
     );
 };
 

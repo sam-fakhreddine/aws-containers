@@ -5,6 +5,8 @@
  */
 
 import React, { FunctionComponent, memo } from "react";
+import Spinner from "@cloudscape-design/components/spinner";
+import Box from "@cloudscape-design/components/box";
 
 interface LoadingStateProps {
     message?: string;
@@ -18,9 +20,12 @@ const LoadingStateComponent: FunctionComponent<LoadingStateProps> = ({
     message = "Loading profiles...",
 }) => {
     return (
-        <div style={{ padding: "30px", textAlign: "center", fontSize: "16px" }}>
-            {message}
-        </div>
+        <Box textAlign="center" padding="xxl">
+            <Spinner size="large" />
+            <Box variant="p" padding={{ top: "s" }}>
+                {message}
+            </Box>
+        </Box>
     );
 };
 
