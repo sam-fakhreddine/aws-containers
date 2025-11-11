@@ -86,7 +86,7 @@ jobs:
 
       - name: Run semantic-release
         id: semantic
-        run: npx semantic-release
+        run: npx semantic-release --extends config/.releaserc.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

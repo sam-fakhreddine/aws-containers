@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="aws-console-containers.png" alt="AWS Console Containers Logo" width="200"/>
+  <img src="docs/assets/aws-console-containers.png" alt="AWS Console Containers Logo" width="200"/>
 </p>
 
 # AWS Profile Containers
@@ -118,7 +118,7 @@ If you want to build the standalone executable yourself:
 
 ```bash
 # Build the self-contained native messaging host
-./build-native-host.sh
+./scripts/build/build-native-host.sh
 
 # Install everything
 ./install.sh
@@ -513,20 +513,33 @@ yarn test
 
 ```
 aws-console-containers/
-├── src/
+├── config/                      # Build & linting configuration
+│   ├── webpack/                 # Webpack configs
+│   ├── .eslintrc.js
+│   ├── .prettierrc.js
+│   └── babel.config.js
+├── scripts/                     # Build & utility scripts
+│   ├── build/                   # Build scripts
+│   └── test/                    # Test scripts
+├── src/                         # Extension source code
 │   ├── popup/
-│   │   ├── awsProfiles.tsx    # Main popup UI
+│   │   ├── awsProfiles.tsx     # Main popup UI
 │   │   └── index.tsx           # Entry point
 │   ├── opener/
 │   │   ├── parser.ts           # Protocol handler
 │   │   └── containers.ts       # Container management
 │   └── backgroundPage.ts       # Background script
-├── native-messaging/
-│   ├── aws_profile_bridge.py   # Native bridge script
-│   └── aws_profile_bridge.json # Manifest template
-├── dist/                        # Built extension
+├── native-messaging/            # Python native messaging host
+│   ├── src/                    # Source code
+│   ├── tests/                  # Unit tests
+│   └── setup.py
+├── docs/                        # Documentation
+│   └── assets/                 # Images & assets
+├── dist/                        # Built extension (generated)
 └── install.sh                   # Installation script
 ```
+
+For complete details on the repository structure, see [REORGANIZATION.md](REORGANIZATION.md).
 
 ## Features Overview
 

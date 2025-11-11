@@ -1,13 +1,16 @@
 const path = require("path");
 
+// Since webpack config is now in config/webpack/, go up 2 directories to project root
+const projectRoot = path.resolve(__dirname, "../..");
+
 module.exports = {
     entry: {
-        opener: path.join(__dirname, "src/opener/index.ts"),
-        backgroundPage: path.join(__dirname, "src/backgroundPage.ts"),
-        popup: path.join(__dirname, "src/popup/index.tsx"),
+        opener: path.join(projectRoot, "src/opener/index.ts"),
+        backgroundPage: path.join(projectRoot, "src/backgroundPage.ts"),
+        popup: path.join(projectRoot, "src/popup/index.tsx"),
     },
     output: {
-        path: path.join(__dirname, "dist/js"),
+        path: path.join(projectRoot, "dist/js"),
         filename: "[name].js",
     },
     module: {
@@ -37,7 +40,7 @@ module.exports = {
     resolve: {
         extensions: [".ts", ".tsx", ".js"],
         alias: {
-            "@src": path.resolve(__dirname, "src/"),
+            "@src": path.resolve(projectRoot, "src/"),
         },
     },
 };
