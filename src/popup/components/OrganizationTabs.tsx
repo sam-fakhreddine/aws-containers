@@ -1,9 +1,10 @@
 /**
  * OrganizationTabs Component
  * Displays tabs for filtering profiles by organization (SSO groups)
+ * Memoized for performance
  */
 
-import React, { FunctionComponent } from "react";
+import React, { FunctionComponent, memo } from "react";
 import { AWSProfile } from "../types";
 
 interface Organization {
@@ -20,8 +21,9 @@ interface OrganizationTabsProps {
 
 /**
  * OrganizationTabs - Tab navigation for profile organizations
+ * Memoized to prevent unnecessary re-renders
  */
-export const OrganizationTabs: FunctionComponent<OrganizationTabsProps> = ({
+const OrganizationTabsComponent: FunctionComponent<OrganizationTabsProps> = ({
     organizations,
     selectedTab,
     onTabChange,
@@ -52,3 +54,8 @@ export const OrganizationTabs: FunctionComponent<OrganizationTabsProps> = ({
         </div>
     );
 };
+
+/**
+ * Memoized OrganizationTabs component
+ */
+export const OrganizationTabs = memo(OrganizationTabsComponent);

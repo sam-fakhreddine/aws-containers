@@ -3,8 +3,9 @@
  * Handles profile loading, caching, and native messaging communication
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import browser from "webextension-polyfill";
+import type { Runtime } from "webextension-polyfill";
 import {
     CACHE_DURATION_MS,
     NATIVE_MESSAGING_HOST_NAME,
@@ -35,6 +36,9 @@ export function useProfiles(): UseProfilesReturn {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [nativeMessagingAvailable, setNativeMessagingAvailable] = useState(false);
+
+    // Store port reference for cleanup
+    const portRef = useRef<Runtime.Port | null>(null);
 
     /**
      * Loads profiles from cache if available and recent
@@ -102,12 +106,23 @@ export function useProfiles(): UseProfilesReturn {
             setError(null);
 
             try {
+                // Disconnect existing port if any
+                if (portRef.current) {
+                    try {
+                        portRef.current.disconnect();
+                    } catch (e) {
+                        // Port may already be disconnected
+                    }
+                    portRef.current = null;
+                }
+
                 // Connect to native messaging host
                 const port = browser.runtime.connectNative(NATIVE_MESSAGING_HOST_NAME);
+                portRef.current = port;
                 setNativeMessagingAvailable(true);
 
-                // Set up message listener
-                port.onMessage.addListener(async (response: unknown) => {
+                // Message listener
+                const messageListener = async (response: unknown) => {
                     try {
                         if (isProfileListResponse(response)) {
                             // Sort profiles alphabetically by name
@@ -132,10 +147,10 @@ export function useProfiles(): UseProfilesReturn {
                         setError("Failed to process profile list");
                         setLoading(false);
                     }
-                });
+                };
 
-                // Set up disconnect listener
-                port.onDisconnect.addListener(() => {
+                // Disconnect listener
+                const disconnectListener = () => {
                     if (browser.runtime.lastError) {
                         setError(
                             `Native messaging error: ${browser.runtime.lastError.message}`
@@ -143,7 +158,12 @@ export function useProfiles(): UseProfilesReturn {
                         setNativeMessagingAvailable(false);
                     }
                     setLoading(false);
-                });
+                    portRef.current = null;
+                };
+
+                // Attach listeners
+                port.onMessage.addListener(messageListener);
+                port.onDisconnect.addListener(disconnectListener);
 
                 // Request profile list
                 port.postMessage({ action: "getProfiles" });
@@ -162,6 +182,22 @@ export function useProfiles(): UseProfilesReturn {
     const refreshProfiles = useCallback(async (): Promise<void> => {
         await loadProfiles(true);
     }, [loadProfiles]);
+
+    /**
+     * Cleanup: Disconnect port when component unmounts
+     */
+    useEffect(() => {
+        return () => {
+            if (portRef.current) {
+                try {
+                    portRef.current.disconnect();
+                } catch (e) {
+                    // Port may already be disconnected
+                }
+                portRef.current = null;
+            }
+        };
+    }, []);
 
     return {
         profiles,

@@ -1,9 +1,10 @@
 /**
  * ProfileItem Component
  * Renders a single AWS profile in the list
+ * Optimized with React.memo to prevent unnecessary re-renders
  */
 
-import React, { FunctionComponent } from "react";
+import React, { FunctionComponent, memo } from "react";
 import { AWSProfile } from "../types";
 import {
     MILLISECONDS_PER_MINUTE,
@@ -46,8 +47,9 @@ function formatExpiration(expiration: string | null, expired: boolean): string {
 
 /**
  * ProfileItem - Renders a single AWS profile
+ * Memoized to prevent re-renders when props haven't changed
  */
-export const ProfileItem: FunctionComponent<ProfileItemProps> = ({
+const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
     profile,
     isFavorite,
     onProfileClick,
@@ -128,3 +130,24 @@ export const ProfileItem: FunctionComponent<ProfileItemProps> = ({
         </tr>
     );
 };
+
+/**
+ * Custom comparison function for ProfileItem
+ * Only re-render if profile name, expiration, or favorite status changed
+ */
+function areProfileItemPropsEqual(
+    prevProps: Readonly<ProfileItemProps>,
+    nextProps: Readonly<ProfileItemProps>
+): boolean {
+    return (
+        prevProps.profile.name === nextProps.profile.name &&
+        prevProps.profile.expired === nextProps.profile.expired &&
+        prevProps.profile.expiration === nextProps.profile.expiration &&
+        prevProps.isFavorite === nextProps.isFavorite
+    );
+}
+
+/**
+ * Memoized ProfileItem component
+ */
+export const ProfileItem = memo(ProfileItemComponent, areProfileItemPropsEqual);

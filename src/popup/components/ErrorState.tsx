@@ -1,9 +1,10 @@
 /**
  * ErrorState Component
  * Displays an error message with retry button
+ * Memoized for performance
  */
 
-import React, { FunctionComponent } from "react";
+import React, { FunctionComponent, memo } from "react";
 
 interface ErrorStateProps {
     error: string;
@@ -12,8 +13,9 @@ interface ErrorStateProps {
 
 /**
  * ErrorState - Shows error message with optional retry button
+ * Memoized to prevent unnecessary re-renders
  */
-export const ErrorState: FunctionComponent<ErrorStateProps> = ({
+const ErrorStateComponent: FunctionComponent<ErrorStateProps> = ({
     error,
     onRetry,
 }) => {
@@ -53,3 +55,8 @@ export const ErrorState: FunctionComponent<ErrorStateProps> = ({
         </div>
     );
 };
+
+/**
+ * Memoized ErrorState - re-renders only when error message changes
+ */
+export const ErrorState = memo(ErrorStateComponent);

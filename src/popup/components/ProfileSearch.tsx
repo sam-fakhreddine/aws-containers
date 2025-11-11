@@ -1,9 +1,10 @@
 /**
  * ProfileSearch Component
  * Provides search and region filtering controls
+ * Memoized for performance
  */
 
-import React, { FunctionComponent } from "react";
+import React, { FunctionComponent, memo } from "react";
 
 interface AWSRegion {
     code: string;
@@ -20,8 +21,9 @@ interface ProfileSearchProps {
 
 /**
  * ProfileSearch - Search and region selection controls
+ * Memoized to prevent unnecessary re-renders
  */
-export const ProfileSearch: FunctionComponent<ProfileSearchProps> = ({
+const ProfileSearchComponent: FunctionComponent<ProfileSearchProps> = ({
     searchFilter,
     onSearchChange,
     selectedRegion,
@@ -64,3 +66,8 @@ export const ProfileSearch: FunctionComponent<ProfileSearchProps> = ({
         </div>
     );
 };
+
+/**
+ * Memoized ProfileSearch component
+ */
+export const ProfileSearch = memo(ProfileSearchComponent);

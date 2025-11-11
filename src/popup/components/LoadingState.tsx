@@ -1,9 +1,10 @@
 /**
  * LoadingState Component
  * Displays a loading indicator
+ * Memoized for performance
  */
 
-import React, { FunctionComponent } from "react";
+import React, { FunctionComponent, memo } from "react";
 
 interface LoadingStateProps {
     message?: string;
@@ -11,8 +12,9 @@ interface LoadingStateProps {
 
 /**
  * LoadingState - Shows loading indicator
+ * Memoized as it rarely changes
  */
-export const LoadingState: FunctionComponent<LoadingStateProps> = ({
+const LoadingStateComponent: FunctionComponent<LoadingStateProps> = ({
     message = "Loading profiles...",
 }) => {
     return (
@@ -21,3 +23,8 @@ export const LoadingState: FunctionComponent<LoadingStateProps> = ({
         </div>
     );
 };
+
+/**
+ * Memoized LoadingState - re-renders only when message changes
+ */
+export const LoadingState = memo(LoadingStateComponent);
