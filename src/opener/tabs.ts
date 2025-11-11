@@ -1,36 +1,56 @@
-import browser, { type ContextualIdentities } from "webextension-polyfill";
+/**
+ * Tab management utilities for Firefox extension
+ */
 
+import browser, { type ContextualIdentities, type Tabs } from "webextension-polyfill";
+
+/**
+ * Creates a new tab in a specified container and closes the current tab
+ * @param container - The contextual identity (container) to open the tab in
+ * @param params - Parameters for the new tab
+ * @throws Error if tab creation fails
+ */
 export async function newTab(
     container: ContextualIdentities.ContextualIdentity,
-    params: { url: any },
-) {
+    params: { url: string },
+): Promise<void> {
     try {
-        let browserInfo = await browser.runtime.getBrowserInfo();
-        let currentTab = await browser.tabs.getCurrent();
+        const browserInfo = await browser.runtime.getBrowserInfo();
+        const currentTab = await browser.tabs.getCurrent();
 
-        let createTabParams = {
+        const createTabParams = {
             cookieStoreId: container.cookieStoreId,
             url: params.url,
             index: currentTab.index + 1,
         };
 
         await browser.tabs.create(createTabParams);
-        currentTab.id && (await browser.tabs.remove(currentTab.id));
+        if (currentTab.id) {
+            await browser.tabs.remove(currentTab.id);
+        }
     } catch (e) {
         throw new Error(`creating new tab: ${e}`);
     }
 }
 
-export async function closeCurrentTab() {
-    let currentTab = await browser.tabs.getCurrent();
-    currentTab.id && (await browser.tabs.remove(currentTab.id));
+/**
+ * Closes the current tab
+ */
+export async function closeCurrentTab(): Promise<void> {
+    const currentTab = await browser.tabs.getCurrent();
+    if (currentTab.id) {
+        await browser.tabs.remove(currentTab.id);
+    }
 }
 
-export async function getActiveTab() {
-    return (
-        await browser.tabs.query({
-            active: true,
-            windowId: browser.windows.WINDOW_ID_CURRENT,
-        })
-    )[0];
+/**
+ * Gets the currently active tab in the current window
+ * @returns The active tab
+ */
+export async function getActiveTab(): Promise<Tabs.Tab> {
+    const tabs = await browser.tabs.query({
+        active: true,
+        windowId: browser.windows.WINDOW_ID_CURRENT,
+    });
+    return tabs[0];
 }

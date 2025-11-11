@@ -13,12 +13,12 @@ interface AWSProfile {
 }
 
 // Container management utilities
-async function lookupContainer(name: string) {
+export async function lookupContainer(name: string) {
     const containers = await browser.contextualIdentities.query({ name });
     return containers.length >= 1 ? containers[0] : null;
 }
 
-async function prepareContainer(name: string, color: string, icon: string) {
+export async function prepareContainer(name: string, color: string, icon: string) {
     const container = await lookupContainer(name);
     if (!container) {
         const created = await browser.contextualIdentities.create({
@@ -38,7 +38,7 @@ async function prepareContainer(name: string, color: string, icon: string) {
     }
 }
 
-async function saveContainerId(id: string) {
+export async function saveContainerId(id: string) {
     const obj = await browser.storage.local.get("containers");
     const exists = "containers" in obj;
     if (exists) {
