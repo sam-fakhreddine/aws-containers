@@ -73,6 +73,30 @@ if [ -f "$EXECUTABLE_PATH" ]; then
     chmod +x "$INSTALL_DIR/aws_profile_bridge"
     echo -e "${GREEN}✓${NC} Standalone executable installed to: $INSTALL_DIR/aws_profile_bridge"
     INSTALLED_PATH="$INSTALL_DIR/aws_profile_bridge"
+
+    # Apply macOS security fixes
+    if [[ "$OS" == "macos" ]]; then
+        echo ""
+        echo "Applying macOS security fixes..."
+
+        # Remove quarantine attribute
+        if xattr -d com.apple.quarantine "$INSTALLED_PATH" 2>/dev/null; then
+            echo -e "${GREEN}✓${NC} Removed quarantine attribute"
+        fi
+
+        # Clear all extended attributes
+        xattr -c "$INSTALLED_PATH" 2>/dev/null || true
+
+        # Ad-hoc code signing
+        if command -v codesign &> /dev/null; then
+            if codesign --force --deep --sign - "$INSTALLED_PATH" 2>/dev/null; then
+                echo -e "${GREEN}✓${NC} Applied code signature"
+            else
+                echo -e "${YELLOW}!${NC} Warning: Code signing failed"
+                echo "  Run this manually to fix: ./scripts/fix-macos-security.sh"
+            fi
+        fi
+    fi
 elif [ -f "native-messaging/aws_profile_bridge.py" ]; then
     echo -e "${YELLOW}!${NC} Pre-built executable not found, using Python script"
     echo "  (Run ./scripts/build/build-native-host.sh to create standalone executable)"
@@ -209,6 +233,11 @@ echo "  ls -la $INSTALLED_PATH"
 echo "- Checking the native messaging manifest:"
 echo "  cat $NATIVE_MESSAGING_DIR/aws_profile_bridge.json"
 echo ""
+if [[ "$OS" == "macos" ]]; then
+    echo "If you see '\"Python.framework\" is damaged' error on macOS:"
+    echo "  ./scripts/fix-macos-security.sh"
+    echo ""
+fi
 echo "For a fully self-contained installation (no Python required):"
 echo "  ./scripts/build/build-native-host.sh"
 echo ""
