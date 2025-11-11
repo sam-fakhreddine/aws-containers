@@ -12,6 +12,8 @@
     "build:analyze": "ANALYZE=true npm run build:transpile",
     "dev": "webpack -w --config config/webpack/webpack.dev.js",
     "test": "jest",
+    "test:perf": "jest --testNamePattern=\"Performance\" --verbose",
+    "test:perf:watch": "jest --testNamePattern=\"Performance\" --watch",
     "lint": "eslint --fix -c ./config/.eslintrc.js \"src/**/*.ts*\"",
     "prettify": "prettier --write \"src/**/*.ts*\" --config config/.prettierrc.js",
     "start:firefox": "web-ext run --source-dir ./dist/",
