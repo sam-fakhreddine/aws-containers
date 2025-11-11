@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="aws-console-containers.png" alt="AWS Console Containers Logo" width="200"/>
+</p>
+
 # AWS Profile Containers
 
 A Firefox extension that reads your AWS credentials file and opens AWS profiles in separate isolated containers with automatic AWS Console federation.
@@ -15,6 +19,7 @@ A Firefox extension that reads your AWS credentials file and opens AWS profiles 
 ## Features
 
 ### Core Functionality
+
 - 🔐 **AWS Console Federation**: Automatically generates authenticated console URLs
 - 🔒 **Container Isolation**: Each AWS profile opens in its own Firefox container
 - 📁 **Automatic Profile Detection**: Reads profiles from `~/.aws/credentials` and `~/.aws/config`
@@ -24,6 +29,7 @@ A Firefox extension that reads your AWS credentials file and opens AWS profiles 
 - 🚀 **Automated Builds**: GitHub Actions workflow for building releases
 
 ### UX Enhancements
+
 - 🔍 **Search/Filter**: Quick profile search as you type
 - ⭐ **Favorites**: Star frequently-used profiles
 - 🕐 **Recent Profiles**: Tracks your last 10 opened profiles
@@ -72,6 +78,7 @@ A Firefox extension that reads your AWS credentials file and opens AWS profiles 
 ```
 
 **Key Security Points:**
+
 - Credentials never leave your local machine except to AWS's official API
 - Extension uses native Firefox containers API (no custom protocols)
 - No credentials stored in browser storage
@@ -95,6 +102,7 @@ cd aws-containers
 ### Alternative: Download Pre-Built Package
 
 For releases, pre-built executables are available:
+
 1. Download from [Releases](https://github.com/sam-fakhreddine/aws-console-containers/releases)
 2. Extract and run `./install.sh`
 
@@ -117,6 +125,7 @@ If you want to build the standalone executable yourself:
 ```
 
 This creates a ~15-20MB standalone binary that includes:
+
 - ✓ Python runtime
 - ✓ boto3 & botocore
 - ✓ All dependencies
@@ -150,18 +159,22 @@ For comprehensive installation instructions, troubleshooting, and platform-speci
 ### Features
 
 #### Search & Filter
+
 Type in the search box to instantly filter profiles by name.
 
 #### Favorites (⭐)
+
 - Click the star icon next to any profile to mark it as a favorite
 - Favorites appear at the top of the list
 - Favorites persist across browser restarts
 
 #### Recent Profiles
+
 - Last 10 opened profiles appear in the "Recent" section
 - Helps quickly access frequently-used accounts
 
 #### Region Selection
+
 - Choose your preferred AWS region before opening
 - Region is appended to the console URL automatically
 - Selection persists across sessions
@@ -183,6 +196,7 @@ Profiles are automatically organized into sections:
 ### Managing Containers
 
 Switch to the "Containers" tab to:
+
 - View all active AWS profile containers
 - See container count
 - Clear all containers at once
@@ -206,6 +220,7 @@ aws_secret_access_key = ...
 ```
 
 **Features:**
+
 - Detects all `[profile-name]` sections
 - Reads expiration from comments (`# Expires YYYY-MM-DD HH:MM:SS UTC`)
 - Shows time remaining or expired status
@@ -232,45 +247,18 @@ region = us-east-1
 ```
 
 **SSO Setup:**
+
 1. Configure your SSO profiles in `~/.aws/config`
 2. Run `aws sso login --profile <profile-name>` to authenticate
 3. The extension will automatically use cached SSO tokens from `~/.aws/sso/cache/`
 4. When the token expires, simply run `aws sso login` again
 
 **SSO Features:**
+
 - Automatically detects SSO profiles from config
 - Shows "SSO" badge in the UI for SSO profiles
 - Monitors SSO token expiration
 - Works seamlessly alongside credential-based profiles
-
-## Integration with Your Existing Scripts
-
-### Your `firefox-container.sh` Script
-
-Already compatible! Uses the same `ext+container://` protocol.
-
-### Your Shell Functions
-
-All your AWS shell functions work unchanged:
-
-```bash
-# sso-faws function
-sso-faws account-name
-  ↓
-Loads credentials from ~/.aws/credentials
-  ↓
-Calls aws_console.py to generate federation URL
-  ↓
-Calls firefox-container.sh
-  ↓
-Opens in container via ext+container:// protocol
-```
-
-### Your Python Scripts
-
-- `aws_console.py`: Used by the bridge script to generate console URLs
-- `lza-container.py`: Works with the extension
-- All existing credential management is preserved
 
 ## Troubleshooting
 
@@ -279,16 +267,22 @@ Opens in container via ext+container:// protocol
 **Problem**: Native messaging host not connecting
 
 **Solutions**:
+
 1. Restart Firefox completely
 2. Check the Python script is installed:
+
    ```bash
    ls -la ~/.local/bin/aws_profile_bridge.py
    ```
+
 3. Check the script is executable:
+
    ```bash
    chmod +x ~/.local/bin/aws_profile_bridge.py
    ```
+
 4. Verify native messaging manifest:
+
    ```bash
    # macOS
    cat ~/Library/Application\ Support/Mozilla/NativeMessagingHosts/aws_profile_bridge.json
@@ -296,7 +290,9 @@ Opens in container via ext+container:// protocol
    # Linux
    cat ~/.mozilla/native-messaging-hosts/aws_profile_bridge.json
    ```
+
 5. Test the Python script manually:
+
    ```bash
    echo '{"action":"getProfiles"}' | python3 ~/.local/bin/aws_profile_bridge.py
    ```
@@ -306,19 +302,26 @@ Opens in container via ext+container:// protocol
 **Problem**: Extension can't find AWS profiles
 
 **Solutions**:
+
 1. Check your credentials file exists:
+
    ```bash
    cat ~/.aws/credentials
    ```
+
 2. Ensure profiles are in standard format with `[profile-name]` headers
 3. Check file permissions:
+
    ```bash
    ls -la ~/.aws/credentials
    ```
+
 4. For better SSO profile detection, install boto3:
+
    ```bash
    pip3 install boto3 botocore
    ```
+
    (The extension works without it, but boto3 provides better profile enumeration)
 
 ### Credentials Showing as Expired
@@ -326,21 +329,20 @@ Opens in container via ext+container:// protocol
 **Problem**: Your credentials have expired
 
 **Solutions for credential-based profiles**:
-1. Use your existing refresh function:
-   ```bash
-   sso-faws account-name  # Refreshes and opens
-   ```
-2. Or refresh manually with `faws`:
-   ```bash
-   faws2025 -A account-name env -d 43200
-   ```
+
+1. Refresh your credentials using your preferred AWS credential management tool
+2. The extension will automatically detect updated credentials on next refresh
 
 **Solutions for SSO profiles**:
+
 1. Re-authenticate with AWS SSO:
+
    ```bash
    aws sso login --profile <profile-name>
    ```
+
 2. Or login to all profiles under the same SSO start URL:
+
    ```bash
    aws sso login
    ```
@@ -350,19 +352,27 @@ Opens in container via ext+container:// protocol
 **Problem**: SSO profile shows as expired or can't open console
 
 **Solutions**:
+
 1. Ensure you've logged in with AWS CLI:
+
    ```bash
    aws sso login --profile <profile-name>
    ```
+
 2. Check your SSO configuration in `~/.aws/config`:
+
    ```bash
    cat ~/.aws/config
    ```
+
 3. Verify your SSO cache:
+
    ```bash
    ls -la ~/.aws/sso/cache/
    ```
+
 4. Check if AWS CLI is installed:
+
    ```bash
    aws --version
    ```
@@ -372,16 +382,21 @@ Opens in container via ext+container:// protocol
 **Problem**: Can't generate AWS console federation URL
 
 **Solutions**:
+
 1. Check `aws_console.py` is installed:
+
    ```bash
    ls -la ~/.local/bin/aws_console.py
    ```
+
 2. Test it manually:
+
    ```bash
    export AWS_ACCESS_KEY_ID="..."
    export AWS_SECRET_ACCESS_KEY="..."
    python3 ~/.local/bin/aws_console.py -u
    ```
+
 3. Fallback: Extension will use basic console URL
 
 ## File Locations
@@ -430,12 +445,14 @@ def generate_console_url(self, profile_name):
 ## Security & Privacy
 
 ### What We Do
+
 - ✅ Read `~/.aws/credentials` (local filesystem only)
 - ✅ Send credentials to AWS Federation API (HTTPS, official AWS service)
 - ✅ Store profile names, favorites, recent list in browser local storage
 - ✅ Use native Firefox containers for isolation
 
 ### What We Don't Do
+
 - ❌ Store credentials in browser storage
 - ❌ Send credentials to any server except AWS
 - ❌ Collect analytics or telemetry
@@ -443,6 +460,7 @@ def generate_console_url(self, profile_name):
 - ❌ Share data with third parties
 
 ### Minimal Permissions
+
 ```json
 {
   "permissions": [
@@ -456,7 +474,9 @@ def generate_console_url(self, profile_name):
 ```
 
 ### Data Flow
+
 All credential handling happens locally or with AWS:
+
 1. Extension → Python bridge: Profile name only
 2. Python bridge → AWS API: Temporary credentials
 3. AWS API → Python bridge: Signin token (12h expiry)
@@ -550,6 +570,7 @@ pip3 install -r native-messaging/requirements.txt
 ### Windows Support
 
 Windows support is **not currently implemented** but is technically feasible. Required changes:
+
 - PowerShell installation script (`install.ps1`)
 - Python wrapper batch file (`aws_profile_bridge.bat`)
 - Different manifest paths (`%APPDATA%\Mozilla\NativeMessagingHosts\`)
@@ -567,7 +588,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Support
 
 For issues:
+
 1. Check the Troubleshooting section above
-2. Test your shell functions still work
-3. Verify native messaging is properly installed
-4. Check Firefox console for errors: `about:debugging` → "Inspect"
+2. Verify native messaging is properly installed
+3. Check Firefox console for errors: `about:debugging` → "Inspect"
+4. Open an issue on [GitHub](https://github.com/sam-fakhreddine/aws-console-containers/issues)
