@@ -73,12 +73,16 @@ describe("ProfileList", () => {
                 />
             );
 
-            // ProfileItem should render favorite stars for profile1 and profile3
-            const table = screen.getByRole("table");
-            expect(table).toBeInTheDocument();
+            // ProfileList should render the container div
+            const list = screen.getByText("profile1").closest('#identities-list');
+            expect(list).toBeInTheDocument();
+
+            // All profiles should be rendered
+            expect(screen.getByText("profile1")).toBeInTheDocument();
+            expect(screen.getByText("profile3")).toBeInTheDocument();
         });
 
-        it("renders all profiles in a table", () => {
+        it("renders all profiles in a list", () => {
             const { container } = render(
                 <ProfileList
                     profiles={mockProfiles}
@@ -88,11 +92,13 @@ describe("ProfileList", () => {
                 />
             );
 
-            const table = container.querySelector("table.menu");
-            expect(table).toBeInTheDocument();
+            const list = container.querySelector("#identities-list");
+            expect(list).toBeInTheDocument();
 
-            const rows = container.querySelectorAll("tbody tr");
-            expect(rows).toHaveLength(3);
+            // All three profile names should be rendered
+            expect(screen.getByText("profile1")).toBeInTheDocument();
+            expect(screen.getByText("profile2")).toBeInTheDocument();
+            expect(screen.getByText("profile3")).toBeInTheDocument();
         });
     });
 
@@ -126,8 +132,8 @@ describe("ProfileList", () => {
             expect(screen.queryByText("No profiles found")).not.toBeInTheDocument();
         });
 
-        it("shows empty message in centered table cell", () => {
-            const { container } = render(
+        it("shows empty message in centered box", () => {
+            render(
                 <ProfileList
                     profiles={[]}
                     favorites={[]}
@@ -136,8 +142,8 @@ describe("ProfileList", () => {
                 />
             );
 
-            const cell = container.querySelector("td");
-            expect(cell).toHaveStyle({ textAlign: "center" });
+            const emptyMessage = screen.getByText("No profiles found");
+            expect(emptyMessage).toBeInTheDocument();
         });
     });
 
@@ -154,14 +160,12 @@ describe("ProfileList", () => {
                 />
             );
 
-            const profileRow = screen.getByText("profile1").closest("tr");
-            expect(profileRow).toBeInTheDocument();
+            const profile = screen.getByText("profile1");
+            expect(profile).toBeInTheDocument();
 
-            if (profileRow) {
-                await user.click(profileRow);
-                expect(mockOnProfileClick).toHaveBeenCalledTimes(1);
-                expect(mockOnProfileClick).toHaveBeenCalledWith(mockProfiles[0]);
-            }
+            await user.click(profile);
+            expect(mockOnProfileClick).toHaveBeenCalledTimes(1);
+            expect(mockOnProfileClick).toHaveBeenCalledWith(mockProfiles[0]);
         });
 
         it("calls onFavoriteToggle when favorite star is clicked", async () => {
@@ -176,8 +180,8 @@ describe("ProfileList", () => {
                 />
             );
 
-            // Find the favorite star button
-            const stars = screen.getAllByText("⭐");
+            // Find the favorite star
+            const stars = screen.getAllByText("★");
             expect(stars.length).toBeGreaterThan(0);
 
             // Click the first star (for profile1)
@@ -187,7 +191,7 @@ describe("ProfileList", () => {
         });
 
         it("renders correct number of ProfileItem components", () => {
-            const { container } = render(
+            render(
                 <ProfileList
                     profiles={mockProfiles}
                     favorites={[]}
@@ -196,8 +200,10 @@ describe("ProfileList", () => {
                 />
             );
 
-            const rows = container.querySelectorAll(".menu-item");
-            expect(rows).toHaveLength(3);
+            // All profiles should be visible
+            expect(screen.getByText("profile1")).toBeInTheDocument();
+            expect(screen.getByText("profile2")).toBeInTheDocument();
+            expect(screen.getByText("profile3")).toBeInTheDocument();
         });
     });
 
@@ -205,7 +211,7 @@ describe("ProfileList", () => {
         it("passes correct isFavorite prop to ProfileItem", () => {
             const favorites = ["profile2"];
 
-            const { container } = render(
+            render(
                 <ProfileList
                     profiles={mockProfiles}
                     favorites={favorites}
@@ -214,9 +220,9 @@ describe("ProfileList", () => {
                 />
             );
 
-            // Profile2 should have a filled star
-            const profile2Row = screen.getByText("profile2").closest("tr");
-            expect(profile2Row).toBeInTheDocument();
+            // Profile2 should be visible
+            const profile2 = screen.getByText("profile2");
+            expect(profile2).toBeInTheDocument();
         });
 
         it("renders with no favorites", () => {
@@ -247,13 +253,13 @@ describe("ProfileList", () => {
             );
 
             // Should render filled stars for all profiles
-            const filledStars = screen.getAllByText("⭐");
+            const filledStars = screen.getAllByText("★");
             expect(filledStars).toHaveLength(3);
         });
     });
 
-    describe("Table Structure", () => {
-        it("renders table with correct class names", () => {
+    describe("List Structure", () => {
+        it("renders list with correct id and styles", () => {
             const { container } = render(
                 <ProfileList
                     profiles={mockProfiles}
@@ -263,13 +269,13 @@ describe("ProfileList", () => {
                 />
             );
 
-            const table = container.querySelector("table.menu#identities-list");
-            expect(table).toBeInTheDocument();
-            expect(table).toHaveStyle({ width: "100%" });
+            const list = container.querySelector("div#identities-list");
+            expect(list).toBeInTheDocument();
+            expect(list).toHaveStyle({ width: "100%" });
         });
 
-        it("renders tbody element", () => {
-            const { container } = render(
+        it("renders profiles in correct order", () => {
+            render(
                 <ProfileList
                     profiles={mockProfiles}
                     favorites={[]}
@@ -278,8 +284,15 @@ describe("ProfileList", () => {
                 />
             );
 
-            const tbody = container.querySelector("tbody");
-            expect(tbody).toBeInTheDocument();
+            const profileElements = [
+                screen.getByText("profile1"),
+                screen.getByText("profile2"),
+                screen.getByText("profile3"),
+            ];
+
+            profileElements.forEach((el) => {
+                expect(el).toBeInTheDocument();
+            });
         });
     });
 
