@@ -41,6 +41,25 @@ echo "Detected OS: $OS ($ARCH_NAME)"
 echo "Platform: $PLATFORM"
 echo ""
 
+# Determine extension ID (configurable via environment variable)
+if [ -n "$EXTENSION_ID" ]; then
+    echo "Using extension ID from environment: $EXTENSION_ID"
+elif [ -f "dist/manifest.json" ]; then
+    # Try to extract from manifest.json
+    EXTENSION_ID=$(grep -o '"id"[[:space:]]*:[[:space:]]*"[^"]*"' dist/manifest.json | sed 's/.*"\([^"]*\)"/\1/')
+    if [ -n "$EXTENSION_ID" ]; then
+        echo "Using extension ID from manifest.json: $EXTENSION_ID"
+    fi
+fi
+
+# Fallback to default if still not set
+if [ -z "$EXTENSION_ID" ]; then
+    EXTENSION_ID="aws-profile-containers@yourname.local"
+    echo -e "${YELLOW}!${NC} Using default extension ID: $EXTENSION_ID"
+    echo "  To customize, set EXTENSION_ID environment variable or update dist/manifest.json"
+fi
+echo ""
+
 # Step 1: Install native messaging host executable
 echo "Step 1: Installing native messaging host..."
 INSTALL_DIR="$HOME/.local/bin"
@@ -82,7 +101,7 @@ echo ""
 echo "Step 2: Installing native messaging host manifest..."
 mkdir -p "$NATIVE_MESSAGING_DIR"
 
-# Create manifest with correct path
+# Create manifest with correct path and extension ID
 cat > "$NATIVE_MESSAGING_DIR/aws_profile_bridge.json" <<EOF
 {
   "name": "aws_profile_bridge",
@@ -90,7 +109,7 @@ cat > "$NATIVE_MESSAGING_DIR/aws_profile_bridge.json" <<EOF
   "path": "$INSTALLED_PATH",
   "type": "stdio",
   "allowed_extensions": [
-    "aws-profile-containers@yourname.local"
+    "$EXTENSION_ID"
   ]
 }
 EOF
