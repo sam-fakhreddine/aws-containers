@@ -29,10 +29,10 @@
   ],
   "author": "Sam Fakhreddine",
   "license": "MIT",
-  "homepage": "https://github.com/sam-fakhreddine/granted-containers",
+  "homepage": "https://github.com/sam-fakhreddine/aws-console-containers",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sam-fakhreddine/granted-containers"
+    "url": "https://github.com/sam-fakhreddine/aws-console-containers"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",

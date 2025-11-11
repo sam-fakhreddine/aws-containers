@@ -95,7 +95,7 @@ cd aws-containers
 ### Alternative: Download Pre-Built Package
 
 For releases, pre-built executables are available:
-1. Download from [Releases](https://github.com/sam-fakhreddine/aws-containers/releases)
+1. Download from [Releases](https://github.com/sam-fakhreddine/aws-console-containers/releases)
 2. Extract and run `./install.sh`
 
 **Platforms:** Linux, macOS Intel, macOS Apple Silicon
@@ -386,7 +386,7 @@ Opens in container via ext+container:// protocol
 
 ## File Locations
 
-- **Extension**: `/home/user/granted-containers/dist/`
+- **Extension**: `/home/user/aws-console-containers/dist/`
 - **Python Bridge**: `~/.local/bin/aws_profile_bridge.py`
 - **Native Messaging Manifest** (macOS): `~/Library/Application Support/Mozilla/NativeMessagingHosts/aws_profile_bridge.json`
 - **Native Messaging Manifest** (Linux): `~/.mozilla/native-messaging-hosts/aws_profile_bridge.json`
@@ -492,7 +492,7 @@ yarn test
 ### Project Structure
 
 ```
-granted-containers/
+aws-console-containers/
 ├── src/
 │   ├── popup/
 │   │   ├── awsProfiles.tsx    # Main popup UI

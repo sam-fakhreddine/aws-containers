@@ -5,7 +5,7 @@
 ### 1. Install the Extension
 
 ```bash
-cd /home/user/granted-containers
+cd /home/user/aws-console-containers
 ./install.sh
 ```
 
@@ -14,7 +14,7 @@ cd /home/user/granted-containers
 1. Open Firefox
 2. Go to: `about:debugging#/runtime/this-firefox`
 3. Click "Load Temporary Add-on"
-4. Select: `/home/user/granted-containers/dist/manifest.json`
+4. Select: `/home/user/aws-console-containers/dist/manifest.json`
 
 ### 3. Test It
 
@@ -93,7 +93,7 @@ The extension will show updated expiration times on next refresh.
 
 ## Where Everything Lives
 
-- Extension: `/home/user/granted-containers/dist/`
+- Extension: `/home/user/aws-console-containers/dist/`
 - Python Bridge: `~/.local/bin/aws_profile_bridge.py`
 - AWS Creds: `~/.aws/credentials` (unchanged)
 
