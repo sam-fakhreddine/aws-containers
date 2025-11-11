@@ -37,14 +37,14 @@ module.exports = {
     ],
 
     // An object that configures minimum threshold enforcement for coverage results
-    // Note: Thresholds are set based on current comprehensive test coverage
-    // React component testing is excluded due to complexity
+    // Updated thresholds based on comprehensive test suite (211 tests)
+    // Includes extensive testing of all TypeScript modules and core React utilities
     coverageThreshold: {
         global: {
-            branches: 25,
-            functions: 17,
-            lines: 27,
-            statements: 26,
+            branches: 74,
+            functions: 56,
+            lines: 75,
+            statements: 76,
         },
     },
     // A path to a custom dependency extractor
