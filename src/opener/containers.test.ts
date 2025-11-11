@@ -35,10 +35,11 @@ describe("colorFromContainerName", () => {
 
     /**
      * Test the originally failing case with negative hash
+     * After Math.abs() fix, this now returns "blue" (hash % 8 === 0)
      */
-    it("should return orange for cf-proda", () => {
+    it("should return consistent color for cf-proda", () => {
         const color = colorFromContainerName("cf-proda");
-        expect(color).toBe("orange");
+        expect(color).toBe("blue");
     });
 
     /**
@@ -289,9 +290,9 @@ describe("prepareContainer", () => {
     });
 
     /**
-     * Test that existing container's color is preserved when not provided
+     * Test that existing container is returned as-is when no updates needed
      */
-    it("should preserve existing container color when not provided", async () => {
+    it("should return existing container without update when no changes", async () => {
         const mockQuery = browser.contextualIdentities.query as jest.Mock;
         const mockUpdate = browser.contextualIdentities.update as jest.Mock;
 
@@ -307,15 +308,14 @@ describe("prepareContainer", () => {
         const container: Container = {
             name: "test",
             url: "https://example.com",
-            // no color or icon provided
+            // no color or icon provided - no updates needed
         };
 
-        await prepareContainer(container);
+        const result = await prepareContainer(container);
 
-        expect(mockUpdate).toHaveBeenCalledWith("firefox-container-1", {
-            color: "red", // preserved from existing
-            icon: "briefcase", // preserved from existing
-        });
+        // Should not call update when no changes needed
+        expect(mockUpdate).not.toHaveBeenCalled();
+        expect(result).toBe(existingContainer);
     });
 
     /**

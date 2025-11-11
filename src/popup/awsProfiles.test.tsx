@@ -4,7 +4,8 @@
  */
 
 import React from "react";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render } from "@testing-library/react";
+import { screen, waitFor, fireEvent } from "@testing-library/dom";
 import "@testing-library/jest-dom";
 import browser from "webextension-polyfill";
 import { AWSProfilesPopup } from "./awsProfiles";
@@ -663,9 +664,7 @@ describe("Container utility functions", () => {
     // These functions are no longer exported from awsProfiles
 
     /* describe("lookupContainer", () => {
-        /**
-         * Test finding existing container
-         */
+        // Test finding existing container
         it("should return container if found", async () => {
             const mockContainer = {
                 cookieStoreId: "firefox-container-1",
@@ -684,9 +683,7 @@ describe("Container utility functions", () => {
             expect(result).toEqual(mockContainer);
         });
 
-        /**
-         * Test when container not found
-         */
+        // Test when container not found
         it("should return null if container not found", async () => {
             (browser.contextualIdentities.query as jest.Mock).mockResolvedValue([]);
 
@@ -696,9 +693,7 @@ describe("Container utility functions", () => {
             expect(result).toBeNull();
         });
 
-        /**
-         * Test returning first container when multiple match
-         */
+        // Test returning first container when multiple match
         it("should return first container if multiple found", async () => {
             const containers = [
                 {
@@ -814,9 +809,7 @@ describe("Container utility functions", () => {
     });
 
     /* describe("saveContainerId", () => {
-        /**
-         * Test saving first container ID
-         */
+        // Test saving first container ID
         it("should create containers array if not exists", async () => {
             (browser.storage.local.get as jest.Mock).mockResolvedValue({});
             (browser.storage.local.set as jest.Mock).mockResolvedValue(undefined);
@@ -828,9 +821,7 @@ describe("Container utility functions", () => {
             });
         });
 
-        /**
-         * Test appending to existing containers
-         */
+        // Test appending to existing containers
         it("should append to existing containers array", async () => {
             (browser.storage.local.get as jest.Mock).mockResolvedValue({
                 containers: ["firefox-container-1", "firefox-container-2"],
@@ -844,9 +835,7 @@ describe("Container utility functions", () => {
             });
         });
 
-        /**
-         * Test handling null containers in storage
-         */
+        // Test handling null containers in storage
         it("should handle null containers in storage", async () => {
             (browser.storage.local.get as jest.Mock).mockResolvedValue({
                 containers: null,

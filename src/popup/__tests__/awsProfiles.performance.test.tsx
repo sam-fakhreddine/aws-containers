@@ -16,7 +16,7 @@ import {
 } from '../../__testUtils__/performanceHelpers';
 
 // Mock browser APIs
-global.browser = {
+(global as any).browser = {
     runtime: {
         sendMessage: jest.fn(),
         connectNative: jest.fn(() => ({

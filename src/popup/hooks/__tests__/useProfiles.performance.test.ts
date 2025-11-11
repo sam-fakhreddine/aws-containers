@@ -5,7 +5,8 @@
  * and overall hook performance.
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
+import { waitFor } from '@testing-library/dom';
 import { useProfiles } from '../useProfiles';
 import { measureExecutionTime } from '../../../__testUtils__/performanceHelpers';
 import type { Runtime } from 'webextension-polyfill';
