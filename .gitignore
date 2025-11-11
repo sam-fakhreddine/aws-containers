@@ -1,21 +1,63 @@
+# JavaScript/TypeScript
 dist/js/*
-.vscode
-storybook-static/*
-
-/node_modules
+node_modules/
 npm-debug.log
 yarn-error.log
+.vscode/
+storybook-static/
+web-ext-artifacts/
 
-.DS_Store
-web-ext-artifacts
-
-# Python build artifacts
-venv-build/
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
 .Python
+venv/
+venv-build/
+env/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.manifest
+*.spec.backup
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.hypothesis/
+coverage.xml
+*.cover
+.cache
+nosetests.xml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+bin/linux/aws_profile_bridge
 native-messaging/build/
 native-messaging/dist/
-*.spec.backup
+
+# Logs
+*.log
