@@ -10,17 +10,16 @@ import {
     NATIVE_MESSAGING_HOST_NAME,
     STORAGE_KEYS,
 } from "./constants";
-
-interface AWSProfile {
-    name: string;
-    has_credentials: boolean;
-    expiration: string | null;
-    expired: boolean;
-    color: string;
-    icon: string;
-    is_sso?: boolean;
-    sso_start_url?: string;
-}
+import {
+    AWSProfile,
+    StorageData,
+    NativeMessagingResponse,
+    isProfileListResponse,
+    isConsoleUrlResponse,
+    isErrorResponse,
+    isStringArray,
+    isAWSProfileArray,
+} from "./types";
 
 // Container management utilities
 export async function lookupContainer(name: string) {
@@ -96,24 +95,43 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     }, []);
 
     const loadSettings = async () => {
-        const data = await browser.storage.local.get([
-            STORAGE_KEYS.FAVORITES,
-            STORAGE_KEYS.RECENT_PROFILES,
-            STORAGE_KEYS.SELECTED_REGION,
-            STORAGE_KEYS.CACHED_PROFILES,
-            STORAGE_KEYS.PROFILES_CACHE_TIME,
-        ]);
-        if (data.favorites) setFavorites(data.favorites as string[]);
-        if (data.recentProfiles) setRecentProfiles(data.recentProfiles as string[]);
-        if (data.selectedRegion) setSelectedRegion(data.selectedRegion as string);
+        try {
+            const data = await browser.storage.local.get([
+                STORAGE_KEYS.FAVORITES,
+                STORAGE_KEYS.RECENT_PROFILES,
+                STORAGE_KEYS.SELECTED_REGION,
+                STORAGE_KEYS.CACHED_PROFILES,
+                STORAGE_KEYS.PROFILES_CACHE_TIME,
+            ]);
 
-        // Load cached profiles if available and recent
-        if (data.cachedProfiles && data.profilesCacheTime) {
-            const cacheAge = Date.now() - (data.profilesCacheTime as number);
-            if (cacheAge < CACHE_DURATION_MS) {
-                setProfiles(data.cachedProfiles as AWSProfile[]);
-                setLoading(false);
+            // Validate and load favorites with type guard
+            if (data.favorites && isStringArray(data.favorites)) {
+                setFavorites(data.favorites);
             }
+
+            // Validate and load recent profiles with type guard
+            if (data.recentProfiles && isStringArray(data.recentProfiles)) {
+                setRecentProfiles(data.recentProfiles);
+            }
+
+            // Validate and load selected region
+            if (data.selectedRegion && typeof data.selectedRegion === 'string') {
+                setSelectedRegion(data.selectedRegion);
+            }
+
+            // Load cached profiles if available, recent, and valid
+            if (data.cachedProfiles && data.profilesCacheTime) {
+                if (typeof data.profilesCacheTime === 'number' && isAWSProfileArray(data.cachedProfiles)) {
+                    const cacheAge = Date.now() - data.profilesCacheTime;
+                    if (cacheAge < CACHE_DURATION_MS) {
+                        setProfiles(data.cachedProfiles);
+                        setLoading(false);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Failed to load settings from storage:", err);
+            // Continue with default settings if storage fails
         }
     };
 
@@ -131,23 +149,32 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             const port = browser.runtime.connectNative(NATIVE_MESSAGING_HOST_NAME);
             setNativeMessagingAvailable(true);
 
-            // Set up message listener
-            port.onMessage.addListener(async (response: any) => {
-                if (response.action === "profileList") {
-                    // Sort profiles alphabetically by name
-                    const sortedProfiles = response.profiles.sort((a: AWSProfile, b: AWSProfile) =>
-                        a.name.localeCompare(b.name)
-                    );
-                    setProfiles(sortedProfiles);
-                    setLoading(false);
+            // Set up message listener with proper types
+            port.onMessage.addListener(async (response: unknown) => {
+                try {
+                    if (isProfileListResponse(response)) {
+                        // Sort profiles alphabetically by name
+                        const sortedProfiles = response.profiles.sort((a: AWSProfile, b: AWSProfile) =>
+                            a.name.localeCompare(b.name)
+                        );
+                        setProfiles(sortedProfiles);
+                        setLoading(false);
 
-                    // Cache the profiles with timestamp
-                    await browser.storage.local.set({
-                        [STORAGE_KEYS.CACHED_PROFILES]: sortedProfiles,
-                        [STORAGE_KEYS.PROFILES_CACHE_TIME]: Date.now()
-                    });
-                } else if (response.action === "error") {
-                    setError(response.message);
+                        // Cache the profiles with timestamp
+                        await browser.storage.local.set({
+                            [STORAGE_KEYS.CACHED_PROFILES]: sortedProfiles,
+                            [STORAGE_KEYS.PROFILES_CACHE_TIME]: Date.now()
+                        });
+                    } else if (isErrorResponse(response)) {
+                        setError(response.message);
+                        setLoading(false);
+                    } else {
+                        setError("Received invalid response from native messaging host");
+                        setLoading(false);
+                    }
+                } catch (err) {
+                    console.error("Error handling profile list response:", err);
+                    setError("Failed to process profile list");
                     setLoading(false);
                 }
             });
@@ -171,16 +198,26 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     };
 
     const refreshContainers = async () => {
-        const [identities, storageData] = await Promise.all([
-            browser.contextualIdentities.query({}),
-            browser.storage.local.get(STORAGE_KEYS.CONTAINERS),
-        ]);
-        const containerIds: string[] =
-            STORAGE_KEYS.CONTAINERS in storageData ? (storageData.containers as string[]) || [] : [];
+        try {
+            const [identities, storageData] = await Promise.all([
+                browser.contextualIdentities.query({}),
+                browser.storage.local.get(STORAGE_KEYS.CONTAINERS),
+            ]);
 
-        setContainers(
-            identities.filter((i) => containerIds.includes(i.cookieStoreId))
-        );
+            // Validate containerIds with type guard
+            let containerIds: string[] = [];
+            if (STORAGE_KEYS.CONTAINERS in storageData && isStringArray(storageData.containers)) {
+                containerIds = storageData.containers;
+            }
+
+            setContainers(
+                identities.filter((i) => containerIds.includes(i.cookieStoreId))
+            );
+        } catch (err) {
+            console.error("Failed to refresh containers:", err);
+            // Continue with empty containers list on error
+            setContainers([]);
+        }
     };
 
     const openProfile = async (profile: AWSProfile) => {
@@ -195,36 +232,43 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
             const port = browser.runtime.connectNative(NATIVE_MESSAGING_HOST_NAME);
 
-            port.onMessage.addListener(async (response: any) => {
-                if (response.action === "consoleUrl") {
-                    // Add region to the console URL
-                    let consoleUrl = response.url;
-                    if (consoleUrl.includes("console.aws.amazon.com")) {
-                        const urlObj = new URL(consoleUrl);
-                        urlObj.searchParams.set("region", selectedRegion);
-                        consoleUrl = urlObj.toString();
+            port.onMessage.addListener(async (response: unknown) => {
+                try {
+                    if (isConsoleUrlResponse(response)) {
+                        // Add region to the console URL
+                        let consoleUrl = response.url;
+                        if (consoleUrl.includes("console.aws.amazon.com")) {
+                            const urlObj = new URL(consoleUrl);
+                            urlObj.searchParams.set("region", selectedRegion);
+                            consoleUrl = urlObj.toString();
+                        }
+
+                        // Create or get the container using native Firefox API
+                        const container = await prepareContainer(
+                            response.profileName,
+                            response.color,
+                            response.icon
+                        );
+
+                        // Open tab directly in the container
+                        await browser.tabs.create({
+                            url: consoleUrl,
+                            cookieStoreId: container.cookieStoreId,
+                        });
+
+                        // Close popup only if in popup mode, not sidebar
+                        // Sidebar detection: popup windows are typically smaller
+                        if (window.innerWidth < POPUP_WIDTH_THRESHOLD) {
+                            window.close();
+                        }
+                    } else if (isErrorResponse(response)) {
+                        setError(response.message);
+                    } else {
+                        setError("Received invalid response from native messaging host");
                     }
-
-                    // Create or get the container using native Firefox API
-                    const container = await prepareContainer(
-                        response.profileName,
-                        response.color,
-                        response.icon
-                    );
-
-                    // Open tab directly in the container
-                    await browser.tabs.create({
-                        url: consoleUrl,
-                        cookieStoreId: container.cookieStoreId,
-                    });
-
-                    // Close popup only if in popup mode, not sidebar
-                    // Sidebar detection: popup windows are typically smaller
-                    if (window.innerWidth < POPUP_WIDTH_THRESHOLD) {
-                        window.close();
-                    }
-                } else if (response.action === "error") {
-                    setError(response.message);
+                } catch (err) {
+                    console.error("Error handling open profile response:", err);
+                    setError(`Failed to open profile: ${err}`);
                 }
             });
 
@@ -239,16 +283,27 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
     const toggleFavorite = async (profileName: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        const updatedFavorites = favorites.includes(profileName)
-            ? favorites.filter(f => f !== profileName)
-            : [...favorites, profileName];
-        setFavorites(updatedFavorites);
-        await browser.storage.local.set({ [STORAGE_KEYS.FAVORITES]: updatedFavorites });
+        try {
+            const updatedFavorites = favorites.includes(profileName)
+                ? favorites.filter(f => f !== profileName)
+                : [...favorites, profileName];
+            setFavorites(updatedFavorites);
+            await browser.storage.local.set({ [STORAGE_KEYS.FAVORITES]: updatedFavorites });
+        } catch (err) {
+            console.error("Failed to toggle favorite:", err);
+            // Revert state change on error
+            setFavorites([...favorites]);
+        }
     };
 
     const handleRegionChange = async (region: string) => {
-        setSelectedRegion(region);
-        await browser.storage.local.set({ [STORAGE_KEYS.SELECTED_REGION]: region });
+        try {
+            setSelectedRegion(region);
+            await browser.storage.local.set({ [STORAGE_KEYS.SELECTED_REGION]: region });
+        } catch (err) {
+            console.error("Failed to save region selection:", err);
+            // State already updated, no need to revert
+        }
     };
 
     // Memoize organizations to avoid recalculating on every render
