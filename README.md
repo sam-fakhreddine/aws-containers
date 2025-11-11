@@ -21,6 +21,7 @@ A Firefox extension that reads your AWS credentials file and opens AWS profiles 
 - 🔑 **AWS IAM Identity Center (SSO)**: Full support for SSO profiles
 - ⏰ **Credential Monitoring**: Shows credential expiration status for both credential-based and SSO profiles
 - 🌍 **Region Selector**: Choose AWS region before opening console
+- 🚀 **Automated Builds**: GitHub Actions workflow for building releases
 
 ### UX Enhancements
 - 🔍 **Search/Filter**: Quick profile search as you type
