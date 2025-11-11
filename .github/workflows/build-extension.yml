@@ -20,17 +20,17 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '24'
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: npm ci
 
       - name: Run linter
-        run: yarn lint
+        run: npm run lint
         continue-on-error: true
 
       - name: Run tests
-        run: yarn test
+        run: npm test
 
       - name: Calculate next version
         id: version
@@ -47,7 +47,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build extension
-        run: yarn build
+        run: npm run build
 
       - name: Validate build output
         run: |

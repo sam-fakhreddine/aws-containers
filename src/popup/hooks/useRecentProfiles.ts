@@ -49,6 +49,11 @@ export function useRecentProfiles(): UseRecentProfilesReturn {
     const addRecentProfile = useCallback(
         async (profileName: string): Promise<void> => {
             try {
+                // Skip if already at the front to avoid unnecessary operations
+                if (recentProfiles.length > 0 && recentProfiles[0] === profileName) {
+                    return;
+                }
+
                 // Move profile to front, remove duplicates, limit to MAX_RECENT_PROFILES
                 const updatedRecent = [
                     profileName,
