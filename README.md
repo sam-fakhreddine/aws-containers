@@ -14,7 +14,7 @@ A Firefox extension that reads your AWS credentials file and opens AWS profiles 
 - ✅ **Calls** AWS Federation API (official AWS service)
 - ❌ **Never stores** credentials in browser storage
 - ❌ **Never transmits** credentials to any server except AWS
-- 📖 **[Read full security documentation](SECURITY.md)** before installing
+- 📖 **[Read full security documentation](docs/security/security-root.md)** before installing
 
 ## Features
 
@@ -82,7 +82,7 @@ A Firefox extension that reads your AWS credentials file and opens AWS profiles 
 - Credentials never leave your local machine except to AWS's official API
 - Extension uses native Firefox containers API (no custom protocols)
 - No credentials stored in browser storage
-- See [SECURITY.md](SECURITY.md) for full details
+- See [docs/security/security-root.md](docs/security/security-root.md) for full details
 
 ## Installation
 
@@ -108,7 +108,7 @@ For releases, pre-built executables are available:
 
 **Platforms:** Linux, macOS Intel, macOS Apple Silicon
 
-**Note:** macOS binaries are unsigned (code signing optional for now). See [INSTALL.md](INSTALL.md) for Gatekeeper bypass instructions.
+**Note:** macOS binaries are unsigned (code signing optional for now). See [docs/getting-started/install-root.md](docs/getting-started/install-root.md) for Gatekeeper bypass instructions.
 
 No Python, no dependencies, just works! ✨
 
@@ -145,7 +145,7 @@ This creates a ~15-20MB standalone binary that includes:
 
 ### Detailed Installation Guide
 
-For comprehensive installation instructions, troubleshooting, and platform-specific notes, see **[INSTALL.md](INSTALL.md)**
+For comprehensive installation instructions, troubleshooting, and platform-specific notes, see **[docs/getting-started/install-root.md](docs/getting-started/install-root.md)**
 
 ## Usage
 
@@ -483,7 +483,7 @@ All credential handling happens locally or with AWS:
 4. Python bridge → Extension: Console URL with token
 5. Extension → Firefox: Opens URL in container
 
-**📖 For complete security documentation, see [SECURITY.md](SECURITY.md)**
+**📖 For complete security documentation, see [docs/security/security-root.md](docs/security/security-root.md)**
 
 ## Development
 
@@ -539,7 +539,7 @@ aws-console-containers/
 └── install.sh                   # Installation script
 ```
 
-For complete details on the repository structure, see [REORGANIZATION.md](REORGANIZATION.md).
+For complete details on the repository structure, see [docs/development/REORGANIZATION.md](docs/development/REORGANIZATION.md).
 
 ## Features Overview
 
