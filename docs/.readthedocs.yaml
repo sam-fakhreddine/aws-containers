@@ -1,0 +1,28 @@
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+version: 2
+
+# Build documentation with Sphinx
+sphinx:
+  configuration: docs/conf.py
+  fail_on_warning: false
+
+# Build formats
+formats:
+  - pdf
+  - epub
+
+# Python requirements
+python:
+  version: "3.9"
+  install:
+    - requirements: docs/requirements.txt
+
+# Markdown support
+markdown:
+  extensions:
+    - mdinclude
+    - toc
+    - tables
+    - fenced_code
