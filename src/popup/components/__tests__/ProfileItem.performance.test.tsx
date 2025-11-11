@@ -6,7 +6,8 @@
  */
 
 import React, { useState } from 'react';
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
+import { screen } from '@testing-library/dom';
 import { ProfileItem } from '../ProfileItem';
 import { performanceAssertions } from '../../../__testUtils__/performanceHelpers';
 import type { AWSProfile } from '../../types';

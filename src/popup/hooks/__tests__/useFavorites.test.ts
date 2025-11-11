@@ -3,7 +3,8 @@
  * Tests favorite management, persistence, and state updates
  */
 
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { renderHook, act } from "@testing-library/react";
+import { waitFor } from "@testing-library/dom";
 import { useFavorites } from "../useFavorites";
 import browser from "webextension-polyfill";
 

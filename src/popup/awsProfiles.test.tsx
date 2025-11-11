@@ -4,7 +4,8 @@
  */
 
 import React from "react";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render } from "@testing-library/react";
+import { screen, waitFor, fireEvent } from "@testing-library/dom";
 import "@testing-library/jest-dom";
 import browser from "webextension-polyfill";
 import { AWSProfilesPopup } from "./awsProfiles";

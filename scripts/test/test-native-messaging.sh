@@ -41,7 +41,24 @@ echo ""
 
 # Test: Get profiles
 echo "Test 1: Requesting profile list..."
-echo '{"action":"getProfiles"}' | python3 "$SCRIPT_PATH" > /tmp/bridge_test_output.bin 2>&1
+
+# Native messaging protocol requires 4-byte length prefix
+# Create proper native messaging format
+python3 -c '
+import sys
+import struct
+import json
+
+message = {"action": "getProfiles"}
+message_json = json.dumps(message).encode("utf-8")
+message_length = len(message_json)
+
+# Write 4-byte length prefix (uint32, native byte order)
+sys.stdout.buffer.write(struct.pack("I", message_length))
+# Write JSON message
+sys.stdout.buffer.write(message_json)
+sys.stdout.buffer.flush()
+' | python3 "$SCRIPT_PATH" > /tmp/bridge_test_output.bin 2>&1
 
 if [ $? -eq 0 ]; then
     # Decode the native messaging response (skip first 4 bytes which are length)
