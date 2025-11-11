@@ -45,6 +45,7 @@ coverage.xml
 *.cover
 .cache
 nosetests.xml
+coverage/
 
 # IDE
 .vscode/

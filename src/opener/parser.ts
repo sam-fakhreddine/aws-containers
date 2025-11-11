@@ -1,4 +1,5 @@
-import { Container } from "./containers";
+import { Container, OpenerParamsSchema } from "../types";
+import { CONTAINER_COLORS, CONTAINER_ICONS, CUSTOM_PROTOCOL_PREFIX } from "../constants";
 import {
     sanitizeURLSearchParams,
     required,
@@ -9,56 +10,18 @@ import {
     oneOfOrEmpty,
 } from "./validator";
 
-const customProtocolPrefix = "ext+container:";
-
-const allowedContainerColors = [
-    "blue",
-    "turquoise",
-    "green",
-    "yellow",
-    "orange",
-    "red",
-    "pink",
-    "purple",
-];
-
-const allowedContainerIcons = [
-    "fingerprint",
-    "briefcase",
-    "dollar",
-    "cart",
-    "circle",
-    "gift",
-    "vacation",
-    "food",
-    "fruit",
-    "pet",
-    "tree",
-    "chill",
-];
-
-export interface OpenerParamsSchema {
-    signature: string[];
-    id: string[];
-    name: string[];
-    color: ((p: any, name: any) => any)[];
-    icon: ((p: any, name: any) => any)[];
-    url: ((p: any, name: any) => any)[];
-    index: ((p: any, name: any) => any)[];
-    pinned: ((p: any, name: any) => any)[];
-    openInReaderMode: ((p: any, name: any) => any)[];
-    __validators: ((params: any) => any)[];
-}
-
-const openerParamsSchema = {
+/**
+ * Schema for validating opener parameters
+ */
+const openerParamsSchema: OpenerParamsSchema = {
     // signature
     signature: [],
 
     // container params
     id: [],
     name: [],
-    color: [oneOfOrEmpty(allowedContainerColors)],
-    icon: [oneOfOrEmpty(allowedContainerIcons)],
+    color: [oneOfOrEmpty([...CONTAINER_COLORS])],
+    icon: [oneOfOrEmpty([...CONTAINER_ICONS])],
 
     // url params
     url: [required, url],
@@ -70,36 +33,42 @@ const openerParamsSchema = {
     __validators: [atLeastOneRequired(["id", "name"])],
 };
 
+/**
+ * Parses opener parameters from a location hash
+ * @param rawHash - The location hash string to parse
+ * @returns A Container object with parsed parameters
+ * @throws Error if the hash is invalid or required parameters are missing
+ */
 export function parseOpenerParams(rawHash: string): Container {
-    if (rawHash[0] != "#") {
+    if (rawHash[0] !== "#") {
         throw new Error("not a valid location hash");
     }
 
     const uri = decodeURIComponent(rawHash.substring(1));
 
-    if (!uri.startsWith(customProtocolPrefix)) {
+    if (!uri.startsWith(CUSTOM_PROTOCOL_PREFIX)) {
         throw new Error("unknown URI protocol");
     }
 
-    const qs = new URLSearchParams(uri.substring(customProtocolPrefix.length));
+    const qs = new URLSearchParams(uri.substring(CUSTOM_PROTOCOL_PREFIX.length));
     const name = qs.get("name");
     if (name == null) {
         throw new Error("container name is required");
     }
     const urlString = qs.get("url");
     if (urlString == null) {
-        throw new Error("container name is required");
+        throw new Error("url is required");
     }
     // ensure that the URL is valid, by parsing it as a URL
-    const url = new URL(urlString).toString();
+    const parsedUrl = new URL(urlString).toString();
     const color = qs.get("color");
     const icon = qs.get("icon");
 
     const container: Container = {
         name,
-        url,
-        color: color && allowedContainerColors.indexOf(color) !== -1 ? color : undefined,
-        icon: icon && allowedContainerIcons.indexOf(icon) !== -1 ? icon : undefined,
+        url: parsedUrl,
+        color: color && CONTAINER_COLORS.includes(color as any) ? color : undefined,
+        icon: icon && CONTAINER_ICONS.includes(icon as any) ? icon : undefined,
     };
 
     return container;

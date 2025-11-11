@@ -1,6 +1,7 @@
-import { Container, prepareContainer } from "./containers";
+import { prepareContainer } from "./containers";
 import { parseOpenerParams } from "./parser";
 import { newTab } from "./tabs";
+import { Container } from "../types";
 
 function error(e: any) {
     console.error(e);

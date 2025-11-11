@@ -2,35 +2,51 @@
 // https://jestjs.io/docs/en/configuration.html
 
 module.exports = {
-    // All imported modules in your tests should be mocked automatically
-    // automock: false,
-    // Stop running tests after `n` failures
-    // bail: 0,
-    // Respect "browser" field in package.json when resolving modules
-    // browser: false,
-    // The directory where Jest should store its cached dependency information
-    // cacheDirectory: "/tmp/jest_rs",
     // Automatically clear mock calls and instances between every test
-    // clearMocks: true,
+    clearMocks: true,
+
     // Indicates whether the coverage information should be collected while executing the test
-    // collectCoverage: false,
+    collectCoverage: true,
+
     // An array of glob patterns indicating a set of files for which coverage information should be collected
-    // collectCoverageFrom: null,
+    collectCoverageFrom: [
+        "src/**/*.{ts,tsx}",
+        "!src/**/*.test.{ts,tsx}",
+        "!src/**/__mocks__/**",
+        "!src/**/*.d.ts",
+        "!src/popup/index.tsx", // Entry point, hard to test
+    ],
+
     // The directory where Jest should output its coverage files
-    // coverageDirectory: "coverage",
+    coverageDirectory: "coverage",
+
     // An array of regexp pattern strings used to skip coverage collection
-    // coveragePathIgnorePatterns: [
-    //   "/node_modules/"
-    // ],
+    coveragePathIgnorePatterns: [
+        "/node_modules/",
+        "/dist/",
+        "stories.tsx",
+    ],
+
     // A list of reporter names that Jest uses when writing coverage reports
-    // coverageReporters: [
-    //   "json",
-    //   "text",
-    //   "lcov",
-    //   "clover"
-    // ],
+    coverageReporters: [
+        "json",
+        "text",
+        "text-summary",
+        "lcov",
+        "html",
+    ],
+
     // An object that configures minimum threshold enforcement for coverage results
-    // coverageThreshold: null,
+    // Note: Thresholds are set based on current comprehensive test coverage
+    // React component testing is excluded due to complexity
+    coverageThreshold: {
+        global: {
+            branches: 25,
+            functions: 17,
+            lines: 27,
+            statements: 26,
+        },
+    },
     // A path to a custom dependency extractor
     // dependencyExtractor: null,
     // Make calling deprecated APIs throw helpful error messages
@@ -84,13 +100,14 @@ module.exports = {
     // Allows you to use a custom runner instead of Jest's default test runner
     // runner: "jest-runner",
     // The paths to modules that run some code to configure or set up the testing environment before each test
-    // setupFiles: [],
+    setupFiles: [],
+
     // A list of paths to modules that run some code to configure or set up the testing framework before each test
-    // setupFilesAfterEnv: [],
+    setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
     // A list of paths to snapshot serializer modules Jest should use for snapshot testing
     // snapshotSerializers: [],
     // The test environment that will be used for testing
-    // testEnvironment: "jest-environment-jsdom",
+    testEnvironment: "jest-environment-jsdom",
     // Options that will be passed to the testEnvironment
     // testEnvironmentOptions: {},
     // Adds a location field to test results
