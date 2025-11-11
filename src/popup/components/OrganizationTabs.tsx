@@ -5,6 +5,7 @@
  */
 
 import React, { FunctionComponent, memo } from "react";
+import Tabs from "@cloudscape-design/components/tabs";
 import { AWSProfile } from "../types";
 
 interface Organization {
@@ -34,23 +35,26 @@ const OrganizationTabsComponent: FunctionComponent<OrganizationTabsProps> = ({
         return null;
     }
 
+    const tabs = [
+        {
+            id: "all",
+            label: `All (${totalProfiles})`,
+            content: null,
+        },
+        ...Array.from(organizations.entries()).map(([key, org]) => ({
+            id: key,
+            label: `${org.name} (${org.profiles.length})`,
+            content: null,
+        })),
+    ];
+
     return (
-        <div className="org-tabs-container">
-            <button
-                className={`org-tab ${selectedTab === "all" ? "org-tab-active" : ""}`}
-                onClick={() => onTabChange("all")}
-            >
-                All ({totalProfiles})
-            </button>
-            {Array.from(organizations.entries()).map(([key, org]) => (
-                <button
-                    key={key}
-                    className={`org-tab ${selectedTab === key ? "org-tab-active" : ""}`}
-                    onClick={() => onTabChange(key)}
-                >
-                    {org.name} ({org.profiles.length})
-                </button>
-            ))}
+        <div style={{ padding: "8px 8px 0 8px" }}>
+            <Tabs
+                tabs={tabs}
+                activeTabId={selectedTab}
+                onChange={(event) => onTabChange(event.detail.activeTabId)}
+            />
         </div>
     );
 };

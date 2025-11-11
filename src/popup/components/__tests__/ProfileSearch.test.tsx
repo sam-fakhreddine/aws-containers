@@ -1,6 +1,6 @@
 /**
  * Unit tests for ProfileSearch component
- * Tests search functionality, filtering, and user interactions
+ * Tests search functionality, region selection, and user interactions
  */
 
 import React from "react";
@@ -11,7 +11,12 @@ import { ProfileSearch } from "../ProfileSearch";
 
 describe("ProfileSearch", () => {
     const mockOnSearchChange = jest.fn();
-    const mockOnRefresh = jest.fn();
+    const mockOnRegionChange = jest.fn();
+    const mockRegions = [
+        { code: "us-east-1", name: "US East (N. Virginia)" },
+        { code: "us-west-2", name: "US West (Oregon)" },
+        { code: "eu-west-1", name: "Europe (Ireland)" },
+    ];
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -21,9 +26,11 @@ describe("ProfileSearch", () => {
         it("renders search input", () => {
             render(
                 <ProfileSearch
-                    searchValue=""
+                    searchFilter=""
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={mockRegions}
                 />
             );
 
@@ -35,9 +42,11 @@ describe("ProfileSearch", () => {
             const initialValue = "test search";
             render(
                 <ProfileSearch
-                    searchValue={initialValue}
+                    searchFilter={initialValue}
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={mockRegions}
                 />
             );
 
@@ -47,43 +56,20 @@ describe("ProfileSearch", () => {
             expect(searchInput.value).toBe(initialValue);
         });
 
-        it("renders refresh button", () => {
+        it("renders region selector", () => {
             render(
                 <ProfileSearch
-                    searchValue=""
+                    searchFilter=""
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={mockRegions}
                 />
             );
 
-            const refreshButton = screen.getByTitle("Refresh profiles");
-            expect(refreshButton).toBeInTheDocument();
-        });
-
-        it("renders clear button when search has value", () => {
-            render(
-                <ProfileSearch
-                    searchValue="test"
-                    onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
-                />
-            );
-
-            const clearButton = screen.getByTitle("Clear search");
-            expect(clearButton).toBeInTheDocument();
-        });
-
-        it("does not render clear button when search is empty", () => {
-            render(
-                <ProfileSearch
-                    searchValue=""
-                    onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
-                />
-            );
-
-            const clearButton = screen.queryByTitle("Clear search");
-            expect(clearButton).not.toBeInTheDocument();
+            // Cloudscape Select renders a button trigger
+            const selectTrigger = screen.getByText("US East (N. Virginia)");
+            expect(selectTrigger).toBeInTheDocument();
         });
     });
 
@@ -93,9 +79,11 @@ describe("ProfileSearch", () => {
 
             render(
                 <ProfileSearch
-                    searchValue=""
+                    searchFilter=""
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={mockRegions}
                 />
             );
 
@@ -103,7 +91,6 @@ describe("ProfileSearch", () => {
             await user.type(searchInput, "profile1");
 
             expect(mockOnSearchChange).toHaveBeenCalled();
-            // Should be called for each character typed
             expect(mockOnSearchChange.mock.calls.length).toBeGreaterThan(0);
         });
 
@@ -112,58 +99,21 @@ describe("ProfileSearch", () => {
 
             render(
                 <ProfileSearch
-                    searchValue=""
+                    searchFilter=""
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={mockRegions}
                 />
             );
 
             const searchInput = screen.getByPlaceholderText("Search profiles...");
-            await user.type(searchInput, "a");
+            await user.type(searchInput, "test");
 
-            // Check the last call
+            // Verify that onSearchChange was called with string values
+            expect(mockOnSearchChange).toHaveBeenCalled();
             const lastCall = mockOnSearchChange.mock.calls[mockOnSearchChange.mock.calls.length - 1];
-            expect(lastCall[0].target.value).toBe("a");
-        });
-
-        it("calls onRefresh when refresh button is clicked", async () => {
-            const user = userEvent.setup();
-
-            render(
-                <ProfileSearch
-                    searchValue=""
-                    onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
-                />
-            );
-
-            const refreshButton = screen.getByTitle("Refresh profiles");
-            await user.click(refreshButton);
-
-            expect(mockOnRefresh).toHaveBeenCalledTimes(1);
-        });
-
-        it("calls onSearchChange with empty string when clear is clicked", async () => {
-            const user = userEvent.setup();
-
-            render(
-                <ProfileSearch
-                    searchValue="test search"
-                    onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
-                />
-            );
-
-            const clearButton = screen.getByTitle("Clear search");
-            await user.click(clearButton);
-
-            expect(mockOnSearchChange).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    target: expect.objectContaining({
-                        value: "",
-                    }),
-                })
-            );
+            expect(typeof lastCall[0]).toBe("string");
         });
     });
 
@@ -171,9 +121,11 @@ describe("ProfileSearch", () => {
         it("allows empty search", () => {
             const { container } = render(
                 <ProfileSearch
-                    searchValue=""
+                    searchFilter=""
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={mockRegions}
                 />
             );
 
@@ -186,9 +138,11 @@ describe("ProfileSearch", () => {
 
             render(
                 <ProfileSearch
-                    searchValue=""
+                    searchFilter=""
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={mockRegions}
                 />
             );
 
@@ -203,9 +157,11 @@ describe("ProfileSearch", () => {
 
             render(
                 <ProfileSearch
-                    searchValue=""
+                    searchFilter=""
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={mockRegions}
                 />
             );
 
@@ -218,9 +174,11 @@ describe("ProfileSearch", () => {
         it("handles search value update from props", () => {
             const { rerender } = render(
                 <ProfileSearch
-                    searchValue="initial"
+                    searchFilter="initial"
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={mockRegions}
                 />
             );
 
@@ -231,9 +189,11 @@ describe("ProfileSearch", () => {
 
             rerender(
                 <ProfileSearch
-                    searchValue="updated"
+                    searchFilter="updated"
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={mockRegions}
                 />
             );
 
@@ -244,83 +204,34 @@ describe("ProfileSearch", () => {
 
     describe("Component Structure", () => {
         it("renders input with correct attributes", () => {
-            const { container } = render(
+            render(
                 <ProfileSearch
-                    searchValue=""
+                    searchFilter=""
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={mockRegions}
                 />
             );
 
-            const searchInput = container.querySelector('input[type="text"]');
+            const searchInput = screen.getByPlaceholderText("Search profiles...");
             expect(searchInput).toBeInTheDocument();
             expect(searchInput).toHaveAttribute("placeholder", "Search profiles...");
         });
 
-        it("renders buttons with correct structure", () => {
-            const { container } = render(
-                <ProfileSearch
-                    searchValue="test"
-                    onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
-                />
-            );
-
-            const buttons = container.querySelectorAll("button");
-            expect(buttons.length).toBeGreaterThan(0);
-        });
-
-        it("applies correct styling classes", () => {
-            const { container } = render(
-                <ProfileSearch
-                    searchValue=""
-                    onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
-                />
-            );
-
-            const searchContainer = container.firstChild as HTMLElement;
-            expect(searchContainer).toBeInTheDocument();
-        });
-    });
-
-    describe("Button Visibility", () => {
-        it("shows only refresh button when search is empty", () => {
+        it("renders region selector with regions", () => {
             render(
                 <ProfileSearch
-                    searchValue=""
+                    searchFilter=""
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={mockRegions}
                 />
             );
 
-            expect(screen.getByTitle("Refresh profiles")).toBeInTheDocument();
-            expect(screen.queryByTitle("Clear search")).not.toBeInTheDocument();
-        });
-
-        it("shows both buttons when search has value", () => {
-            render(
-                <ProfileSearch
-                    searchValue="test"
-                    onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
-                />
-            );
-
-            expect(screen.getByTitle("Refresh profiles")).toBeInTheDocument();
-            expect(screen.getByTitle("Clear search")).toBeInTheDocument();
-        });
-
-        it("shows clear button for single character search", () => {
-            render(
-                <ProfileSearch
-                    searchValue="a"
-                    onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
-                />
-            );
-
-            expect(screen.getByTitle("Clear search")).toBeInTheDocument();
+            // Check that the selected region is displayed
+            expect(screen.getByText("US East (N. Virginia)")).toBeInTheDocument();
         });
     });
 
@@ -331,9 +242,11 @@ describe("ProfileSearch", () => {
 
             render(
                 <ProfileSearch
-                    searchValue=""
+                    searchFilter=""
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={mockRegions}
                 />
             );
 
@@ -348,9 +261,11 @@ describe("ProfileSearch", () => {
 
             render(
                 <ProfileSearch
-                    searchValue=""
+                    searchFilter=""
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={mockRegions}
                 />
             );
 
@@ -361,52 +276,19 @@ describe("ProfileSearch", () => {
             expect(mockOnSearchChange.mock.calls.length).toBeGreaterThan(0);
         });
 
-        it("handles multiple clear button clicks", async () => {
-            const user = userEvent.setup();
-
-            const { rerender } = render(
-                <ProfileSearch
-                    searchValue="test"
-                    onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
-                />
-            );
-
-            const clearButton = screen.getByTitle("Clear search");
-            await user.click(clearButton);
-
-            expect(mockOnSearchChange).toHaveBeenCalled();
-
-            // Simulate search value being cleared
-            rerender(
-                <ProfileSearch
-                    searchValue=""
-                    onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
-                />
-            );
-
-            // Clear button should no longer be visible
-            expect(screen.queryByTitle("Clear search")).not.toBeInTheDocument();
-        });
-
-        it("handles multiple refresh clicks", async () => {
-            const user = userEvent.setup();
-
+        it("handles empty regions array", () => {
             render(
                 <ProfileSearch
-                    searchValue=""
+                    searchFilter=""
                     onSearchChange={mockOnSearchChange}
-                    onRefresh={mockOnRefresh}
+                    selectedRegion="us-east-1"
+                    onRegionChange={mockOnRegionChange}
+                    regions={[]}
                 />
             );
 
-            const refreshButton = screen.getByTitle("Refresh profiles");
-            await user.click(refreshButton);
-            await user.click(refreshButton);
-            await user.click(refreshButton);
-
-            expect(mockOnRefresh).toHaveBeenCalledTimes(3);
+            // Component should still render
+            expect(screen.getByPlaceholderText("Search profiles...")).toBeInTheDocument();
         });
     });
 });

@@ -22,6 +22,7 @@ describe('ProfileItem Performance', () => {
     };
 
     const mockOnClick = jest.fn();
+    const mockOnFavoriteToggle = jest.fn();
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -43,6 +44,7 @@ describe('ProfileItem Performance', () => {
                             profile={mockProfile}
                             isFavorite={false}
                             onProfileClick={mockOnClick}
+                            onFavoriteToggle={mockOnFavoriteToggle}
                         />
                     </tbody>
                 </table>
@@ -102,6 +104,7 @@ describe('ProfileItem Performance', () => {
                         profile={profile1}
                         isFavorite={false}
                         onProfileClick={mockOnClick}
+                        onFavoriteToggle={mockOnFavoriteToggle}
                     />
                 </tbody>
             </table>
@@ -118,6 +121,7 @@ describe('ProfileItem Performance', () => {
                         profile={profile2}
                         isFavorite={false}
                         onProfileClick={mockOnClick}
+                        onFavoriteToggle={mockOnFavoriteToggle}
                     />
                 </tbody>
             </table>
@@ -138,6 +142,7 @@ describe('ProfileItem Performance', () => {
                         profile={mockProfile}
                         isFavorite={false}
                         onProfileClick={mockOnClick}
+                        onFavoriteToggle={mockOnFavoriteToggle}
                     />
                 </tbody>
             </table>
@@ -155,6 +160,7 @@ describe('ProfileItem Performance', () => {
                         profile={mockProfile}
                         isFavorite={true}
                         onProfileClick={mockOnClick}
+                        onFavoriteToggle={mockOnFavoriteToggle}
                     />
                 </tbody>
             </table>
@@ -185,6 +191,7 @@ describe('ProfileItem Performance', () => {
                         profile={profile}
                         isFavorite={false}
                         onProfileClick={mockOnClick}
+                        onFavoriteToggle={mockOnFavoriteToggle}
                     />
                 </tbody>
             </table>
@@ -208,6 +215,7 @@ describe('ProfileItem Performance', () => {
                         profile={profileCopy}
                         isFavorite={false}
                         onProfileClick={mockOnClick}
+                        onFavoriteToggle={mockOnFavoriteToggle}
                     />
                 </tbody>
             </table>
@@ -231,6 +239,7 @@ describe('ProfileItem Performance', () => {
                         profile={mockProfile}
                         isFavorite={false}
                         onProfileClick={mockOnClick}
+                        onFavoriteToggle={mockOnFavoriteToggle}
                     />
                 </tbody>
             </table>
@@ -273,6 +282,7 @@ describe('ProfileItem Performance', () => {
                             profile={profile}
                             isFavorite={false}
                             onProfileClick={mockOnClick}
+                            onFavoriteToggle={mockOnFavoriteToggle}
                         />
                     ))}
                 </tbody>
@@ -300,6 +310,9 @@ describe('ProfileItem Performance', () => {
             name: `profile-${i}`,
             expired: false,
             expiration: '2025-12-31T23:59:59Z',
+            has_credentials: true,
+            color: 'blue',
+            icon: 'briefcase',
         }));
 
         function TestWrapper() {
@@ -316,6 +329,7 @@ describe('ProfileItem Performance', () => {
                                     profile={profile}
                                     isFavorite={false}
                                     onProfileClick={mockOnClick}
+                                    onFavoriteToggle={mockOnFavoriteToggle}
                                 />
                             ))}
                         </tbody>
