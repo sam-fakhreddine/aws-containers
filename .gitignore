@@ -59,6 +59,7 @@ coverage/
 bin/linux/aws_profile_bridge
 native-messaging/build/
 native-messaging/dist/
+bundle-report.html
 
 # Logs
 *.log
