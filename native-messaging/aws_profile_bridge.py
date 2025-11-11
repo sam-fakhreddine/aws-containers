@@ -28,12 +28,28 @@ import urllib.request as request
 import glob
 import hashlib
 
+# Optional boto3 import - fall back to manual parsing if not available
+try:
+    import boto3
+    from botocore.exceptions import ProfileNotFound, ClientError
+    BOTO3_AVAILABLE = True
+except ImportError:
+    BOTO3_AVAILABLE = False
+    print("boto3 not available, using manual config parsing", file=sys.stderr)
+
 
 class AWSProfileBridge:
     def __init__(self):
         self.credentials_file = Path.home() / '.aws' / 'credentials'
         self.config_file = Path.home() / '.aws' / 'config'
         self.sso_cache_dir = Path.home() / '.aws' / 'sso' / 'cache'
+
+        # Cache for parsed files to avoid multiple reads
+        self._credentials_cache = None
+        self._credentials_cache_mtime = None
+        self._config_cache = None
+        self._config_cache_mtime = None
+        self._sso_token_cache = {}  # Cache SSO tokens by start URL
 
     def send_message(self, message):
         """Send a message to the extension via native messaging protocol."""
@@ -53,12 +69,18 @@ class AWSProfileBridge:
         return json.loads(text)
 
     def parse_credentials_file(self):
-        """Parse the AWS credentials file and extract profile information."""
-        profiles = []
-
+        """Parse the AWS credentials file and extract profile information with caching."""
         if not self.credentials_file.exists():
-            return profiles
+            return []
 
+        # Check if we can use cached data
+        current_mtime = self.credentials_file.stat().st_mtime
+        if (self._credentials_cache is not None and
+            self._credentials_cache_mtime == current_mtime):
+            return self._credentials_cache
+
+        # Parse file
+        profiles = []
         current_profile = None
         profile_data = {}
 
@@ -105,15 +127,25 @@ class AWSProfileBridge:
         if current_profile:
             profiles.append(profile_data)
 
+        # Cache the results
+        self._credentials_cache = profiles
+        self._credentials_cache_mtime = current_mtime
+
         return profiles
 
     def parse_config_file(self):
-        """Parse the AWS config file and extract SSO profile information."""
-        profiles = []
-
+        """Parse the AWS config file and extract SSO profile information with caching."""
         if not self.config_file.exists():
-            return profiles
+            return []
 
+        # Check if we can use cached data
+        current_mtime = self.config_file.stat().st_mtime
+        if (self._config_cache is not None and
+            self._config_cache_mtime == current_mtime):
+            return self._config_cache
+
+        # Parse file
+        profiles = []
         current_profile = None
         profile_data = {}
 
@@ -164,18 +196,31 @@ class AWSProfileBridge:
         if current_profile and profile_data.get('sso_start_url'):
             profiles.append(profile_data)
 
+        # Cache the results
+        self._config_cache = profiles
+        self._config_cache_mtime = current_mtime
+
         return profiles
 
     def get_sso_cached_token(self, start_url):
-        """Get cached SSO token for a given start URL."""
+        """Get cached SSO token for a given start URL with caching."""
         if not self.sso_cache_dir.exists():
             return None
 
+        # Check in-memory cache first
+        if start_url in self._sso_token_cache:
+            cached_token, cache_time = self._sso_token_cache[start_url]
+            # Check if token is still valid (cached less than 30 seconds ago and not expired)
+            if (datetime.now(timezone.utc) - cache_time).total_seconds() < 30:
+                if 'expiresAt' in cached_token:
+                    expires_at = datetime.fromisoformat(cached_token['expiresAt'].replace('Z', '+00:00'))
+                    if expires_at > datetime.now(timezone.utc):
+                        return cached_token
+
         # AWS CLI creates cache files with SHA1 hash of start URL as filename
         cache_key = hashlib.sha1(start_url.encode('utf-8')).hexdigest()
-        cache_files = list(self.sso_cache_dir.glob('*.json'))
 
-        # Try to find cache file by hashed name first
+        # Try to find cache file by hashed name first (fast path)
         cache_file = self.sso_cache_dir / f"{cache_key}.json"
         if cache_file.exists():
             try:
@@ -185,20 +230,30 @@ class AWSProfileBridge:
                     if 'expiresAt' in cache_data:
                         expires_at = datetime.fromisoformat(cache_data['expiresAt'].replace('Z', '+00:00'))
                         if expires_at > datetime.now(timezone.utc):
+                            # Cache the token in memory
+                            self._sso_token_cache[start_url] = (cache_data, datetime.now(timezone.utc))
                             return cache_data
             except Exception:
                 pass
 
-        # Fallback: search all cache files for matching start URL
-        for cache_file in cache_files:
+        # Fallback: search all cache files for matching start URL (slow path)
+        # Only do this if the hashed lookup failed
+        cache_files = list(self.sso_cache_dir.glob('*.json'))
+        for cache_file_path in cache_files:
+            # Skip the file we already tried
+            if cache_file_path.name == f"{cache_key}.json":
+                continue
+
             try:
-                with open(cache_file, 'r') as f:
+                with open(cache_file_path, 'r') as f:
                     cache_data = json.load(f)
                     if cache_data.get('startUrl') == start_url:
                         # Check if token is expired
                         if 'expiresAt' in cache_data:
                             expires_at = datetime.fromisoformat(cache_data['expiresAt'].replace('Z', '+00:00'))
                             if expires_at > datetime.now(timezone.utc):
+                                # Cache the token in memory
+                                self._sso_token_cache[start_url] = (cache_data, datetime.now(timezone.utc))
                                 return cache_data
             except Exception:
                 continue
@@ -209,8 +264,14 @@ class AWSProfileBridge:
         """Get temporary credentials for an SSO profile using cached token."""
         try:
             # Get cached SSO token
-            sso_token_data = self.get_sso_cached_token(profile_config['sso_start_url'])
+            sso_start_url = profile_config.get('sso_start_url')
+            if not sso_start_url:
+                print("SSO profile missing sso_start_url", file=sys.stderr)
+                return None
+
+            sso_token_data = self.get_sso_cached_token(sso_start_url)
             if not sso_token_data or 'accessToken' not in sso_token_data:
+                print(f"No valid SSO token found for {sso_start_url}", file=sys.stderr)
                 return None
 
             access_token = sso_token_data['accessToken']
@@ -219,6 +280,7 @@ class AWSProfileBridge:
             role_name = profile_config.get('sso_role_name')
 
             if not account_id or not role_name:
+                print(f"SSO profile missing account_id or role_name: account={account_id}, role={role_name}", file=sys.stderr)
                 return None
 
             # Call AWS SSO API to get role credentials
@@ -229,6 +291,8 @@ class AWSProfileBridge:
                 'account_id': account_id,
                 'role_name': role_name
             }
+
+            print(f"Fetching SSO credentials for account={account_id}, role={role_name}", file=sys.stderr)
 
             api_request = request.Request(
                 f"{api_url}?account_id={account_id}&role_name={role_name}",
@@ -242,6 +306,7 @@ class AWSProfileBridge:
                     creds = json.loads(response.read())
 
                     # Convert to standard credential format
+                    print(f"Successfully fetched SSO credentials", file=sys.stderr)
                     return {
                         'aws_access_key_id': creds['roleCredentials']['accessKeyId'],
                         'aws_secret_access_key': creds['roleCredentials']['secretAccessKey'],
@@ -251,23 +316,89 @@ class AWSProfileBridge:
                             tz=timezone.utc
                         ).isoformat()
                     }
+                else:
+                    print(f"SSO API returned status {response.status}", file=sys.stderr)
+                    return None
         except Exception as e:
             # Failed to get SSO credentials
+            print(f"Error fetching SSO credentials: {str(e)}", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
             return None
 
         return None
 
     def get_all_profiles(self):
-        """Get all profiles from both credentials and config files."""
-        # Get credential-based profiles
-        cred_profiles = self.parse_credentials_file()
+        """Get all profiles from both credentials and config files using boto3 if available."""
+        profiles = []
 
-        # Get SSO profiles from config
+        # Use boto3 to enumerate all available profiles if available
+        # This is fast - just reads config files, doesn't validate credentials
+        if BOTO3_AVAILABLE:
+            try:
+                available_profiles = boto3.Session().available_profiles
+                print(f"Available profiles (boto3): {available_profiles}", file=sys.stderr)
+
+                for profile_name in available_profiles:
+                    try:
+                        profile_data = {
+                            'name': profile_name,
+                            'has_credentials': False,
+                            'expiration': None,
+                            'expired': False,
+                            'is_sso': False
+                        }
+
+                        # Check if this is an SSO profile by reading config
+                        profile_config = self.get_profile_config(profile_name)
+                        if profile_config and 'sso_start_url' in profile_config:
+                            profile_data['is_sso'] = True
+                            profile_data['sso_start_url'] = profile_config['sso_start_url']
+                            profile_data['sso_region'] = profile_config.get('sso_region', 'us-east-1')
+                            profile_data['sso_account_id'] = profile_config.get('sso_account_id')
+                            profile_data['sso_role_name'] = profile_config.get('sso_role_name')
+                            profile_data['aws_region'] = profile_config.get('region')
+
+                            # Check SSO token status (fast - just reads cache file)
+                            sso_token = self.get_sso_cached_token(profile_config['sso_start_url'])
+                            if sso_token and 'expiresAt' in sso_token:
+                                expires_at = datetime.fromisoformat(sso_token['expiresAt'].replace('Z', '+00:00'))
+                                profile_data['expiration'] = expires_at.isoformat()
+                                profile_data['expired'] = expires_at < datetime.now(timezone.utc)
+                                profile_data['has_credentials'] = not profile_data['expired']
+                            else:
+                                # No valid SSO token
+                                profile_data['expired'] = True
+                                profile_data['has_credentials'] = False
+                        else:
+                            # Check if credentials exist in the credentials file
+                            # parse_credentials_file() now uses caching, so this is efficient
+                            cred_file_profiles_dict = {p['name']: p for p in self.parse_credentials_file()}
+                            if profile_name in cred_file_profiles_dict:
+                                cred_profile = cred_file_profiles_dict[profile_name]
+                                profile_data['has_credentials'] = cred_profile.get('has_credentials', False)
+                                profile_data['expiration'] = cred_profile.get('expiration')
+                                profile_data['expired'] = cred_profile.get('expired', False)
+
+                        profiles.append(profile_data)
+
+                    except Exception as e:
+                        print(f"Error processing profile {profile_name}: {str(e)}", file=sys.stderr)
+                        continue
+
+                return profiles
+
+            except Exception as e:
+                print(f"Error getting profiles with boto3: {str(e)}", file=sys.stderr)
+                # Fall through to manual parsing below
+
+        # Fallback to manual parsing if boto3 not available or failed
+        print("Using manual config parsing", file=sys.stderr)
+        cred_profiles = self.parse_credentials_file()
         sso_profiles = self.parse_config_file()
 
         # Check SSO profile status
         for profile in sso_profiles:
-            # Check if SSO token is cached and valid
             sso_token = self.get_sso_cached_token(profile['sso_start_url'])
             if sso_token and 'expiresAt' in sso_token:
                 expires_at = datetime.fromisoformat(sso_token['expiresAt'].replace('Z', '+00:00'))
@@ -275,19 +406,19 @@ class AWSProfileBridge:
                 profile['expired'] = expires_at < datetime.now(timezone.utc)
                 profile['has_credentials'] = not profile['expired']
             else:
-                # No valid SSO token
                 profile['expired'] = True
                 profile['has_credentials'] = False
 
-        # Merge profiles, preferring credential-based if name conflicts
+        # Merge profiles
         all_profiles = {}
         for profile in sso_profiles:
             all_profiles[profile['name']] = profile
         for profile in cred_profiles:
-            # Credential-based profiles take precedence
             all_profiles[profile['name']] = profile
 
-        return list(all_profiles.values())
+        profiles = list(all_profiles.values())
+
+        return profiles
 
     def get_profile_color(self, profile_name):
         """Determine color based on profile name patterns."""

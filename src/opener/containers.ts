@@ -1,4 +1,4 @@
-import { browser } from "webextension-polyfill-ts";
+import browser from "webextension-polyfill";
 
 const defaultIcon = "fingerprint";
 const availableContainerColors = [
@@ -82,8 +82,9 @@ const saveContainerId = async (id: string) => {
     const obj = await browser.storage.local.get("containers");
     const exists = "containers" in obj;
     if (exists) {
+        const containers = (obj.containers as string[]) || [];
         await browser.storage.local.set({
-            containers: [...obj.containers, id],
+            containers: [...containers, id],
         });
     } else {
         await browser.storage.local.set({ containers: [id] });
