@@ -1,0 +1,9 @@
+/**
+ * Popup Component Styles
+ */
+
+.popup-container {
+    min-width: $popup-min-width;
+    min-height: $popup-min-height;
+    display: flex;
+}

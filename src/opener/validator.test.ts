@@ -375,7 +375,7 @@ describe("fallback validator", () => {
      */
     it("should not use fallback for zero", () => {
         const validator = fallback(99);
-        expect(validator(0)).toBe(0);
+        expect(validator(0 as any)).toBe(0);
     });
 
     /**
@@ -383,7 +383,7 @@ describe("fallback validator", () => {
      */
     it("should not use fallback for false", () => {
         const validator = fallback(true);
-        expect(validator(false)).toBe(false);
+        expect(validator(false as any)).toBe(false);
     });
 });
 
@@ -411,7 +411,7 @@ describe("oneOf validator", () => {
      */
     it("should work with numeric values", () => {
         const validator = oneOf([1, 2, 3]);
-        expect(validator(2, "number")).toBe(2);
+        expect(validator(2 as any, "number")).toBe(2);
     });
 
     /**

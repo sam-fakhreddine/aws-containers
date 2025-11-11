@@ -3,7 +3,7 @@
  * Provides functions for validating and sanitizing URL search parameters
  */
 
-import { OpenerParamsSchema } from "../types";
+import { OpenerParamsSchema, ParameterValidator, GlobalValidator } from "../types";
 
 /**
  * Checks if a value is empty (null, undefined, or empty string)
@@ -62,7 +62,7 @@ export function sanitizeURLSearchParams(
  * @returns The validated URL string
  * @throws Error if URL is invalid even with https:// prefix
  */
-export function url(p: string): string {
+export function url(p: any): any {
     if (isEmpty(p)) {
         return p;
     }
@@ -83,7 +83,7 @@ export function url(p: string): string {
  * @returns The parameter value if present
  * @throws Error if parameter is missing
  */
-export function required(p: any, name: string): any {
+export function required(p: any, name?: string): any {
     if (isEmpty(p)) {
         throw new Error(`"${name}" parameter is missing`);
     }
@@ -97,7 +97,7 @@ export function required(p: any, name: string): any {
  * @returns The integer value or the original if empty
  * @throws Error if parameter is not a valid integer
  */
-export function integer(p: string, name: string): number | string {
+export function integer(p: any, name?: string): any {
     if (isEmpty(p)) {
         return p;
     }
@@ -117,7 +117,7 @@ export function integer(p: string, name: string): number | string {
  * @returns The boolean value or the original if empty
  * @throws Error if parameter is not a valid boolean
  */
-export function boolean(p: string, name: string): boolean | string {
+export function boolean(p: any, name?: string): any {
     if (isEmpty(p)) {
         return p;
     }
@@ -145,7 +145,7 @@ export function boolean(p: string, name: string): boolean | string {
  * @param val - The fallback value
  * @returns A validator function
  */
-export function fallback(val: any): (p: any) => any {
+export function fallback(val: any): ParameterValidator {
     return function (p: any): any {
         if (isEmpty(p)) {
             return val;
@@ -161,8 +161,8 @@ export function fallback(val: any): (p: any) => any {
  * @returns A validator function
  * @throws Error if parameter is not in the allowed list
  */
-export function oneOf(vals: any[]): (p: any, name: string) => any {
-    return function (p: any, name: string): any {
+export function oneOf(vals: any[]): ParameterValidator {
+    return function (p: any, name?: string): any {
         if (vals.indexOf(p) === -1) {
             throw new Error(
                 `"${name}" parameter should be in a list ${vals}`,
@@ -178,9 +178,9 @@ export function oneOf(vals: any[]): (p: any, name: string) => any {
  * @param vals - Array of allowed values
  * @returns A validator function
  */
-export function oneOfOrEmpty(vals: any[]): (p: any, name: string) => any {
+export function oneOfOrEmpty(vals: any[]): ParameterValidator {
     const oneOfFunc = oneOf(vals);
-    return function (p: any, name: string): any {
+    return function (p: any, name?: string): any {
         if (isEmpty(p)) {
             return p;
         }
@@ -195,8 +195,10 @@ export function oneOfOrEmpty(vals: any[]): (p: any, name: string) => any {
  * @returns A validator function
  * @throws Error if none of the required parameters are present
  */
-export function atLeastOneRequired(requiredParams: string[]): (params: any) => any {
-    return function (params: any): any {
+export function atLeastOneRequired(
+    requiredParams: string[],
+): GlobalValidator {
+    return function (params: Record<string, any>): Record<string, any> {
         let valid = false;
         for (let p of requiredParams) {
             if (!isEmpty(params[p])) {

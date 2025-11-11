@@ -1,0 +1,13 @@
+/**
+ * Main SCSS Entry Point
+ * Imports all styles in the correct order
+ */
+
+// 1. Variables (must be first)
+@import "variables";
+
+// 2. Third-party libraries
+@import "bootstrap";
+
+// 3. Component styles
+@import "components/popup";

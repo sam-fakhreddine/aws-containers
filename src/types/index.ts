@@ -43,19 +43,37 @@ export interface Organization {
 }
 
 /**
+ * Parameter validator function type
+ * Takes a parameter value and name, returns validated/transformed value
+ * Note: Uses flexible typing to accommodate various validator implementations
+ */
+export type ParameterValidator = (
+    p: string | null | undefined,
+    name?: string,
+) => any;
+
+/**
+ * Global validator function type
+ * Takes all parameters and returns validated parameters object
+ */
+export type GlobalValidator = (
+    params: Record<string, any>,
+) => Record<string, any>;
+
+/**
  * Schema for validating opener parameters
  */
 export interface OpenerParamsSchema {
     signature: string[];
     id: string[];
     name: string[];
-    color: ((p: any, name: any) => any)[];
-    icon: ((p: any, name: any) => any)[];
-    url: ((p: any, name: any) => any)[];
-    index: ((p: any, name: any) => any)[];
-    pinned: ((p: any, name: any) => any)[];
-    openInReaderMode: ((p: any, name: any) => any)[];
-    __validators: ((params: any) => any)[];
+    color: ParameterValidator[];
+    icon: ParameterValidator[];
+    url: ParameterValidator[];
+    index: ParameterValidator[];
+    pinned: ParameterValidator[];
+    openInReaderMode: ParameterValidator[];
+    __validators: GlobalValidator[];
 }
 
 /**
