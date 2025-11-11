@@ -8,6 +8,10 @@ Welcome to the AWS Profile Containers documentation! This Firefox extension help
 
 AWS Profile Containers is a Firefox extension that reads your AWS credentials file and opens AWS profiles in separate isolated containers with automatic AWS Console federation. Each AWS profile gets its own container, preventing cookie and session contamination between accounts.
 
+### Project Origin
+
+This project evolved from custom CLI scripts and Firefox extensions, inspired by [granted.dev](https://granted.dev) but tailored to specific workflow needs. **[Learn more about the project's background →](development/background.md)**
+
 ## Key Features
 
 - **AWS Console Federation**: Automatically generates authenticated console URLs
@@ -101,6 +105,7 @@ security/best-practices
 :maxdepth: 2
 :caption: Development
 
+development/background
 development/architecture
 development/contributing
 development/building
