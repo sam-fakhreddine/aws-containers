@@ -1,5 +1,15 @@
 import React, { FunctionComponent, useEffect, useState, useMemo } from "react";
 import browser, { type ContextualIdentities } from "webextension-polyfill";
+import {
+    CACHE_DURATION_MS,
+    MAX_RECENT_PROFILES,
+    POPUP_WIDTH_THRESHOLD,
+    MILLISECONDS_PER_MINUTE,
+    MINUTES_PER_HOUR,
+    MINUTES_PER_DAY,
+    NATIVE_MESSAGING_HOST_NAME,
+    STORAGE_KEYS,
+} from "./constants";
 
 interface AWSProfile {
     name: string;
@@ -39,15 +49,15 @@ export async function prepareContainer(name: string, color: string, icon: string
 }
 
 export async function saveContainerId(id: string) {
-    const obj = await browser.storage.local.get("containers");
-    const exists = "containers" in obj;
+    const obj = await browser.storage.local.get(STORAGE_KEYS.CONTAINERS);
+    const exists = STORAGE_KEYS.CONTAINERS in obj;
     if (exists) {
         const containers = (obj.containers as string[]) || [];
         await browser.storage.local.set({
-            containers: [...containers, id],
+            [STORAGE_KEYS.CONTAINERS]: [...containers, id],
         });
     } else {
-        await browser.storage.local.set({ containers: [id] });
+        await browser.storage.local.set({ [STORAGE_KEYS.CONTAINERS]: [id] });
     }
 }
 
@@ -86,15 +96,21 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     }, []);
 
     const loadSettings = async () => {
-        const data = await browser.storage.local.get(["favorites", "recentProfiles", "selectedRegion", "cachedProfiles", "profilesCacheTime"]);
+        const data = await browser.storage.local.get([
+            STORAGE_KEYS.FAVORITES,
+            STORAGE_KEYS.RECENT_PROFILES,
+            STORAGE_KEYS.SELECTED_REGION,
+            STORAGE_KEYS.CACHED_PROFILES,
+            STORAGE_KEYS.PROFILES_CACHE_TIME,
+        ]);
         if (data.favorites) setFavorites(data.favorites as string[]);
         if (data.recentProfiles) setRecentProfiles(data.recentProfiles as string[]);
         if (data.selectedRegion) setSelectedRegion(data.selectedRegion as string);
 
-        // Load cached profiles if available and recent (less than 5 minutes old)
+        // Load cached profiles if available and recent
         if (data.cachedProfiles && data.profilesCacheTime) {
             const cacheAge = Date.now() - (data.profilesCacheTime as number);
-            if (cacheAge < 5 * 60 * 1000) { // 5 minutes
+            if (cacheAge < CACHE_DURATION_MS) {
                 setProfiles(data.cachedProfiles as AWSProfile[]);
                 setLoading(false);
             }
@@ -112,7 +128,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
         try {
             // Try to connect to native messaging host
-            const port = browser.runtime.connectNative("aws_profile_bridge");
+            const port = browser.runtime.connectNative(NATIVE_MESSAGING_HOST_NAME);
             setNativeMessagingAvailable(true);
 
             // Set up message listener
@@ -127,8 +143,8 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
                     // Cache the profiles with timestamp
                     await browser.storage.local.set({
-                        cachedProfiles: sortedProfiles,
-                        profilesCacheTime: Date.now()
+                        [STORAGE_KEYS.CACHED_PROFILES]: sortedProfiles,
+                        [STORAGE_KEYS.PROFILES_CACHE_TIME]: Date.now()
                     });
                 } else if (response.action === "error") {
                     setError(response.message);
@@ -157,10 +173,10 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     const refreshContainers = async () => {
         const [identities, storageData] = await Promise.all([
             browser.contextualIdentities.query({}),
-            browser.storage.local.get("containers"),
+            browser.storage.local.get(STORAGE_KEYS.CONTAINERS),
         ]);
         const containerIds: string[] =
-            "containers" in storageData ? (storageData.containers as string[]) || [] : [];
+            STORAGE_KEYS.CONTAINERS in storageData ? (storageData.containers as string[]) || [] : [];
 
         setContainers(
             identities.filter((i) => containerIds.includes(i.cookieStoreId))
@@ -173,11 +189,11 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             const updatedRecent = [
                 profile.name,
                 ...recentProfiles.filter(p => p !== profile.name)
-            ].slice(0, 10);
+            ].slice(0, MAX_RECENT_PROFILES);
             setRecentProfiles(updatedRecent);
-            await browser.storage.local.set({ recentProfiles: updatedRecent });
+            await browser.storage.local.set({ [STORAGE_KEYS.RECENT_PROFILES]: updatedRecent });
 
-            const port = browser.runtime.connectNative("aws_profile_bridge");
+            const port = browser.runtime.connectNative(NATIVE_MESSAGING_HOST_NAME);
 
             port.onMessage.addListener(async (response: any) => {
                 if (response.action === "consoleUrl") {
@@ -204,7 +220,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
                     // Close popup only if in popup mode, not sidebar
                     // Sidebar detection: popup windows are typically smaller
-                    if (window.innerWidth < 400) {
+                    if (window.innerWidth < POPUP_WIDTH_THRESHOLD) {
                         window.close();
                     }
                 } else if (response.action === "error") {
@@ -227,12 +243,12 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             ? favorites.filter(f => f !== profileName)
             : [...favorites, profileName];
         setFavorites(updatedFavorites);
-        await browser.storage.local.set({ favorites: updatedFavorites });
+        await browser.storage.local.set({ [STORAGE_KEYS.FAVORITES]: updatedFavorites });
     };
 
     const handleRegionChange = async (region: string) => {
         setSelectedRegion(region);
-        await browser.storage.local.set({ selectedRegion: region });
+        await browser.storage.local.set({ [STORAGE_KEYS.SELECTED_REGION]: region });
     };
 
     // Memoize organizations to avoid recalculating on every render
@@ -323,12 +339,12 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
         const expDate = new Date(expiration);
         const now = new Date();
-        const diffMinutes = Math.floor((expDate.getTime() - now.getTime()) / 60000);
+        const diffMinutes = Math.floor((expDate.getTime() - now.getTime()) / MILLISECONDS_PER_MINUTE);
 
-        if (diffMinutes < 60) {
+        if (diffMinutes < MINUTES_PER_HOUR) {
             return `⏰ ${diffMinutes}m`;
-        } else if (diffMinutes < 1440) {
-            const hours = Math.floor(diffMinutes / 60);
+        } else if (diffMinutes < MINUTES_PER_DAY) {
+            const hours = Math.floor(diffMinutes / MINUTES_PER_HOUR);
             return `⏰ ${hours}h`;
         } else {
             return `✓ Valid`;
