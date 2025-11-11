@@ -4,7 +4,7 @@
  * Refactored to use custom hooks and extracted components
  */
 
-import React, { FunctionComponent, useEffect, useState, useMemo } from "react";
+import React, { FunctionComponent, useEffect, useState, useMemo, useCallback } from "react";
 import browser from "webextension-polyfill";
 import { POPUP_WIDTH_THRESHOLD, NATIVE_MESSAGING_HOST_NAME } from "./constants";
 import { AWSProfile, isConsoleUrlResponse, isErrorResponse } from "./types";
@@ -92,6 +92,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
     // Local UI state
     const [searchFilter, setSearchFilter] = useState("");
+    const [debouncedSearchFilter, setDebouncedSearchFilter] = useState("");
     const [selectedOrgTab, setSelectedOrgTab] = useState<string>("all");
     const [isRemoving, setIsRemoving] = useState(false);
     const [openProfileError, setOpenProfileError] = useState<string | null>(null);
@@ -103,6 +104,17 @@ export const AWSProfilesPopup: FunctionComponent = () => {
         browser.runtime.sendMessage({ popupMounted: true });
         loadProfiles();
     }, [loadProfiles]);
+
+    /**
+     * Debounce search filter to reduce re-renders during typing
+     */
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchFilter(searchFilter);
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [searchFilter]);
 
     /**
      * Memoize organizations grouping
@@ -156,6 +168,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
     /**
      * Memoize filtered profiles
+     * Uses debounced search filter to reduce re-renders during typing
      */
     const filteredProfiles = useMemo(() => {
         // If a specific org is selected, filter to only that org
@@ -164,19 +177,20 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             if (!selectedOrg) return [];
 
             return selectedOrg.profiles.filter((p) =>
-                p.name.toLowerCase().includes(searchFilter.toLowerCase())
+                p.name.toLowerCase().includes(debouncedSearchFilter.toLowerCase())
             );
         }
 
         // Otherwise show all profiles with search filter
-        const lowerSearch = searchFilter.toLowerCase();
+        const lowerSearch = debouncedSearchFilter.toLowerCase();
         return profiles.filter((p) => p.name.toLowerCase().includes(lowerSearch));
-    }, [profiles, organizations, selectedOrgTab, searchFilter]);
+    }, [profiles, organizations, selectedOrgTab, debouncedSearchFilter]);
 
     /**
      * Open a profile in a container
+     * Memoized to prevent child component re-renders
      */
-    const handleOpenProfile = async (profile: AWSProfile) => {
+    const handleOpenProfile = useCallback(async (profile: AWSProfile) => {
         try {
             setOpenProfileError(null);
 
@@ -233,24 +247,26 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             console.error("Failed to open profile:", err);
             setOpenProfileError(`Failed to open profile: ${err}`);
         }
-    };
+    }, [addRecentProfile, selectedRegion]);
 
     /**
      * Handle favorite toggle
+     * Memoized to prevent child component re-renders
      */
-    const handleFavoriteToggle = async (profileName: string, e: React.MouseEvent) => {
+    const handleFavoriteToggle = useCallback(async (profileName: string, e: React.MouseEvent) => {
         e.stopPropagation();
         try {
             await toggleFavorite(profileName);
         } catch (err) {
             console.error("Failed to toggle favorite:", err);
         }
-    };
+    }, [toggleFavorite]);
 
     /**
      * Handle container clearing
+     * Memoized for performance
      */
-    const handleClearContainers = async () => {
+    const handleClearContainers = useCallback(async () => {
         try {
             await clearContainers();
             setIsRemoving(false);
@@ -258,7 +274,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             console.error("Failed to clear containers:", err);
             setIsRemoving(false);
         }
-    };
+    }, [clearContainers]);
 
     // Installation instructions view
     if (!nativeMessagingAvailable && !profilesLoading) {
