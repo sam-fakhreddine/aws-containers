@@ -6,6 +6,12 @@
 
 A Firefox extension that reads your AWS credentials file and opens AWS profiles in separate isolated containers with automatic AWS Console federation.
 
+## Background
+
+This project originated from a collection of custom CLI scripts and Firefox extensions for managing AWS profiles. After discovering [granted.dev](https://granted.dev), we found it didn't quite fit our workflow, so we forked it as a foundation and inspiration to unify our tooling into a cohesive browser extension. The result combines CLI efficiency with browser integration, all built on Firefox's native container technology.
+
+**[Read the full origin story →](docs/development/background.md)**
+
 ## ⚠️ Security Notice
 
 **This extension reads sensitive AWS credentials from your local filesystem.**
