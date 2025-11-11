@@ -57,7 +57,7 @@ jobs:
           file bin/${{ matrix.platform }}/aws_profile_bridge
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: native-host-${{ matrix.platform }}
           path: bin/${{ matrix.platform }}/aws_profile_bridge
@@ -114,7 +114,7 @@ jobs:
         run: yarn build
 
       - name: Upload extension artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: firefox-extension
           path: web-ext-artifacts/*.zip
