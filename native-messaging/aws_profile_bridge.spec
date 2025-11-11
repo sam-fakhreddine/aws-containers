@@ -6,7 +6,7 @@
 block_cipher = None
 
 a = Analysis(
-    ['src/aws_profile_bridge/aws_profile_bridge.py'],
+    ['src/aws_profile_bridge/__main__.py'],  # Use __main__.py with absolute imports
     pathex=['src'],  # Add src to path for imports
     binaries=[],
     datas=[],
@@ -14,6 +14,7 @@ a = Analysis(
         'boto3',
         'botocore',
         'botocore.exceptions',
+        'aws_profile_bridge',
         'aws_profile_bridge.native_messaging',
         'aws_profile_bridge.file_parsers',
         'aws_profile_bridge.sso_manager',

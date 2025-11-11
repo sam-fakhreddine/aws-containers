@@ -10,17 +10,68 @@ When clicking the extension icon in Firefox on macOS, you may see this error:
 
 ## Root Cause
 
-This error occurs because:
+This error can occur for two different reasons:
 
-1. **PyInstaller bundles Python.framework** into the standalone executable
-2. **macOS Gatekeeper** flags unsigned or quarantined frameworks as "damaged"
-3. **Code signing is missing** or the binary has quarantine attributes from download/build
+### Cause 1: PyInstaller Build Error (Most Common)
 
-This is a security feature introduced in macOS to protect against malicious code, but it can flag legitimate applications that aren't properly signed.
+The PyInstaller executable was built incorrectly with **relative imports** that don't work in standalone executables. You'll see this error when testing:
 
-## Quick Fix (Immediate Solution)
+```
+ImportError: attempted relative import with no known parent package
+```
 
-Run the automated fix script:
+**Fix**: Rebuild with the latest code (includes `__main__.py` fix)
+
+### Cause 2: macOS Gatekeeper Security
+
+The PyInstaller bundle's Python.framework is:
+1. **Unsigned or quarantined** - macOS Gatekeeper flags it as "damaged"
+2. **Missing code signature** or has quarantine attributes from download/build
+
+This is a macOS security feature that protects against malicious code, but can flag legitimate applications that aren't properly signed.
+
+**Fix**: Apply ad-hoc code signing and remove quarantine attributes
+
+## Quick Fix (Recommended)
+
+### Step 1: Pull Latest Code and Rebuild
+
+The issue is fixed in the latest code with a new `__main__.py` entry point:
+
+```bash
+# Pull latest changes
+git pull
+
+# Rebuild the native host on your Mac
+./scripts/build/build-native-host.sh
+
+# Reinstall
+./install.sh
+
+# Restart Firefox
+```
+
+This rebuilds with:
+- ✅ Absolute imports instead of relative imports (`__main__.py`)
+- ✅ Automatic code signing and quarantine removal
+- ✅ Proper PyInstaller configuration
+
+### Step 2: Verify It Works
+
+Run the debug script to confirm:
+
+```bash
+./scripts/debug-macos-issue.sh
+```
+
+Look for:
+- ✅ No `ImportError` when testing the binary
+- ✅ Code signature shows `Signature=adhoc`
+- ✅ No quarantine attributes
+
+### Alternative: Use Security Fix Script (If Already Built)
+
+If you already built the binary and just need to fix security issues:
 
 ```bash
 ./scripts/fix-macos-security.sh
@@ -31,6 +82,8 @@ This script will:
 - Apply ad-hoc code signatures
 - Clear security-related extended attributes
 - Verify the fixes worked
+
+**Note**: This only fixes Gatekeeper issues, not the PyInstaller import error. For import errors, rebuild with latest code.
 
 **Then restart Firefox completely** for changes to take effect.
 
