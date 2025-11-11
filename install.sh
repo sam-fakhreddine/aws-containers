@@ -56,13 +56,13 @@ if [ -f "$EXECUTABLE_PATH" ]; then
     INSTALLED_PATH="$INSTALL_DIR/aws_profile_bridge"
 elif [ -f "native-messaging/aws_profile_bridge.py" ]; then
     echo -e "${YELLOW}!${NC} Pre-built executable not found, using Python script"
-    echo "  (Run ./build-native-host.sh to create standalone executable)"
+    echo "  (Run ./scripts/build/build-native-host.sh to create standalone executable)"
 
     # Check if Python is available
     if ! command -v python3 &> /dev/null; then
         echo -e "${RED}✗${NC} Python 3 is required but not installed"
         echo "  Please either:"
-        echo "  1. Run ./build-native-host.sh to create a standalone executable, or"
+        echo "  1. Run ./scripts/build/build-native-host.sh to create a standalone executable, or"
         echo "  2. Install Python 3"
         exit 1
     fi
@@ -73,7 +73,7 @@ elif [ -f "native-messaging/aws_profile_bridge.py" ]; then
     INSTALLED_PATH="$INSTALL_DIR/aws_profile_bridge.py"
 else
     echo -e "${RED}✗${NC} Neither executable nor Python script found"
-    echo "  Please run ./build-native-host.sh first"
+    echo "  Please run ./scripts/build/build-native-host.sh first"
     exit 1
 fi
 echo ""
@@ -191,6 +191,6 @@ echo "- Checking the native messaging manifest:"
 echo "  cat $NATIVE_MESSAGING_DIR/aws_profile_bridge.json"
 echo ""
 echo "For a fully self-contained installation (no Python required):"
-echo "  ./build-native-host.sh"
+echo "  ./scripts/build/build-native-host.sh"
 echo ""
 echo -e "${GREEN}Happy containerizing!${NC}"

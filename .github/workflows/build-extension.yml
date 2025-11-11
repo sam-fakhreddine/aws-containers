@@ -35,7 +35,7 @@ jobs:
       - name: Calculate next version
         id: version
         run: |
-          NEXT_VERSION=$(npx semantic-release --dry-run | grep 'The next release version is' | sed -E 's/.* ([0-9]+\.[0-9]+\.[0-9]+)$/\1/')
+          NEXT_VERSION=$(npx semantic-release --extends config/.releaserc.json --dry-run | grep 'The next release version is' | sed -E 's/.* ([0-9]+\.[0-9]+\.[0-9]+)$/\1/')
           if [ -z "$NEXT_VERSION" ]; then
             CURRENT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.1.0")
             NEXT_VERSION=${CURRENT_VERSION#v}

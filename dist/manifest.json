@@ -22,7 +22,9 @@
         }
     },
     "background": {
-        "scripts": ["js/backgroundPage.js"],
+        "scripts": [
+            "js/backgroundPage.js"
+        ],
         "persistent": false
     },
     "icons": {
@@ -30,7 +32,13 @@
         "48": "aws-console-containers.png",
         "128": "aws-console-containers.png"
     },
-    "permissions": ["contextualIdentities", "cookies", "tabs", "storage", "nativeMessaging"],
+    "permissions": [
+        "contextualIdentities",
+        "cookies",
+        "tabs",
+        "storage",
+        "nativeMessaging"
+    ],
     "browser_specific_settings": {
         "gecko": {
             "id": "aws-profile-containers@yourname.local"
