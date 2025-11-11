@@ -20,57 +20,61 @@ import {
     isStringArray,
     isAWSProfileArray,
 } from "./types";
+import {
+    prepareContainer,
+    getManagedContainers,
+    clearAllContainers,
+} from "../utils/containerManager";
 
-// Container management utilities
-export async function lookupContainer(name: string) {
-    const containers = await browser.contextualIdentities.query({ name });
-    return containers.length >= 1 ? containers[0] : null;
-}
-
-export async function prepareContainer(name: string, color: string, icon: string) {
-    const container = await lookupContainer(name);
-    if (!container) {
-        const created = await browser.contextualIdentities.create({
-            name,
-            color,
-            icon,
-        });
-        await saveContainerId(created.cookieStoreId);
-        return created;
-    } else {
-        // Update the existing container if the color or icon have changed
-        await browser.contextualIdentities.update(container.cookieStoreId, {
-            color,
-            icon,
-        });
-        return container;
-    }
-}
-
-export async function saveContainerId(id: string) {
-    const obj = await browser.storage.local.get(STORAGE_KEYS.CONTAINERS);
-    const exists = STORAGE_KEYS.CONTAINERS in obj;
-    if (exists) {
-        const containers = (obj.containers as string[]) || [];
-        await browser.storage.local.set({
-            [STORAGE_KEYS.CONTAINERS]: [...containers, id],
-        });
-    } else {
-        await browser.storage.local.set({ [STORAGE_KEYS.CONTAINERS]: [id] });
-    }
-}
-
+/**
+ * Complete list of AWS commercial regions
+ * Updated as of 2025 to include all available regions
+ */
 const AWS_REGIONS = [
+    // US Regions
     { code: "us-east-1", name: "US East (N. Virginia)" },
     { code: "us-east-2", name: "US East (Ohio)" },
     { code: "us-west-1", name: "US West (N. California)" },
     { code: "us-west-2", name: "US West (Oregon)" },
-    { code: "eu-west-1", name: "EU (Ireland)" },
-    { code: "eu-west-2", name: "EU (London)" },
-    { code: "eu-central-1", name: "EU (Frankfurt)" },
+
+    // Canada
+    { code: "ca-central-1", name: "Canada (Central)" },
+    { code: "ca-west-1", name: "Canada (Calgary)" },
+
+    // South America
+    { code: "sa-east-1", name: "South America (São Paulo)" },
+
+    // Europe
+    { code: "eu-central-1", name: "Europe (Frankfurt)" },
+    { code: "eu-central-2", name: "Europe (Zurich)" },
+    { code: "eu-west-1", name: "Europe (Ireland)" },
+    { code: "eu-west-2", name: "Europe (London)" },
+    { code: "eu-west-3", name: "Europe (Paris)" },
+    { code: "eu-south-1", name: "Europe (Milan)" },
+    { code: "eu-south-2", name: "Europe (Spain)" },
+    { code: "eu-north-1", name: "Europe (Stockholm)" },
+
+    // Asia Pacific
+    { code: "ap-east-1", name: "Asia Pacific (Hong Kong)" },
+    { code: "ap-south-1", name: "Asia Pacific (Mumbai)" },
+    { code: "ap-south-2", name: "Asia Pacific (Hyderabad)" },
     { code: "ap-southeast-1", name: "Asia Pacific (Singapore)" },
     { code: "ap-southeast-2", name: "Asia Pacific (Sydney)" },
+    { code: "ap-southeast-3", name: "Asia Pacific (Jakarta)" },
+    { code: "ap-southeast-4", name: "Asia Pacific (Melbourne)" },
     { code: "ap-northeast-1", name: "Asia Pacific (Tokyo)" },
+    { code: "ap-northeast-2", name: "Asia Pacific (Seoul)" },
+    { code: "ap-northeast-3", name: "Asia Pacific (Osaka)" },
+
+    // Middle East
+    { code: "me-south-1", name: "Middle East (Bahrain)" },
+    { code: "me-central-1", name: "Middle East (UAE)" },
+
+    // Africa
+    { code: "af-south-1", name: "Africa (Cape Town)" },
+
+    // Israel
+    { code: "il-central-1", name: "Israel (Tel Aviv)" },
 ];
 
 export const AWSProfilesPopup: FunctionComponent = () => {
@@ -199,20 +203,8 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
     const refreshContainers = async () => {
         try {
-            const [identities, storageData] = await Promise.all([
-                browser.contextualIdentities.query({}),
-                browser.storage.local.get(STORAGE_KEYS.CONTAINERS),
-            ]);
-
-            // Validate containerIds with type guard
-            let containerIds: string[] = [];
-            if (STORAGE_KEYS.CONTAINERS in storageData && isStringArray(storageData.containers)) {
-                containerIds = storageData.containers;
-            }
-
-            setContainers(
-                identities.filter((i) => containerIds.includes(i.cookieStoreId))
-            );
+            const containers = await getManagedContainers();
+            setContainers(containers);
         } catch (err) {
             console.error("Failed to refresh containers:", err);
             // Continue with empty containers list on error
@@ -376,13 +368,15 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     }, [profiles, organizations, selectedOrgTab, searchFilter]);
 
     const clearContainers = async () => {
-        await Promise.all(
-            containers.map((container) =>
-                browser.contextualIdentities.remove(container.cookieStoreId)
-            )
-        );
-        await refreshContainers();
-        setIsRemoving(false);
+        try {
+            await clearAllContainers();
+            await refreshContainers();
+            setIsRemoving(false);
+        } catch (err) {
+            console.error("Failed to clear containers:", err);
+            setError("Failed to clear containers. Please try again.");
+            setIsRemoving(false);
+        }
     };
 
     const formatExpiration = (expiration: string | null, expired: boolean) => {
