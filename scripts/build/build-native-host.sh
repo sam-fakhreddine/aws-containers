@@ -89,14 +89,54 @@ if [ -f "native-messaging/dist/aws_profile_bridge" ]; then
 
     echo -e "${GREEN}✓${NC} Executable copied to: bin/$PLATFORM/aws_profile_bridge"
 
+    # macOS-specific post-processing
+    if [[ "$OS" == "macos" ]]; then
+        echo ""
+        echo "Step 4: Applying macOS security fixes..."
+
+        # Remove quarantine attribute (prevents "damaged" error)
+        if xattr -d com.apple.quarantine bin/$PLATFORM/aws_profile_bridge 2>/dev/null; then
+            echo -e "${GREEN}✓${NC} Removed quarantine attribute"
+        else
+            echo -e "${YELLOW}!${NC} No quarantine attribute found (this is fine)"
+        fi
+
+        # Ad-hoc code signing (allows execution without "damaged" error)
+        if command -v codesign &> /dev/null; then
+            echo "Signing executable with ad-hoc signature..."
+            if codesign --force --deep --sign - bin/$PLATFORM/aws_profile_bridge 2>/dev/null; then
+                echo -e "${GREEN}✓${NC} Executable signed successfully"
+
+                # Verify signature
+                if codesign --verify --deep --strict bin/$PLATFORM/aws_profile_bridge 2>/dev/null; then
+                    echo -e "${GREEN}✓${NC} Signature verified"
+                else
+                    echo -e "${YELLOW}!${NC} Warning: Signature verification failed"
+                fi
+            else
+                echo -e "${YELLOW}!${NC} Warning: Code signing failed (executable may trigger security warnings)"
+            fi
+        else
+            echo -e "${YELLOW}!${NC} codesign not found - executable may trigger security warnings"
+            echo "  You can manually fix this by running:"
+            echo "  codesign --force --deep --sign - bin/$PLATFORM/aws_profile_bridge"
+        fi
+    fi
+
     # Show file info
     echo ""
     echo "Executable details:"
     ls -lh bin/$PLATFORM/aws_profile_bridge
 
+    if [[ "$OS" == "macos" ]]; then
+        echo ""
+        echo "Code signature:"
+        codesign -dvv bin/$PLATFORM/aws_profile_bridge 2>&1 | grep "Signature" || echo "  (unsigned)"
+    fi
+
     # Test the executable
     echo ""
-    echo "Step 4: Testing executable..."
+    echo "Step 5: Testing executable..."
     if bin/$PLATFORM/aws_profile_bridge --help 2>/dev/null; then
         echo -e "${GREEN}✓${NC} Executable runs successfully"
     else

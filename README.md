@@ -405,6 +405,42 @@ region = us-east-1
 
 3. Fallback: Extension will use basic console URL
 
+### macOS: "Python.framework is damaged" Error
+
+**Problem**: macOS shows "Python.framework is damaged and can't be opened" when clicking the extension icon
+
+**This is a macOS Gatekeeper security issue with the PyInstaller-bundled Python framework.**
+
+**Quick Fix**:
+
+```bash
+./scripts/fix-macos-security.sh
+```
+
+Then **restart Firefox completely**.
+
+**Manual Fix**:
+
+```bash
+# Remove quarantine and sign the executable
+xattr -dr com.apple.quarantine ~/.local/bin/aws_profile_bridge
+codesign --force --deep --sign - ~/.local/bin/aws_profile_bridge
+
+# Restart Firefox
+```
+
+**For detailed explanation and additional solutions, see:**
+- **[docs/MACOS_SECURITY_FIX.md](docs/MACOS_SECURITY_FIX.md)** - Complete guide with root cause, fixes, and troubleshooting
+
+**Prevention**: The build script now automatically applies these fixes. If you rebuild:
+
+```bash
+./scripts/build/build-native-host.sh
+./install.sh
+```
+
+The fixes will be applied automatically.
+
 ## File Locations
 
 - **Extension**: `/home/user/aws-console-containers/dist/`
