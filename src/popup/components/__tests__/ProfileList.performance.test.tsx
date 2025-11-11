@@ -23,8 +23,9 @@ describe('ProfileList Performance', () => {
      */
     it('should not re-render when parent re-renders with same props', () => {
         const profiles: AWSProfile[] = createMockProfiles(10);
-        const favorites = new Set(['test-profile-0']);
+        const favorites = ['test-profile-0'];
         const mockOnClick = jest.fn();
+        const mockOnFavoriteToggle = jest.fn();
 
         // Wrapper component that can force re-render
         function TestWrapper() {
@@ -37,6 +38,7 @@ describe('ProfileList Performance', () => {
                         profiles={profiles}
                         favorites={favorites}
                         onProfileClick={mockOnClick}
+                        onFavoriteToggle={mockOnFavoriteToggle}
                     />
                 </>
             );
@@ -65,14 +67,16 @@ describe('ProfileList Performance', () => {
     it('should re-render when profiles array changes', () => {
         const profiles1: AWSProfile[] = createMockProfiles(5);
         const profiles2: AWSProfile[] = createMockProfiles(10);
-        const favorites = new Set<string>();
+        const favorites: string[] = [];
         const mockOnClick = jest.fn();
+        const mockOnFavoriteToggle = jest.fn();
 
         const { rerender } = render(
             <ProfileList
                 profiles={profiles1}
                 favorites={favorites}
                 onProfileClick={mockOnClick}
+                onFavoriteToggle={mockOnFavoriteToggle}
             />
         );
 
@@ -84,6 +88,7 @@ describe('ProfileList Performance', () => {
                 profiles={profiles2}
                 favorites={favorites}
                 onProfileClick={mockOnClick}
+                onFavoriteToggle={mockOnFavoriteToggle}
             />
         );
 
@@ -96,15 +101,17 @@ describe('ProfileList Performance', () => {
      */
     it('should re-render when favorites change', () => {
         const profiles: AWSProfile[] = createMockProfiles(5);
-        const favorites1 = new Set(['test-profile-0']);
-        const favorites2 = new Set(['test-profile-0', 'test-profile-1']);
+        const favorites1 = ['test-profile-0'];
+        const favorites2 = ['test-profile-0', 'test-profile-1'];
         const mockOnClick = jest.fn();
+        const mockOnFavoriteToggle = jest.fn();
 
         const { rerender } = render(
             <ProfileList
                 profiles={profiles}
                 favorites={favorites1}
                 onProfileClick={mockOnClick}
+                onFavoriteToggle={mockOnFavoriteToggle}
             />
         );
 
@@ -117,6 +124,7 @@ describe('ProfileList Performance', () => {
                 profiles={profiles}
                 favorites={favorites2}
                 onProfileClick={mockOnClick}
+                onFavoriteToggle={mockOnFavoriteToggle}
             />
         );
 
@@ -129,8 +137,9 @@ describe('ProfileList Performance', () => {
      */
     it('should render large profile list efficiently', () => {
         const profiles: AWSProfile[] = createMockProfiles(100);
-        const favorites = new Set<string>();
+        const favorites: string[] = [];
         const mockOnClick = jest.fn();
+        const mockOnFavoriteToggle = jest.fn();
 
         const start = performance.now();
         render(
@@ -138,6 +147,7 @@ describe('ProfileList Performance', () => {
                 profiles={profiles}
                 favorites={favorites}
                 onProfileClick={mockOnClick}
+                onFavoriteToggle={mockOnFavoriteToggle}
             />
         );
         const end = performance.now();
@@ -159,26 +169,56 @@ describe('ProfileList Performance', () => {
      */
     it('should use custom comparison function to prevent re-renders', () => {
         const profiles: AWSProfile[] = [
-            { name: 'profile-1', expired: false, expiration: '2025-01-01T00:00:00Z' },
-            { name: 'profile-2', expired: false, expiration: '2025-01-01T00:00:00Z' },
+            {
+                name: 'profile-1',
+                expired: false,
+                expiration: '2025-01-01T00:00:00Z',
+                has_credentials: true,
+                color: 'blue',
+                icon: 'briefcase',
+            },
+            {
+                name: 'profile-2',
+                expired: false,
+                expiration: '2025-01-01T00:00:00Z',
+                has_credentials: true,
+                color: 'blue',
+                icon: 'briefcase',
+            },
         ];
-        const favorites = new Set<string>();
+        const favorites: string[] = [];
         const mockOnClick = jest.fn();
+        const mockOnFavoriteToggle = jest.fn();
 
         const { rerender } = render(
             <ProfileList
                 profiles={profiles}
                 favorites={favorites}
                 onProfileClick={mockOnClick}
+                onFavoriteToggle={mockOnFavoriteToggle}
             />
         );
 
         // Create new arrays with same values (different references)
         const profilesCopy: AWSProfile[] = [
-            { name: 'profile-1', expired: false, expiration: '2025-01-01T00:00:00Z' },
-            { name: 'profile-2', expired: false, expiration: '2025-01-01T00:00:00Z' },
+            {
+                name: 'profile-1',
+                expired: false,
+                expiration: '2025-01-01T00:00:00Z',
+                has_credentials: true,
+                color: 'blue',
+                icon: 'briefcase',
+            },
+            {
+                name: 'profile-2',
+                expired: false,
+                expiration: '2025-01-01T00:00:00Z',
+                has_credentials: true,
+                color: 'blue',
+                icon: 'briefcase',
+            },
         ];
-        const favoritesCopy = new Set<string>();
+        const favoritesCopy: string[] = [];
 
         // Re-render with new references but same values
         rerender(
@@ -186,6 +226,7 @@ describe('ProfileList Performance', () => {
                 profiles={profilesCopy}
                 favorites={favoritesCopy}
                 onProfileClick={mockOnClick}
+                onFavoriteToggle={mockOnFavoriteToggle}
             />
         );
 
@@ -199,8 +240,9 @@ describe('ProfileList Performance', () => {
      */
     it('should minimize re-renders during multiple state updates', () => {
         const profiles: AWSProfile[] = createMockProfiles(20);
-        const favorites = new Set(['test-profile-0']);
+        const favorites = ['test-profile-0'];
         const mockOnClick = jest.fn();
+        const mockOnFavoriteToggle = jest.fn();
 
         function MultiUpdateWrapper() {
             const [counter, setCounter] = useState(0);
@@ -213,6 +255,7 @@ describe('ProfileList Performance', () => {
                         profiles={profiles}
                         favorites={favorites}
                         onProfileClick={mockOnClick}
+                        onFavoriteToggle={mockOnFavoriteToggle}
                     />
                 </>
             );

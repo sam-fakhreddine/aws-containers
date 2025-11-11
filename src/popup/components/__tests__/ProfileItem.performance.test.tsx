@@ -16,6 +16,9 @@ describe('ProfileItem Performance', () => {
         name: 'test-profile',
         expired: false,
         expiration: '2025-12-31T23:59:59Z',
+        has_credentials: true,
+        color: 'blue',
+        icon: 'briefcase',
     };
 
     const mockOnClick = jest.fn();
@@ -78,12 +81,18 @@ describe('ProfileItem Performance', () => {
             name: 'profile-1',
             expired: false,
             expiration: '2025-12-31T23:59:59Z',
+            has_credentials: true,
+            color: 'blue',
+            icon: 'briefcase',
         };
 
         const profile2: AWSProfile = {
             name: 'profile-2',
             expired: true,
             expiration: '2024-01-01T00:00:00Z',
+            has_credentials: true,
+            color: 'red',
+            icon: 'briefcase',
         };
 
         const { rerender } = render(
@@ -164,6 +173,9 @@ describe('ProfileItem Performance', () => {
             name: 'test-profile',
             expired: false,
             expiration: '2025-12-31T23:59:59Z',
+            has_credentials: true,
+            color: 'blue',
+            icon: 'briefcase',
         };
 
         const { rerender } = render(
@@ -183,6 +195,9 @@ describe('ProfileItem Performance', () => {
             name: 'test-profile',
             expired: false,
             expiration: '2025-12-31T23:59:59Z',
+            has_credentials: true,
+            color: 'blue',
+            icon: 'briefcase',
         };
 
         // Re-render with new object reference but same values
@@ -242,6 +257,9 @@ describe('ProfileItem Performance', () => {
             name: `profile-${i}`,
             expired: i % 5 === 0,
             expiration: '2025-12-31T23:59:59Z',
+            has_credentials: true,
+            color: 'blue',
+            icon: 'briefcase',
         }));
 
         const start = performance.now();

@@ -94,6 +94,9 @@ export function createMockProfiles(count: number) {
         name: `test-profile-${i}`,
         expired: i % 5 === 0, // Every 5th profile is expired
         expiration: new Date(Date.now() + 3600000).toISOString(),
+        has_credentials: true,
+        color: 'blue',
+        icon: 'briefcase',
     }));
 }
 

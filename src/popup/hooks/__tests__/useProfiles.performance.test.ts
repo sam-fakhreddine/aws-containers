@@ -26,6 +26,12 @@ const mockPort: Partial<Runtime.Port> = {
     } as any,
 };
 
+// Declare browser as global
+declare global {
+    // eslint-disable-next-line no-var
+    var browser: any;
+}
+
 global.browser = {
     runtime: {
         connectNative: jest.fn(() => mockPort as Runtime.Port),
@@ -36,7 +42,7 @@ global.browser = {
             set: jest.fn(() => Promise.resolve()),
         },
     },
-} as any;
+};
 
 describe('useProfiles Performance', () => {
     beforeEach(() => {
