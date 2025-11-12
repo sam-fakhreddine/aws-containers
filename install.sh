@@ -46,6 +46,57 @@ if [ "$DEV_MODE" = true ]; then
     echo ""
 fi
 
+# Check Node.js version
+echo "Checking Node.js version..."
+if ! command -v node &> /dev/null; then
+    echo -e "${RED}Error: Node.js is not installed${NC}"
+    echo ""
+    echo "This project requires Node.js version 22.14.0 or later, or 24.10.0 or later."
+    echo ""
+    echo "Please install Node.js from:"
+    echo "  - https://nodejs.org/ (Official installer)"
+    echo "  - https://github.com/nvm-sh/nvm (Node Version Manager)"
+    echo ""
+    exit 1
+fi
+
+NODE_VERSION=$(node --version | sed 's/v//')
+NODE_MAJOR=$(echo $NODE_VERSION | cut -d. -f1)
+NODE_MINOR=$(echo $NODE_VERSION | cut -d. -f2)
+
+# Check if Node version meets requirements: ^22.14.0 || >= 24.10.0
+MEETS_REQUIREMENT=false
+
+if [ "$NODE_MAJOR" -eq 22 ] && [ "$NODE_MINOR" -ge 14 ]; then
+    MEETS_REQUIREMENT=true
+elif [ "$NODE_MAJOR" -eq 24 ] && [ "$NODE_MINOR" -ge 10 ]; then
+    MEETS_REQUIREMENT=true
+elif [ "$NODE_MAJOR" -gt 24 ]; then
+    MEETS_REQUIREMENT=true
+fi
+
+if [ "$MEETS_REQUIREMENT" = false ]; then
+    echo -e "${RED}Error: Node.js version $NODE_VERSION is not supported${NC}"
+    echo ""
+    echo "This project requires:"
+    echo "  - Node.js 22.14.0 or later (22.x branch)"
+    echo "  - Node.js 24.10.0 or later (24.x+ branch)"
+    echo ""
+    echo "You currently have: v$NODE_VERSION"
+    echo ""
+    echo "To upgrade Node.js:"
+    echo "  1. Using nvm (recommended):"
+    echo "     nvm install 24.10.0"
+    echo "     nvm use 24.10.0"
+    echo ""
+    echo "  2. Download from https://nodejs.org/"
+    echo ""
+    exit 1
+fi
+
+echo -e "${GREEN}✓${NC} Node.js v$NODE_VERSION"
+echo ""
+
 # Determine OS, platform, and architecture
 if [[ "$OSTYPE" == "darwin"* ]]; then
     OS="macos"
