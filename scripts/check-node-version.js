@@ -2,39 +2,30 @@
 /**
  * Check Node.js version compatibility
  * Required: ^22.14.0 || >= 24.10.0
+ *
+ * Uses semver library for proper version parsing and comparison,
+ * handling pre-release and build metadata correctly.
  */
 
-const currentVersion = process.version.slice(1); // Remove 'v' prefix
-const [major, minor, patch] = currentVersion.split('.').map(Number);
+const semver = require('semver');
+const { version } = process;
+const range = '^22.14.0 || >=24.10.0';
 
-// Check if version meets requirements: ^22.14.0 || >= 24.10.0
-let meetsRequirement = false;
+if (!semver.satisfies(version, range)) {
+    console.error(`
+\x1b[31mError: Node.js version incompatible\x1b[0m
 
-if (major === 22 && minor >= 14) {
-    meetsRequirement = true;
-} else if (major === 24 && minor >= 10) {
-    meetsRequirement = true;
-} else if (major > 24) {
-    meetsRequirement = true;
-}
+This project requires: ${range}
+You currently have: ${version}
 
-if (!meetsRequirement) {
-    console.error('\x1b[31mError: Node.js version incompatible\x1b[0m');
-    console.error('');
-    console.error('This project requires:');
-    console.error('  - Node.js 22.14.0 or later (22.x branch)');
-    console.error('  - Node.js 24.10.0 or later (24.x+ branch)');
-    console.error('');
-    console.error(`You currently have: v${currentVersion}`);
-    console.error('');
-    console.error('To upgrade Node.js:');
-    console.error('  1. Using nvm (recommended):');
-    console.error('     nvm install 24.10.0');
-    console.error('     nvm use 24.10.0');
-    console.error('');
-    console.error('  2. Download from https://nodejs.org/');
-    console.error('');
+To upgrade Node.js:
+  1. Using nvm (recommended):
+     nvm install 24.10.0
+     nvm use 24.10.0
+
+  2. Download from https://nodejs.org/
+`);
     process.exit(1);
 }
 
-console.log(`✓ Node.js v${currentVersion} - Compatible`);
+console.log(`✓ Node.js ${version} - Compatible`);

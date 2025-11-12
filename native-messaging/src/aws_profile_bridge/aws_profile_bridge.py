@@ -100,7 +100,7 @@ class AWSProfileBridgeHandler(MessageHandler):
 
             # Clean up SSO-specific fields for non-SSO profiles
             if not profile.get('is_sso'):
-                for key in ['sso_start_url', 'sso_region', 'sso_account_id', 'sso_role_name']:
+                for key in ['sso_start_url', 'sso_session', 'sso_region', 'sso_account_id', 'sso_role_name']:
                     profile.pop(key, None)
 
         return {
@@ -143,7 +143,7 @@ class AWSProfileBridgeHandler(MessageHandler):
 
             # Clean up SSO-specific fields for non-SSO profiles
             if not profile.get('is_sso'):
-                for key in ['sso_start_url', 'sso_region', 'sso_account_id', 'sso_role_name']:
+                for key in ['sso_start_url', 'sso_session', 'sso_region', 'sso_account_id', 'sso_role_name']:
                     profile.pop(key, None)
 
         return {

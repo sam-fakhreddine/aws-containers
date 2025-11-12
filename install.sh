@@ -60,9 +60,12 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
+# Parse Node version, handling pre-release (e.g., 22.14.0-rc.1) and build metadata (e.g., 24.10.0+build)
 NODE_VERSION=$(node --version | sed 's/v//')
-NODE_MAJOR=$(echo $NODE_VERSION | cut -d. -f1)
-NODE_MINOR=$(echo $NODE_VERSION | cut -d. -f2)
+# Strip pre-release and build metadata for version comparison
+NODE_VERSION_BASE=$(echo $NODE_VERSION | sed 's/[-+].*//')
+NODE_MAJOR=$(echo $NODE_VERSION_BASE | cut -d. -f1)
+NODE_MINOR=$(echo $NODE_VERSION_BASE | cut -d. -f2)
 
 # Check if Node version meets requirements: ^22.14.0 || >= 24.10.0
 MEETS_REQUIREMENT=false
