@@ -35,123 +35,14 @@
     <h2>Native Messaging Debug</h2>
 
     <div>
-        <button onclick="testBrowserAPI()">1. Test browser API</button>
-        <button onclick="testConnect()">2. Connect</button>
-        <button onclick="testSend()">3. Send Message</button>
-        <button onclick="clearLog()">Clear</button>
+        <button id="testAPIBtn">1. Test browser API</button>
+        <button id="connectBtn">2. Connect</button>
+        <button id="sendBtn">3. Send Message</button>
+        <button id="clearBtn">Clear</button>
     </div>
 
     <div id="log"></div>
 
-    <script>
-        const HOST = "aws_profile_bridge";
-        let port = null;
-
-        function log(msg, type = 'info') {
-            const div = document.getElementById('log');
-            const time = new Date().toLocaleTimeString();
-            const line = document.createElement('div');
-            line.className = type;
-            line.textContent = `[${time}] ${msg}`;
-            div.appendChild(line);
-            div.scrollTop = div.scrollHeight;
-            console.log(msg); // Also log to console
-        }
-
-        function clearLog() {
-            document.getElementById('log').innerHTML = '';
-        }
-
-        function testBrowserAPI() {
-            log('=== Testing Browser API ===');
-
-            if (typeof browser === 'undefined') {
-                log('ERROR: browser object is undefined!', 'error');
-                log('This extension needs to be loaded in Firefox', 'error');
-                return;
-            }
-            log('✓ browser object exists', 'success');
-
-            if (!browser.runtime) {
-                log('ERROR: browser.runtime is undefined!', 'error');
-                return;
-            }
-            log('✓ browser.runtime exists', 'success');
-
-            if (!browser.runtime.connectNative) {
-                log('ERROR: browser.runtime.connectNative is undefined!', 'error');
-                log('Native messaging not supported?', 'error');
-                return;
-            }
-            log('✓ browser.runtime.connectNative exists', 'success');
-
-            log('All APIs available! Ready to connect.', 'success');
-        }
-
-        function testConnect() {
-            log('=== Attempting Connection ===');
-            log(`Connecting to: ${HOST}`);
-
-            try {
-                port = browser.runtime.connectNative(HOST);
-                log('✓ connectNative() called successfully', 'success');
-
-                port.onMessage.addListener((msg) => {
-                    log(`📥 Message received: ${JSON.stringify(msg, null, 2)}`, 'success');
-                });
-
-                port.onDisconnect.addListener(() => {
-                    const err = browser.runtime.lastError;
-                    if (err) {
-                        log(`❌ Disconnected with error: ${err.message}`, 'error');
-                    } else {
-                        log('Disconnected (clean)', 'info');
-                    }
-                    port = null;
-                });
-
-                log('✓ Port created and listeners attached', 'success');
-                log('Waiting for connection...', 'info');
-
-                // Give it a moment to connect
-                setTimeout(() => {
-                    if (port && !browser.runtime.lastError) {
-                        log('✓ Connected successfully!', 'success');
-                    } else if (browser.runtime.lastError) {
-                        log(`Connection error: ${browser.runtime.lastError.message}`, 'error');
-                    }
-                }, 100);
-
-            } catch (error) {
-                log(`❌ Exception: ${error.message}`, 'error');
-                log(`Stack: ${error.stack}`, 'error');
-            }
-        }
-
-        function testSend() {
-            if (!port) {
-                log('❌ Not connected! Click "Connect" first.', 'error');
-                return;
-            }
-
-            log('=== Sending Message ===');
-            const msg = { action: "getProfiles" };
-            log(`Sending: ${JSON.stringify(msg)}`);
-
-            try {
-                port.postMessage(msg);
-                log('✓ Message sent', 'success');
-            } catch (error) {
-                log(`❌ Send failed: ${error.message}`, 'error');
-            }
-        }
-
-        // Run on load
-        window.addEventListener('load', () => {
-            log('🚀 Test page loaded');
-            log(`Host name: ${HOST}`);
-            testBrowserAPI();
-        });
-    </script>
+    <script src="debug.js"></script>
 </body>
 </html>
