@@ -14,6 +14,38 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Parse command line arguments
+DEV_MODE=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --dev)
+            DEV_MODE=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --dev       Use system Python with uv virtual environment (development mode)"
+            echo "  --help, -h  Show this help message"
+            echo ""
+            echo "Default (no flags): Use pre-built standalone executable"
+            echo ""
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Error: Unknown option: $1${NC}"
+            echo "Run '$0 --help' for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+if [ "$DEV_MODE" = true ]; then
+    echo -e "${YELLOW}Development Mode:${NC} Using system Python with uv virtual environment"
+    echo ""
+fi
+
 # Determine OS, platform, and architecture
 if [[ "$OSTYPE" == "darwin"* ]]; then
     OS="macos"
@@ -65,59 +97,166 @@ echo "Step 1: Installing native messaging host..."
 INSTALL_DIR="$HOME/.local/bin"
 mkdir -p "$INSTALL_DIR"
 
-# Check if pre-built executable exists
-EXECUTABLE_PATH="bin/$PLATFORM/aws_profile_bridge"
-if [ -f "$EXECUTABLE_PATH" ]; then
-    echo "Using pre-built standalone executable (no Python required)"
-    cp "$EXECUTABLE_PATH" "$INSTALL_DIR/aws_profile_bridge"
-    chmod +x "$INSTALL_DIR/aws_profile_bridge"
-    echo -e "${GREEN}✓${NC} Standalone executable installed to: $INSTALL_DIR/aws_profile_bridge"
-    INSTALLED_PATH="$INSTALL_DIR/aws_profile_bridge"
+if [ "$DEV_MODE" = true ]; then
+    # Development mode: Use system Python with uv environment
+    echo "Setting up development environment with uv..."
 
-    # Apply macOS security fixes
-    if [[ "$OS" == "macos" ]]; then
-        echo ""
-        echo "Applying macOS security fixes..."
+    # Check if uv is installed
+    if ! command -v uv &> /dev/null; then
+        echo -e "${YELLOW}!${NC} uv not found. Installing uv..."
 
-        # Remove quarantine attribute
-        if xattr -d com.apple.quarantine "$INSTALLED_PATH" 2>/dev/null; then
-            echo -e "${GREEN}✓${NC} Removed quarantine attribute"
+        # Install uv
+        if command -v curl &> /dev/null; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+
+            # Source the environment to make uv available
+            export PATH="$HOME/.cargo/bin:$PATH"
+
+            if ! command -v uv &> /dev/null; then
+                echo -e "${RED}✗${NC} Failed to install uv. Please install it manually:"
+                echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
+                exit 1
+            fi
+        else
+            echo -e "${RED}✗${NC} curl not found. Please install uv manually:"
+            echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
+            exit 1
         fi
+    fi
 
-        # Clear all extended attributes
-        xattr -c "$INSTALLED_PATH" 2>/dev/null || true
+    echo -e "${GREEN}✓${NC} uv is available"
 
-        # Ad-hoc code signing
-        if command -v codesign &> /dev/null; then
-            if codesign --force --deep --sign - "$INSTALLED_PATH" 2>/dev/null; then
-                echo -e "${GREEN}✓${NC} Applied code signature"
-            else
-                echo -e "${YELLOW}!${NC} Warning: Code signing failed"
-                echo "  Run this manually to fix: ./scripts/fix-macos-security.sh"
+    # Create uv virtual environment in native-messaging directory
+    VENV_DIR="$(pwd)/native-messaging/.venv"
+
+    if [ -d "$VENV_DIR" ]; then
+        echo "Virtual environment already exists, removing it..."
+        rm -rf "$VENV_DIR"
+    fi
+
+    cd native-messaging
+    echo "Creating virtual environment..."
+    uv venv
+
+    # Install dependencies
+    echo "Installing dependencies with uv..."
+    uv pip install -e .
+
+    cd ..
+
+    echo -e "${GREEN}✓${NC} Virtual environment created at: $VENV_DIR"
+
+    # Create wrapper script that activates venv and runs the bridge
+    WRAPPER_SCRIPT="$INSTALL_DIR/aws_profile_bridge"
+    cat > "$WRAPPER_SCRIPT" <<'WRAPPER_EOF'
+#!/bin/bash
+# AWS Profile Bridge wrapper script for development mode
+# This script activates the uv virtual environment and runs the Python bridge
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Find the project root (where native-messaging directory is)
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Check if we're in the right place
+if [ ! -d "$PROJECT_ROOT/native-messaging/.venv" ]; then
+    # Try alternative path
+    PROJECT_ROOT="__PROJECT_ROOT__"
+fi
+
+VENV_DIR="$PROJECT_ROOT/native-messaging/.venv"
+
+if [ ! -d "$VENV_DIR" ]; then
+    echo "Error: Virtual environment not found at $VENV_DIR" >&2
+    echo "Please run install.sh --dev again" >&2
+    exit 1
+fi
+
+# Activate virtual environment and run the bridge
+source "$VENV_DIR/bin/activate"
+exec python3 -m aws_profile_bridge "$@"
+WRAPPER_EOF
+
+    # Replace __PROJECT_ROOT__ with actual path
+    sed -i.bak "s|__PROJECT_ROOT__|$(pwd)|g" "$WRAPPER_SCRIPT"
+    rm -f "$WRAPPER_SCRIPT.bak"
+
+    chmod +x "$WRAPPER_SCRIPT"
+    echo -e "${GREEN}✓${NC} Wrapper script installed to: $WRAPPER_SCRIPT"
+    INSTALLED_PATH="$WRAPPER_SCRIPT"
+
+else
+    # Production mode: Use pre-built executable or fallback to Python
+    EXECUTABLE_PATH="bin/$PLATFORM/aws_profile_bridge"
+    if [ -f "$EXECUTABLE_PATH" ]; then
+        echo "Using pre-built standalone executable (no Python required)"
+        cp "$EXECUTABLE_PATH" "$INSTALL_DIR/aws_profile_bridge"
+        chmod +x "$INSTALL_DIR/aws_profile_bridge"
+        echo -e "${GREEN}✓${NC} Standalone executable installed to: $INSTALL_DIR/aws_profile_bridge"
+        INSTALLED_PATH="$INSTALL_DIR/aws_profile_bridge"
+
+        # Apply macOS security fixes
+        if [[ "$OS" == "macos" ]]; then
+            echo ""
+            echo "Applying macOS security fixes..."
+
+            # Remove quarantine attribute
+            if xattr -d com.apple.quarantine "$INSTALLED_PATH" 2>/dev/null; then
+                echo -e "${GREEN}✓${NC} Removed quarantine attribute"
+            fi
+
+            # Clear all extended attributes
+            xattr -c "$INSTALLED_PATH" 2>/dev/null || true
+
+            # Ad-hoc code signing
+            if command -v codesign &> /dev/null; then
+                if codesign --force --deep --sign - "$INSTALLED_PATH" 2>/dev/null; then
+                    echo -e "${GREEN}✓${NC} Applied code signature"
+                else
+                    echo -e "${YELLOW}!${NC} Warning: Code signing failed"
+                    echo "  Run this manually to fix: ./scripts/fix-macos-security.sh"
+                fi
             fi
         fi
-    fi
-elif [ -f "native-messaging/aws_profile_bridge.py" ]; then
-    echo -e "${YELLOW}!${NC} Pre-built executable not found, using Python script"
-    echo "  (Run ./scripts/build/build-native-host.sh to create standalone executable)"
+    elif [ -d "native-messaging/src/aws_profile_bridge" ]; then
+        echo -e "${YELLOW}!${NC} Pre-built executable not found, using Python script"
+        echo "  (Run ./scripts/build/build-native-host.sh to create standalone executable)"
+        echo "  (Or use --dev flag for development mode with uv)"
 
-    # Check if Python is available
-    if ! command -v python3 &> /dev/null; then
-        echo -e "${RED}✗${NC} Python 3 is required but not installed"
-        echo "  Please either:"
-        echo "  1. Run ./scripts/build/build-native-host.sh to create a standalone executable, or"
-        echo "  2. Install Python 3"
+        # Check if Python is available
+        if ! command -v python3 &> /dev/null; then
+            echo -e "${RED}✗${NC} Python 3 is required but not installed"
+            echo "  Please either:"
+            echo "  1. Run ./scripts/build/build-native-host.sh to create a standalone executable, or"
+            echo "  2. Install Python 3, or"
+            echo "  3. Use --dev flag for development mode"
+            exit 1
+        fi
+
+        # Create a simple wrapper that runs the Python module
+        WRAPPER_SCRIPT="$INSTALL_DIR/aws_profile_bridge"
+        cat > "$WRAPPER_SCRIPT" <<'WRAPPER_EOF'
+#!/bin/bash
+# AWS Profile Bridge wrapper script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="__PROJECT_ROOT__"
+cd "$PROJECT_ROOT/native-messaging"
+exec python3 -m aws_profile_bridge "$@"
+WRAPPER_EOF
+
+        # Replace __PROJECT_ROOT__ with actual path
+        sed -i.bak "s|__PROJECT_ROOT__|$(pwd)|g" "$WRAPPER_SCRIPT"
+        rm -f "$WRAPPER_SCRIPT.bak"
+
+        chmod +x "$WRAPPER_SCRIPT"
+        echo -e "${GREEN}✓${NC} Python wrapper script installed to: $WRAPPER_SCRIPT"
+        INSTALLED_PATH="$WRAPPER_SCRIPT"
+    else
+        echo -e "${RED}✗${NC} Neither executable nor Python source found"
+        echo "  Please run ./scripts/build/build-native-host.sh first"
         exit 1
     fi
-
-    cp native-messaging/aws_profile_bridge.py "$INSTALL_DIR/aws_profile_bridge.py"
-    chmod +x "$INSTALL_DIR/aws_profile_bridge.py"
-    echo -e "${GREEN}✓${NC} Python script installed to: $INSTALL_DIR/aws_profile_bridge.py"
-    INSTALLED_PATH="$INSTALL_DIR/aws_profile_bridge.py"
-else
-    echo -e "${RED}✗${NC} Neither executable nor Python script found"
-    echo "  Please run ./scripts/build/build-native-host.sh first"
-    exit 1
 fi
 echo ""
 
@@ -200,6 +339,15 @@ echo "=========================================="
 echo "Installation Complete!"
 echo "=========================================="
 echo ""
+
+if [ "$DEV_MODE" = true ]; then
+    echo -e "${GREEN}Development Mode Summary:${NC}"
+    echo "  • Using system Python with uv virtual environment"
+    echo "  • Virtual environment: $(pwd)/native-messaging/.venv"
+    echo "  • Wrapper script: $INSTALLED_PATH"
+    echo ""
+fi
+
 echo "Next steps:"
 echo ""
 echo "1. Open Firefox and navigate to: about:debugging#/runtime/this-firefox"
@@ -232,13 +380,24 @@ echo "- Checking that the native messaging host is executable:"
 echo "  ls -la $INSTALLED_PATH"
 echo "- Checking the native messaging manifest:"
 echo "  cat $NATIVE_MESSAGING_DIR/aws_profile_bridge.json"
+if [ "$DEV_MODE" = true ]; then
+    echo "- Testing the wrapper script manually:"
+    echo "  echo '{\"action\":\"getProfiles\"}' | $INSTALLED_PATH"
+fi
 echo ""
 if [[ "$OS" == "macos" ]]; then
     echo "If you see '\"Python.framework\" is damaged' error on macOS:"
     echo "  ./scripts/fix-macos-security.sh"
     echo ""
 fi
-echo "For a fully self-contained installation (no Python required):"
-echo "  ./scripts/build/build-native-host.sh"
-echo ""
+
+if [ "$DEV_MODE" = false ]; then
+    echo "For a fully self-contained installation (no Python required):"
+    echo "  ./scripts/build/build-native-host.sh"
+    echo ""
+    echo "For development mode with system Python and uv:"
+    echo "  ./install.sh --dev"
+    echo ""
+fi
+
 echo -e "${GREEN}Happy containerizing!${NC}"
