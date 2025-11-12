@@ -320,7 +320,16 @@ echo ""
 
 # Step 2: Update native messaging manifest with correct path
 echo "Step 2: Installing native messaging host manifest..."
-mkdir -p "$NATIVE_MESSAGING_DIR"
+mkdir -p "$NATIVE_MESSAGING_DIR" || {
+    echo "Failed to create directory: $NATIVE_MESSAGING_DIR"
+    exit 1
+}
+
+# Verify directory was created
+if [ ! -d "$NATIVE_MESSAGING_DIR" ]; then
+    echo "Error: Directory was not created: $NATIVE_MESSAGING_DIR"
+    exit 1
+fi
 
 # Create manifest with correct path and extension ID
 cat > "$NATIVE_MESSAGING_DIR/aws_profile_bridge.json" <<EOF
