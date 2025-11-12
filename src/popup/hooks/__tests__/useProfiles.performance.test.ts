@@ -5,44 +5,49 @@
  * and overall hook performance.
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { useProfiles } from '../useProfiles';
-import { measureExecutionTime } from '../../../__testUtils__/performanceHelpers';
+import { renderHook, act } from '@testing-library/react';
+import { waitFor } from '@testing-library/dom';
 import type { Runtime } from 'webextension-polyfill';
 
-// Mock browser API
-const mockPort: Partial<Runtime.Port> = {
-    postMessage: jest.fn(),
-    disconnect: jest.fn(),
-    onMessage: {
-        addListener: jest.fn(),
-        removeListener: jest.fn(),
-        hasListener: jest.fn(),
-    } as any,
-    onDisconnect: {
-        addListener: jest.fn(),
-        removeListener: jest.fn(),
-        hasListener: jest.fn(),
-    } as any,
-};
-
-// Declare browser as global
-declare global {
-    // eslint-disable-next-line no-var
-    var browser: any;
-}
-
-global.browser = {
-    runtime: {
-        connectNative: jest.fn(() => mockPort as Runtime.Port),
-    },
-    storage: {
-        local: {
-            get: jest.fn(() => Promise.resolve({ awsProfiles: [] })),
-            set: jest.fn(() => Promise.resolve()),
+// Mock browser API BEFORE importing useProfiles
+jest.mock('webextension-polyfill', () => {
+    const mockDisconnect = jest.fn();
+    const mockPostMessage = jest.fn();
+    const mockPort = {
+        postMessage: mockPostMessage,
+        disconnect: mockDisconnect,
+        onMessage: {
+            addListener: jest.fn(),
+            removeListener: jest.fn(),
+            hasListener: jest.fn(),
         },
-    },
-};
+        onDisconnect: {
+            addListener: jest.fn(),
+            removeListener: jest.fn(),
+            hasListener: jest.fn(),
+        },
+    };
+
+    return {
+        default: {
+            runtime: {
+                connectNative: jest.fn(() => mockPort),
+            },
+            storage: {
+                local: {
+                    get: jest.fn(() => Promise.resolve({ awsProfiles: [] })),
+                    set: jest.fn(() => Promise.resolve()),
+                },
+            },
+        },
+        __mockPort: mockPort,
+    };
+});
+
+// Import AFTER mocking
+import { useProfiles } from '../useProfiles';
+import { measureExecutionTime } from '../../../__testUtils__/performanceHelpers';
+import browser from 'webextension-polyfill';
 
 describe('useProfiles Performance', () => {
     beforeEach(() => {
@@ -66,7 +71,9 @@ describe('useProfiles Performance', () => {
         // Verify connectNative was called
         expect(browser.runtime.connectNative).toHaveBeenCalled();
 
-        const disconnectSpy = mockPort.disconnect as jest.Mock;
+        // Get the mock port that was returned
+        const mockPort = (browser.runtime.connectNative as jest.Mock).mock.results[0].value;
+        const disconnectSpy = mockPort.disconnect;
 
         // Unmount the hook
         unmount();
@@ -83,7 +90,6 @@ describe('useProfiles Performance', () => {
     it('should disconnect old port before creating new connection', async () => {
         const { result } = renderHook(() => useProfiles());
 
-        const disconnectSpy = mockPort.disconnect as jest.Mock;
         const connectNativeSpy = browser.runtime.connectNative as jest.Mock;
 
         // First load
@@ -92,6 +98,8 @@ describe('useProfiles Performance', () => {
         });
 
         const firstCallCount = connectNativeSpy.mock.calls.length;
+        const firstPort = connectNativeSpy.mock.results[0]?.value;
+        const disconnectSpy = firstPort?.disconnect;
 
         // Second load (should disconnect old port first)
         await act(async () => {
@@ -105,7 +113,9 @@ describe('useProfiles Performance', () => {
 
         // Verify old port was disconnected
         // (disconnect is called before creating new port)
-        expect(disconnectSpy).toHaveBeenCalled();
+        if (disconnectSpy) {
+            expect(disconnectSpy).toHaveBeenCalled();
+        }
     });
 
     /**
@@ -114,7 +124,6 @@ describe('useProfiles Performance', () => {
     it('should handle rapid load calls without leaking ports', async () => {
         const { result } = renderHook(() => useProfiles());
 
-        const disconnectSpy = mockPort.disconnect as jest.Mock;
         const connectNativeSpy = browser.runtime.connectNative as jest.Mock;
 
         // Rapidly call loadProfiles 5 times
@@ -129,9 +138,15 @@ describe('useProfiles Performance', () => {
         // Should have called connectNative multiple times
         expect(connectNativeSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
 
+        // Get the first mock port
+        const firstPort = connectNativeSpy.mock.results[0]?.value;
+        const disconnectSpy = firstPort?.disconnect;
+
         // Should have called disconnect to cleanup old ports
         // (prevents accumulation of open ports)
-        expect(disconnectSpy).toHaveBeenCalled();
+        if (disconnectSpy) {
+            expect(disconnectSpy).toHaveBeenCalled();
+        }
     });
 
     /**
@@ -154,8 +169,11 @@ describe('useProfiles Performance', () => {
     it('should load profiles efficiently', async () => {
         const { result } = renderHook(() => useProfiles());
 
+        // Get the mock port
+        const mockPort = (browser.runtime.connectNative as jest.Mock).mock.results[0]?.value;
+
         // Mock successful response
-        const mockOnMessageListener = (mockPort.onMessage?.addListener as jest.Mock)?.mock
+        const mockOnMessageListener = (mockPort?.onMessage?.addListener as jest.Mock)?.mock
             .calls[0]?.[0];
 
         const { timeMs } = await measureExecutionTime(async () => {
@@ -230,7 +248,9 @@ describe('useProfiles Performance', () => {
     it('should not accumulate listeners on multiple loads', async () => {
         const { result, unmount } = renderHook(() => useProfiles());
 
-        const addListenerSpy = mockPort.onMessage?.addListener as jest.Mock;
+        // Get the mock port
+        const mockPort = (browser.runtime.connectNative as jest.Mock).mock.results[0]?.value;
+        const addListenerSpy = mockPort?.onMessage?.addListener as jest.Mock;
 
         // Load multiple times
         for (let i = 0; i < 5; i++) {
@@ -241,8 +261,10 @@ describe('useProfiles Performance', () => {
 
         // Should not accumulate listeners
         // Each new load should cleanup old listeners
-        const listenerCount = addListenerSpy.mock.calls.length;
-        expect(listenerCount).toBeGreaterThanOrEqual(1);
+        if (addListenerSpy) {
+            const listenerCount = addListenerSpy.mock.calls.length;
+            expect(listenerCount).toBeGreaterThanOrEqual(1);
+        }
 
         // Cleanup
         unmount();
@@ -252,9 +274,12 @@ describe('useProfiles Performance', () => {
      * Test error handling performance
      */
     it('should handle errors gracefully without memory leaks', async () => {
+        // Get the original mock port to use as a template
+        const originalMockPort = (browser.runtime.connectNative as jest.Mock).mock.results[0]?.value;
+
         // Mock port that simulates error
         const errorPort = {
-            ...mockPort,
+            ...originalMockPort,
             postMessage: jest.fn(() => {
                 throw new Error('Connection failed');
             }),

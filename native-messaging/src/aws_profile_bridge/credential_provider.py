@@ -85,21 +85,27 @@ class ProfileAggregator:
         self.sso_enricher = sso_enricher
         self.config_reader = config_reader
 
-    def get_all_profiles(self) -> List[Dict]:
-        """Get all profiles from both credentials and config files."""
-        if BOTO3_AVAILABLE:
-            return self._get_profiles_with_boto3()
-        else:
-            return self._get_profiles_manual()
+    def get_all_profiles(self, skip_sso_enrichment: bool = True) -> List[Dict]:
+        """
+        Get all profiles from both credentials and config files.
 
-    def _get_profiles_with_boto3(self) -> List[Dict]:
+        Args:
+            skip_sso_enrichment: If True, skip SSO token validation (faster).
+                                If False, check SSO token expiration (slower).
+        """
+        if BOTO3_AVAILABLE:
+            return self._get_profiles_with_boto3(skip_sso_enrichment)
+        else:
+            return self._get_profiles_manual(skip_sso_enrichment)
+
+    def _get_profiles_with_boto3(self, skip_sso_enrichment: bool = True) -> List[Dict]:
         """Use boto3 to enumerate profiles (faster and more reliable)."""
         try:
             available_profiles = boto3.Session().available_profiles
             profiles = []
 
             for profile_name in available_profiles:
-                profile = self._build_profile_info(profile_name)
+                profile = self._build_profile_info(profile_name, skip_sso_enrichment)
                 if profile:
                     profiles.append(profile)
 
@@ -107,9 +113,9 @@ class ProfileAggregator:
 
         except Exception:
             # Fall back to manual parsing
-            return self._get_profiles_manual()
+            return self._get_profiles_manual(skip_sso_enrichment)
 
-    def _build_profile_info(self, profile_name: str) -> Optional[Dict]:
+    def _build_profile_info(self, profile_name: str, skip_sso_enrichment: bool = True) -> Optional[Dict]:
         """Build profile information for a single profile."""
         try:
             profile_data = {
@@ -122,16 +128,20 @@ class ProfileAggregator:
 
             # Check if this is an SSO profile
             profile_config = self.config_reader.get_config(profile_name)
-            if profile_config and profile_config.get('sso_start_url'):
+            if profile_config and (profile_config.get('sso_start_url') or profile_config.get('sso_session')):
                 profile_data['is_sso'] = True
-                profile_data['sso_start_url'] = profile_config['sso_start_url']
+                if 'sso_start_url' in profile_config:
+                    profile_data['sso_start_url'] = profile_config['sso_start_url']
+                if 'sso_session' in profile_config:
+                    profile_data['sso_session'] = profile_config['sso_session']
                 profile_data['sso_region'] = profile_config.get('sso_region', 'us-east-1')
                 profile_data['sso_account_id'] = profile_config.get('sso_account_id')
                 profile_data['sso_role_name'] = profile_config.get('sso_role_name')
                 profile_data['aws_region'] = profile_config.get('region')
 
-                # Enrich with SSO token info
-                profile_data = self.sso_enricher.enrich_profile(profile_data)
+                # Optionally enrich with SSO token info (slow operation)
+                if not skip_sso_enrichment:
+                    profile_data = self.sso_enricher.enrich_profile(profile_data)
             else:
                 # Check credentials file
                 cred_profiles = {p['name']: p for p in self.credentials_parser.parse()}
@@ -146,14 +156,15 @@ class ProfileAggregator:
         except Exception:
             return None
 
-    def _get_profiles_manual(self) -> List[Dict]:
+    def _get_profiles_manual(self, skip_sso_enrichment: bool = True) -> List[Dict]:
         """Manual parsing when boto3 is not available."""
         cred_profiles = self.credentials_parser.parse()
         sso_profiles = self.config_parser.parse()
 
-        # Enrich SSO profiles with token info
-        for profile in sso_profiles:
-            self.sso_enricher.enrich_profile(profile)
+        # Optionally enrich SSO profiles with token info (slow operation)
+        if not skip_sso_enrichment:
+            for profile in sso_profiles:
+                self.sso_enricher.enrich_profile(profile)
 
         # Merge profiles (SSO profiles take precedence)
         all_profiles = {}

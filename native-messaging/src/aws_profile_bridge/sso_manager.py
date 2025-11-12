@@ -82,7 +82,7 @@ class SSOTokenCache:
             return None
 
         try:
-            with open(cache_file, 'r') as f:
+            with open(cache_file, 'r', encoding='utf-8') as f:
                 token_data = json.load(f)
                 if self._is_token_valid(token_data):
                     return token_data
@@ -97,7 +97,7 @@ class SSOTokenCache:
 
         for cache_file_path in cache_files:
             try:
-                with open(cache_file_path, 'r') as f:
+                with open(cache_file_path, 'r', encoding='utf-8') as f:
                     token_data = json.load(f)
                     if token_data.get('startUrl') == start_url:
                         if self._is_token_valid(token_data):

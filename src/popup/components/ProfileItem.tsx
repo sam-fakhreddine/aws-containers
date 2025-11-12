@@ -7,6 +7,7 @@
 import React, { FunctionComponent, memo } from "react";
 import Box from "@cloudscape-design/components/box";
 import Badge from "@cloudscape-design/components/badge";
+import Icon from "@cloudscape-design/components/icon";
 import { AWSProfile } from "../types";
 import {
     MILLISECONDS_PER_MINUTE,
@@ -24,11 +25,11 @@ interface ProfileItemProps {
 /**
  * Format expiration time for display
  */
-function formatExpiration(expiration: string | null, expired: boolean): string {
-    if (!expiration) return "";
+function formatExpiration(expiration: string | null, expired: boolean): { text: string; icon: string } | null {
+    if (!expiration) return null;
 
     if (expired) {
-        return "⚠️ Expired";
+        return { text: "Expired", icon: "status-warning" };
     }
 
     const expDate = new Date(expiration);
@@ -38,12 +39,12 @@ function formatExpiration(expiration: string | null, expired: boolean): string {
     );
 
     if (diffMinutes < MINUTES_PER_HOUR) {
-        return `⏰ ${diffMinutes}m`;
+        return { text: `${diffMinutes}m`, icon: "status-in-progress" };
     } else if (diffMinutes < MINUTES_PER_DAY) {
         const hours = Math.floor(diffMinutes / MINUTES_PER_HOUR);
-        return `⏰ ${hours}h`;
+        return { text: `${hours}h`, icon: "status-in-progress" };
     } else {
-        return `✓ Valid`;
+        return { text: "Valid", icon: "status-positive" };
     }
 }
 
@@ -108,24 +109,30 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                         </Box>
                         {profile.is_sso && <Badge color="blue">SSO</Badge>}
                     </div>
-                    {profile.expiration && (
-                        <Box
-                            fontSize="body-s"
-                            color={profile.expired ? "text-status-error" : "text-body-secondary"}
-                        >
-                            {formatExpiration(profile.expiration, profile.expired)}
-                        </Box>
-                    )}
+                    {profile.expiration && (() => {
+                        const expirationInfo = formatExpiration(profile.expiration, profile.expired);
+                        if (!expirationInfo) return null;
+                        return (
+                            <Box
+                                fontSize="body-s"
+                                color={profile.expired ? "text-status-error" : "text-body-secondary"}
+                            >
+                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                    <Icon name={expirationInfo.icon as any} size="small" />
+                                    <span>{expirationInfo.text}</span>
+                                </div>
+                            </Box>
+                        );
+                    })()}
                 </div>
                 <div
                     onClick={(e) => onFavoriteToggle(profile.name, e)}
                     style={{
                         padding: "6px 10px",
                         cursor: "pointer",
-                        fontSize: "20px",
                     }}
                 >
-                    {isFavorite ? "★" : "☆"}
+                    <Icon name={isFavorite ? "star-filled" : "star"} />
                 </div>
             </div>
         </Box>

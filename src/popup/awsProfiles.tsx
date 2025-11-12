@@ -25,6 +25,7 @@ import {
     useContainers,
     useRecentProfiles,
     useRegion,
+    useTheme,
 } from "./hooks";
 
 // UI Components
@@ -34,6 +35,7 @@ import {
     OrganizationTabs,
     LoadingState,
     ErrorState,
+    ThemeSelector,
 } from "./components";
 
 /**
@@ -91,12 +93,14 @@ export const AWSProfilesPopup: FunctionComponent = () => {
         nativeMessagingAvailable,
         loadProfiles,
         refreshProfiles,
+        enrichSSOProfiles,
     } = useProfiles();
 
     const { favorites, toggleFavorite } = useFavorites();
     const { containers, clearContainers } = useContainers();
     const { recentProfiles, addRecentProfile } = useRecentProfiles();
     const { selectedRegion, setRegion } = useRegion();
+    const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
 
     // Local UI state
     const [searchFilter, setSearchFilter] = useState("");
@@ -104,6 +108,16 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     const [selectedOrgTab, setSelectedOrgTab] = useState<string>("all");
     const [isRemoving, setIsRemoving] = useState(false);
     const [openProfileError, setOpenProfileError] = useState<string | null>(null);
+
+    /**
+     * Apply theme to the container element
+     */
+    useEffect(() => {
+        const container = document.getElementById("popup");
+        if (container) {
+            container.setAttribute("data-awsui-theme", resolvedTheme);
+        }
+    }, [resolvedTheme]);
 
     /**
      * Notify background page that popup mounted
@@ -130,42 +144,53 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     const organizations = useMemo(() => {
         const orgs = new Map<string, { name: string; profiles: AWSProfile[] }>();
 
-        // Credential accounts group
+        // Credentials group (from ~/.aws/credentials)
         const credentialProfiles = profiles.filter((p) => !p.is_sso);
         if (credentialProfiles.length > 0) {
             orgs.set("credentials", {
-                name: "Credential Accounts",
+                name: "Credentials",
                 profiles: credentialProfiles,
             });
         }
 
-        // Group SSO profiles by start URL
+        // Group SSO profiles by sso_session
         const ssoProfiles = profiles.filter((p) => p.is_sso);
         const ssoGroups = new Map<string, AWSProfile[]>();
 
         ssoProfiles.forEach((profile) => {
-            const startUrl = profile.sso_start_url || "unknown";
-            if (!ssoGroups.has(startUrl)) {
-                ssoGroups.set(startUrl, []);
+            // Use sso_session if available, fallback to sso_start_url for legacy profiles
+            const sessionKey = profile.sso_session || profile.sso_start_url || "unknown";
+            if (!ssoGroups.has(sessionKey)) {
+                ssoGroups.set(sessionKey, []);
             }
-            ssoGroups.get(startUrl)!.push(profile);
+            ssoGroups.get(sessionKey)!.push(profile);
         });
 
-        // Create organization entries for each SSO group
-        ssoGroups.forEach((profileList, startUrl) => {
+        // Create organization entries for each SSO session
+        ssoGroups.forEach((profileList, sessionKey) => {
             let orgName = "SSO Organization";
-            try {
-                const url = new URL(startUrl);
-                const hostname = url.hostname;
-                const match = hostname.match(/^([^.]+)/);
-                if (match) {
-                    orgName = match[1].charAt(0).toUpperCase() + match[1].slice(1);
+
+            // If we have an sso_session, use it as the organization name
+            const firstProfile = profileList[0];
+            if (firstProfile?.sso_session) {
+                // Capitalize first letter of sso_session
+                orgName = firstProfile.sso_session.charAt(0).toUpperCase() +
+                         firstProfile.sso_session.slice(1);
+            } else if (firstProfile?.sso_start_url) {
+                // Fallback: extract from start_url for legacy profiles
+                try {
+                    const url = new URL(firstProfile.sso_start_url);
+                    const hostname = url.hostname;
+                    const match = hostname.match(/^([^.]+)/);
+                    if (match) {
+                        orgName = match[1].charAt(0).toUpperCase() + match[1].slice(1);
+                    }
+                } catch (e) {
+                    // Keep default name
                 }
-            } catch (e) {
-                // Keep default name
             }
 
-            orgs.set(startUrl, {
+            orgs.set(sessionKey, {
                 name: orgName,
                 profiles: profileList,
             });
@@ -287,7 +312,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     // Installation instructions view
     if (!nativeMessagingAvailable && !profilesLoading) {
         return (
-            <Container header={<Header variant="h2">Setup Required</Header>}>
+            <Container header={<Header variant="h2">Setup Required</Header>} variant="default">
                 <SpaceBetween size="l">
                     <Alert type="warning" header="AWS Profile Bridge Not Found">
                         The native messaging host is required to read AWS credentials from
@@ -352,9 +377,22 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
     // Main view
     return (
-        <>
+        <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
             <Container
-                header={<Header variant="h2">AWS Profile Containers</Header>}
+                header={
+                    <Header
+                        variant="h2"
+                        actions={
+                            <ThemeSelector
+                                mode={themeMode}
+                                onModeChange={setThemeMode}
+                            />
+                        }
+                    >
+                        AWS Profile Containers
+                    </Header>
+                }
+                variant="default"
             >
                 {profilesLoading ? (
                     <LoadingState />
@@ -382,8 +420,10 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
                         <div
                             style={{
-                                maxHeight: "400px",
+                                flex: "1",
                                 overflowY: "auto",
+                                minHeight: "200px",
+                                maxHeight: "calc(100vh - 250px)",
                             }}
                         >
                             <ProfileList
@@ -399,15 +439,34 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                             />
                         </div>
 
-                        <Box padding={{ top: "s" }}>
-                            <Button
-                                variant="primary"
-                                onClick={() => refreshProfiles()}
-                                fullWidth
-                            >
-                                Refresh Profiles
-                            </Button>
-                        </Box>
+                        <SpaceBetween size="s">
+                            {selectedOrgTab !== "all" && selectedOrgTab !== "credentials" && (
+                                <Box padding={{ top: "s" }}>
+                                    <Button
+                                        variant="normal"
+                                        onClick={() => {
+                                            const selectedOrg = organizations.get(selectedOrgTab);
+                                            if (selectedOrg) {
+                                                const ssoProfileNames = selectedOrg.profiles.map(p => p.name);
+                                                enrichSSOProfiles(ssoProfileNames);
+                                            }
+                                        }}
+                                        fullWidth
+                                    >
+                                        Load Entitlements
+                                    </Button>
+                                </Box>
+                            )}
+                            <Box padding={{ top: "s" }}>
+                                <Button
+                                    variant="primary"
+                                    onClick={() => refreshProfiles()}
+                                    fullWidth
+                                >
+                                    Refresh Profiles
+                                </Button>
+                            </Box>
+                        </SpaceBetween>
                     </SpaceBetween>
                 )}
             </Container>
@@ -431,6 +490,6 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             >
                 Are you sure you want to clear all AWS containers?
             </Modal>
-        </>
+        </div>
     );
 };

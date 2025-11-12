@@ -25,6 +25,7 @@ interface UseProfilesReturn {
     nativeMessagingAvailable: boolean;
     loadProfiles: (forceRefresh?: boolean) => Promise<void>;
     refreshProfiles: () => Promise<void>;
+    enrichSSOProfiles: (profileNames?: string[]) => Promise<void>;
 }
 
 /**
@@ -189,6 +190,74 @@ export function useProfiles(): UseProfilesReturn {
     }, [loadProfiles]);
 
     /**
+     * Enriches SSO profiles with token validation (slow operation)
+     * This validates SSO tokens and updates expiration info
+     */
+    const enrichSSOProfiles = useCallback(async (profileNames?: string[]): Promise<void> => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // Connect to native messaging host
+            const port = browser.runtime.connectNative(NATIVE_MESSAGING_HOST_NAME);
+            portRef.current = port;
+
+            // Message listener
+            const messageListener = async (response: unknown) => {
+                try {
+                    if (isProfileListResponse(response)) {
+                        // Sort profiles alphabetically by name
+                        const sortedProfiles = response.profiles.sort(
+                            (a: AWSProfile, b: AWSProfile) =>
+                                a.name.localeCompare(b.name)
+                        );
+                        setProfiles(sortedProfiles);
+                        setLoading(false);
+
+                        // Cache the enriched profiles
+                        await saveToCache(sortedProfiles);
+                    } else if (isErrorResponse(response)) {
+                        setError(response.message);
+                        setLoading(false);
+                    } else {
+                        setError("Received invalid response from native messaging host");
+                        setLoading(false);
+                    }
+                } catch (err) {
+                    console.error("Error handling SSO enrichment response:", err);
+                    setError("Failed to process SSO enrichment");
+                    setLoading(false);
+                }
+            };
+
+            // Disconnect listener
+            const disconnectListener = () => {
+                if (browser.runtime.lastError) {
+                    setError(
+                        `Native messaging error: ${browser.runtime.lastError.message}`
+                    );
+                }
+                setLoading(false);
+                portRef.current = null;
+            };
+
+            // Attach listeners
+            port.onMessage.addListener(messageListener);
+            port.onDisconnect.addListener(disconnectListener);
+
+            // Request SSO profile enrichment
+            port.postMessage({
+                action: "enrichSSOProfiles",
+                profileNames: profileNames || [],
+            });
+        } catch (err) {
+            console.error("SSO enrichment error:", err);
+            setError("Failed to enrich SSO profiles");
+            setLoading(false);
+        }
+    }, [saveToCache]);
+
+    /**
      * Cleanup: Disconnect port when component unmounts
      */
     useEffect(() => {
@@ -211,5 +280,6 @@ export function useProfiles(): UseProfilesReturn {
         nativeMessagingAvailable,
         loadProfiles,
         refreshProfiles,
+        enrichSSOProfiles,
     };
 }

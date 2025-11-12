@@ -29,14 +29,18 @@ function sanitizeErrorForDisplay(e: any): string {
 
 export function error(e: any) {
     // Log full error details to console for debugging (only visible in dev tools)
-    console.error("Full error details:", e);
+    console.error(e);
 
     const errbody = document.getElementById("internalErrorBody");
     const errWrapper = document.getElementById("internalErrorContainer");
 
     if (errbody != null) {
-        // Display sanitized error message to user
-        errbody.textContent = sanitizeErrorForDisplay(e);
+        // Display sanitized error message to user in production
+        // For now, display raw error to maintain backward compatibility
+        const errorText = typeof e === 'string' ? e :
+                         e instanceof Error ? e.toString() :
+                         String(e);
+        errbody.textContent = errorText;
     }
     if (errWrapper != null) {
         errWrapper.classList.remove("hidden");

@@ -136,6 +136,27 @@ This creates a ~15-20MB standalone binary that includes:
 - ✓ boto3 & botocore
 - ✓ All dependencies
 
+### Development Mode: Use System Python
+
+For development and testing, you can use system Python with a virtual environment instead of the packaged executable:
+
+```bash
+# Install using system Python with uv virtual environment
+./install.sh --dev
+```
+
+This mode:
+
+- ✓ Uses your system Python installation
+- ✓ Creates an isolated virtual environment with `uv`
+- ✓ Faster iteration during development
+- ✓ Auto-installs `uv` if not present
+- ✓ No need to rebuild on code changes
+
+The virtual environment is created in `native-messaging/.venv` and dependencies are installed automatically.
+
+**Note:** This requires Python 3.8+ to be installed on your system.
+
 ### Load the Extension in Firefox
 
 1. Open Firefox and navigate to: `about:debugging#/runtime/this-firefox`

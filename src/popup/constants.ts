@@ -28,4 +28,5 @@ export const STORAGE_KEYS = {
     CACHED_PROFILES: "cachedProfiles",
     PROFILES_CACHE_TIME: "profilesCacheTime",
     CONTAINERS: "containers",
+    THEME_MODE: "themeMode",
 } as const;

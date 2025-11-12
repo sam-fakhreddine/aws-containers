@@ -72,6 +72,18 @@ export function url(p: any): any {
 
     try {
         urlObj = new URL(p);
+
+        // Security: Only allow http and https protocols
+        // If protocol is not allowed, try adding https:// prefix
+        const allowedProtocols = ['http:', 'https:'];
+        if (!allowedProtocols.includes(urlObj.protocol)) {
+            // Try adding https:// prefix for cases like "localhost:3000"
+            try {
+                urlObj = new URL("https://" + p);
+            } catch (retryError) {
+                throw new Error(`URL protocol "${urlObj.protocol}" is not allowed. Only HTTP and HTTPS are permitted.`);
+            }
+        }
     } catch (firstError) {
         // If first parse fails, try adding https:// prefix
         try {
@@ -79,13 +91,6 @@ export function url(p: any): any {
         } catch (secondError) {
             throw new Error(`Invalid URL: ${p}`);
         }
-    }
-
-    // Security: Only allow http and https protocols
-    // Reject javascript:, data:, file:, and other dangerous protocols
-    const allowedProtocols = ['http:', 'https:'];
-    if (!allowedProtocols.includes(urlObj.protocol)) {
-        throw new Error(`URL protocol "${urlObj.protocol}" is not allowed. Only HTTP and HTTPS are permitted.`);
     }
 
     return urlObj.toString();
