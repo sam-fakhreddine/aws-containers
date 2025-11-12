@@ -227,8 +227,11 @@ if [ ! -d "$VENV_DIR" ]; then
     exit 1
 fi
 
+# Enable debug logging (writes to ~/.aws/logs/aws_profile_bridge.log)
+# This is safe - logs go to files only, not stderr
+export DEBUG=1
+
 # Activate virtual environment and run the bridge
-# Note: Set DEBUG=1 environment variable before running to enable debug logging
 source "$VENV_DIR/bin/activate"
 exec python3 -m aws_profile_bridge "$@"
 WRAPPER_EOF
@@ -462,14 +465,20 @@ if [ "$DEV_MODE" = true ]; then
     echo "  1. Load the extension in Firefox (about:debugging)"
     echo "  2. Click the extension icon to trigger profile loading"
     echo ""
-    echo "To view debug logs:"
-    echo "  • Set DEBUG=1 in the wrapper script: $INSTALLED_PATH"
-    echo "  • View log file: tail -f ~/.aws/logs/aws_profile_bridge.log"
-    echo "  • View all logs: cat ~/.aws/logs/aws_profile_bridge.log"
-    echo "  • Clean old logs: rm ~/.aws/logs/aws_profile_bridge.log.*"
+    echo "📋 Debug logging is ENABLED by default in dev mode"
     echo ""
-    echo "Note: Debug logs are written to files only (not stderr)"
-    echo "Log files are automatically rotated when reaching 10 MB"
+    echo "To view debug logs (in real-time):"
+    echo "  ${GREEN}./scripts/watch-logs.sh${NC}"
+    echo ""
+    echo "Or manually:"
+    echo "  tail -f ~/.aws/logs/aws_profile_bridge.log"
+    echo ""
+    echo "Log files:"
+    echo "  • Debug log: ~/.aws/logs/aws_profile_bridge.log"
+    echo "  • Error log: ~/.aws/logs/aws_profile_bridge_errors.log"
+    echo "  • Auto-rotated at 10 MB (keeps 5 backups)"
+    echo ""
+    echo "Note: Logs go to FILES only (not stderr - safe for native messaging)"
 fi
 echo ""
 if [[ "$OS" == "macos" ]]; then
