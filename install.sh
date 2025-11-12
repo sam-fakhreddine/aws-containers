@@ -468,7 +468,7 @@ if [ "$DEV_MODE" = true ]; then
     echo "📋 Debug logging is ENABLED by default in dev mode"
     echo ""
     echo "To view debug logs (in real-time):"
-    echo "  ${GREEN}./scripts/watch-logs.sh${NC}"
+    echo -e "  ${GREEN}./scripts/watch-logs.sh${NC}"
     echo ""
     echo "Or manually:"
     echo "  tail -f ~/.aws/logs/aws_profile_bridge.log"
