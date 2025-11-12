@@ -20,6 +20,7 @@ For security documentation, see SECURITY.md in the project root.
 from pathlib import Path
 from typing import Dict
 
+from .debug_logger import get_logger, section, log_operation, log_result, log_error, timer
 from .native_messaging import (
     NativeMessagingHost,
     NativeMessagingReader,
@@ -69,6 +70,8 @@ class AWSProfileBridgeHandler(MessageHandler):
         """Handle incoming messages from the extension."""
         action = message.get('action')
 
+        log_operation(f"Received message", {"action": action})
+
         if action == 'getProfiles':
             return self._handle_get_profiles()
 
@@ -79,9 +82,11 @@ class AWSProfileBridgeHandler(MessageHandler):
             return self._handle_open_profile(message)
 
         else:
+            error_msg = f'Unknown action: {action}'
+            log_result(error_msg, success=False)
             return {
                 'action': 'error',
-                'message': f'Unknown action: {action}'
+                'message': error_msg
             }
 
     def _handle_get_profiles(self) -> Dict:
@@ -91,22 +96,31 @@ class AWSProfileBridgeHandler(MessageHandler):
         Returns profiles quickly without SSO token validation (instant load).
         Use enrichSSOProfiles action to validate SSO tokens on-demand.
         """
-        # Get all profiles (skip SSO enrichment for fast initial load)
-        profiles = self.profile_aggregator.get_all_profiles(skip_sso_enrichment=True)
+        with section("Get Profiles (Fast Mode)"):
+            # Get all profiles (skip SSO enrichment for fast initial load)
+            log_operation("Fetching all profiles (skip SSO enrichment)")
+            profiles = self.profile_aggregator.get_all_profiles(skip_sso_enrichment=True)
+            log_result(f"Found {len(profiles)} profiles")
 
-        # Add metadata (color, icon)
-        for profile in profiles:
-            self.metadata_provider.enrich_profile(profile)
+            # Add metadata (color, icon)
+            log_operation("Adding metadata to profiles")
+            for profile in profiles:
+                self.metadata_provider.enrich_profile(profile)
 
-            # Clean up SSO-specific fields for non-SSO profiles
-            if not profile.get('is_sso'):
-                for key in ['sso_start_url', 'sso_session', 'sso_region', 'sso_account_id', 'sso_role_name']:
-                    profile.pop(key, None)
+                # Clean up SSO-specific fields for non-SSO profiles
+                if not profile.get('is_sso'):
+                    for key in ['sso_start_url', 'sso_session', 'sso_region', 'sso_account_id', 'sso_role_name']:
+                        profile.pop(key, None)
 
-        return {
-            'action': 'profileList',
-            'profiles': profiles
-        }
+            # Count profile types
+            sso_count = sum(1 for p in profiles if p.get('is_sso'))
+            cred_count = len(profiles) - sso_count
+            log_result(f"Processed profiles: {cred_count} credential-based, {sso_count} SSO")
+
+            return {
+                'action': 'profileList',
+                'profiles': profiles
+            }
 
     def _handle_enrich_sso_profiles(self, message: Dict) -> Dict:
         """
@@ -117,66 +131,81 @@ class AWSProfileBridgeHandler(MessageHandler):
         """
         profile_names = message.get('profileNames', [])
 
-        if not profile_names:
-            # If no specific profiles requested, enrich all SSO profiles
-            profiles = self.profile_aggregator.get_all_profiles(skip_sso_enrichment=False)
-        else:
-            # Enrich only requested profiles
-            all_profiles = self.profile_aggregator.get_all_profiles(skip_sso_enrichment=True)
-            profiles = []
+        with section("Enrich SSO Profiles (Slow Mode)"):
+            if not profile_names:
+                # If no specific profiles requested, enrich all SSO profiles
+                log_operation("Enriching ALL SSO profiles")
+                profiles = self.profile_aggregator.get_all_profiles(skip_sso_enrichment=False)
+            else:
+                # Enrich only requested profiles
+                log_operation(f"Enriching {len(profile_names)} specific profiles",
+                             {"profiles": profile_names})
+                all_profiles = self.profile_aggregator.get_all_profiles(skip_sso_enrichment=True)
+                profiles = []
 
-            for profile in all_profiles:
-                if profile['name'] in profile_names and profile.get('is_sso'):
-                    # Re-build with enrichment
-                    enriched = self.profile_aggregator._build_profile_info(
-                        profile['name'],
-                        skip_sso_enrichment=False
-                    )
-                    if enriched:
-                        profiles.append(enriched)
-                else:
-                    profiles.append(profile)
+                for profile in all_profiles:
+                    if profile['name'] in profile_names and profile.get('is_sso'):
+                        # Re-build with enrichment
+                        log_operation(f"Enriching profile: {profile['name']}")
+                        enriched = self.profile_aggregator._build_profile_info(
+                            profile['name'],
+                            skip_sso_enrichment=False
+                        )
+                        if enriched:
+                            profiles.append(enriched)
+                    else:
+                        profiles.append(profile)
 
-        # Add metadata (color, icon)
-        for profile in profiles:
-            self.metadata_provider.enrich_profile(profile)
+            # Add metadata (color, icon)
+            log_operation("Adding metadata to profiles")
+            for profile in profiles:
+                self.metadata_provider.enrich_profile(profile)
 
-            # Clean up SSO-specific fields for non-SSO profiles
-            if not profile.get('is_sso'):
-                for key in ['sso_start_url', 'sso_session', 'sso_region', 'sso_account_id', 'sso_role_name']:
-                    profile.pop(key, None)
+                # Clean up SSO-specific fields for non-SSO profiles
+                if not profile.get('is_sso'):
+                    for key in ['sso_start_url', 'sso_session', 'sso_region', 'sso_account_id', 'sso_role_name']:
+                        profile.pop(key, None)
 
-        return {
-            'action': 'profileList',
-            'profiles': profiles
-        }
+            log_result(f"Enriched {len(profiles)} profiles")
+
+            return {
+                'action': 'profileList',
+                'profiles': profiles
+            }
 
     def _handle_open_profile(self, message: Dict) -> Dict:
         """Handle openProfile action."""
         profile_name = message.get('profileName')
 
-        if not profile_name:
+        with section(f"Open Profile: {profile_name}"):
+            if not profile_name:
+                error_msg = 'Missing profileName'
+                log_result(error_msg, success=False)
+                return {
+                    'action': 'error',
+                    'message': error_msg
+                }
+
+            # Generate console URL
+            log_operation("Generating console URL")
+            result = self.console_url_generator.generate_url(profile_name)
+
+            if 'error' in result:
+                log_result(f"Failed to generate URL: {result['error']}", success=False)
+                return {
+                    'action': 'error',
+                    'message': result['error']
+                }
+
+            log_result("Successfully generated console URL")
+
             return {
-                'action': 'error',
-                'message': 'Missing profileName'
+                'action': 'consoleUrl',
+                'profileName': profile_name,
+                'url': result['url'],
+                'color': self.metadata_provider.get_color(profile_name),
+                'icon': self.metadata_provider.get_icon(profile_name)
             }
-
-        # Generate console URL
-        result = self.console_url_generator.generate_url(profile_name)
-
-        if 'error' in result:
-            return {
-                'action': 'error',
-                'message': result['error']
-            }
-
-        return {
-            'action': 'consoleUrl',
-            'profileName': profile_name,
-            'url': result['url'],
-            'color': self.metadata_provider.get_color(profile_name),
-            'icon': self.metadata_provider.get_icon(profile_name)
-        }
 
 
 class AWSProfileBridge:

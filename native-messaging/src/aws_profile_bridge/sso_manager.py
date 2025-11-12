@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from typing import Optional, Dict
 import urllib.request as request
 
+from .debug_logger import timer, log_operation, log_result, log_error
+
 # Constants
 DEFAULT_CACHE_TTL_SECONDS = 30  # In-memory cache TTL for SSO tokens
 
@@ -25,19 +27,26 @@ class SSOTokenCache:
         self._memory_cache: Dict[str, tuple] = {}
         self._cache_ttl_seconds = DEFAULT_CACHE_TTL_SECONDS
 
+    @timer("SSO token lookup")
     def get_token(self, start_url: str) -> Optional[Dict]:
         """Get cached SSO token for a given start URL."""
+        log_operation(f"Looking up SSO token")
+
         # Check memory cache first
         token = self._get_from_memory(start_url)
         if token:
+            log_result("Found token in memory cache")
             return token
 
         # Check file cache
+        log_operation("Searching file cache for SSO token")
         token = self._get_from_file(start_url)
         if token:
+            log_result("Found token in file cache")
             self._save_to_memory(start_url, token)
             return token
 
+        log_result("No valid SSO token found", success=False)
         return None
 
     def _get_from_memory(self, start_url: str) -> Optional[Dict]:
@@ -133,6 +142,7 @@ class SSOCredentialsProvider:
     def __init__(self, token_cache: SSOTokenCache):
         self.token_cache = token_cache
 
+    @timer("SSO get credentials")
     def get_credentials(self, profile_config: Dict) -> Optional[Dict[str, str]]:
         """
         Get temporary credentials for an SSO profile.
@@ -143,9 +153,12 @@ class SSOCredentialsProvider:
         Returns:
             Dict with aws_access_key_id, aws_secret_access_key, aws_session_token, expiration
         """
+        log_operation("Getting SSO credentials for profile")
+
         # Validate required fields
         validation_error = self._validate_profile_config(profile_config)
         if validation_error:
+            log_result(f"Profile validation failed: {validation_error}", success=False)
             return None
 
         # Get SSO token
@@ -153,15 +166,24 @@ class SSOCredentialsProvider:
         token_data = self.token_cache.get_token(sso_start_url)
 
         if not token_data or 'accessToken' not in token_data:
+            log_result("No valid SSO token available", success=False)
             return None
 
         # Fetch role credentials from AWS SSO API
-        return self._fetch_role_credentials(
+        log_operation("Fetching role credentials from AWS SSO API")
+        creds = self._fetch_role_credentials(
             access_token=token_data['accessToken'],
             sso_region=profile_config.get('sso_region', 'us-east-1'),
             account_id=profile_config['sso_account_id'],
             role_name=profile_config['sso_role_name']
         )
+
+        if creds:
+            log_result("Successfully retrieved SSO credentials")
+        else:
+            log_result("Failed to retrieve SSO credentials", success=False)
+
+        return creds
 
     @staticmethod
     def _validate_profile_config(profile_config: Dict) -> Optional[str]:

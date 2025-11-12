@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 from abc import ABC, abstractmethod
 
+from .debug_logger import timer, log_operation, log_result
+
 
 class FileCache:
     """Simple file-based cache using mtime for invalidation."""
@@ -50,18 +52,23 @@ class INIFileParser(ABC):
         self.file_path = file_path
         self.cache = cache or FileCache()
 
+    @timer()
     def parse(self) -> List[Dict]:
         """Parse file with caching support."""
         # Check cache first
         cached_data = self.cache.get(self.file_path)
         if cached_data is not None:
+            log_result(f"Using cached data for {self.file_path.name} ({len(cached_data)} profiles)")
             return cached_data
 
         # Parse file
         if not self.file_path.exists():
+            log_result(f"File not found: {self.file_path}")
             return []
 
+        log_operation(f"Parsing {self.file_path.name}")
         profiles = self._parse_file()
+        log_result(f"Parsed {len(profiles)} profiles from {self.file_path.name}")
 
         # Cache results
         self.cache.set(self.file_path, profiles)
@@ -235,11 +242,14 @@ class ProfileConfigReader:
         self.credentials_file = credentials_file
         self.config_file = config_file
 
+    @timer()
     def get_credentials(self, profile_name: str) -> Optional[Dict[str, str]]:
         """Extract credentials for a specific profile."""
         if not self.credentials_file.exists():
+            log_result(f"Credentials file not found for profile: {profile_name}", success=False)
             return None
 
+        log_operation(f"Reading credentials for profile: {profile_name}")
         credentials = {}
         in_profile = False
 
@@ -267,13 +277,21 @@ class ProfileConfigReader:
                     if key in ['aws_access_key_id', 'aws_secret_access_key', 'aws_session_token']:
                         credentials[key] = value
 
+        if credentials:
+            log_result(f"Found credentials for profile: {profile_name}")
+        else:
+            log_result(f"No credentials found for profile: {profile_name}", success=False)
+
         return credentials if credentials else None
 
+    @timer()
     def get_config(self, profile_name: str) -> Optional[Dict[str, str]]:
         """Get profile configuration from config file."""
         if not self.config_file.exists():
+            log_result(f"Config file not found for profile: {profile_name}", success=False)
             return None
 
+        log_operation(f"Reading config for profile: {profile_name}")
         profile_config = {}
         in_profile = False
 
@@ -301,5 +319,10 @@ class ProfileConfigReader:
                     key = key.strip()
                     value = value.strip()
                     profile_config[key] = value
+
+        if profile_config:
+            log_result(f"Found config for profile: {profile_name}")
+        else:
+            log_result(f"No config found for profile: {profile_name}", success=False)
 
         return profile_config if profile_config else None

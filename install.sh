@@ -227,6 +227,9 @@ if [ ! -d "$VENV_DIR" ]; then
     exit 1
 fi
 
+# Enable debug logging in development mode
+export DEBUG=1
+
 # Activate virtual environment and run the bridge
 source "$VENV_DIR/bin/activate"
 exec python3 -m aws_profile_bridge "$@"
@@ -399,6 +402,14 @@ if [ "$DEV_MODE" = true ]; then
     echo "  • Using system Python with uv virtual environment"
     echo "  • Virtual environment: $(pwd)/native-messaging/.venv"
     echo "  • Wrapper script: $INSTALLED_PATH"
+    echo "  • Debug logging: ENABLED (output to Firefox Browser Console)"
+    echo ""
+    echo "Debug logs will show:"
+    echo "  • Operation timing"
+    echo "  • File parsing details"
+    echo "  • SSO token lookup"
+    echo "  • Profile aggregation"
+    echo "  • All logs sent to stderr (visible in Browser Console)"
     echo ""
 fi
 
@@ -437,6 +448,11 @@ echo "  cat $NATIVE_MESSAGING_DIR/aws_profile_bridge.json"
 if [ "$DEV_MODE" = true ]; then
     echo "- Testing the wrapper script manually:"
     echo "  echo '{\"action\":\"getProfiles\"}' | $INSTALLED_PATH"
+    echo ""
+    echo "To view debug logs:"
+    echo "  1. Open Firefox Browser Console (Ctrl+Shift+J / Cmd+Shift+J)"
+    echo "  2. Look for [DEBUG] messages showing timing and operations"
+    echo "  3. Debug logs appear on stderr and won't interfere with native messaging"
 fi
 echo ""
 if [[ "$OS" == "macos" ]]; then
