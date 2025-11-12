@@ -5,6 +5,7 @@
   "description": "Firefox extension to open AWS profiles from credentials file in separate containers",
   "main": "index.js",
   "scripts": {
+    "preinstall": "node scripts/check-node-version.js",
     "build:transpile": "webpack --config config/webpack/webpack.prod.js",
     "build:update-version": "node scripts/build/update-version.js",
     "build:package": "web-ext build --source-dir ./dist/ --overwrite-dest",

@@ -90,6 +90,22 @@ This project originated from a collection of custom CLI scripts and Firefox exte
 - No credentials stored in browser storage
 - See [docs/security/security-root.md](docs/security/security-root.md) for full details
 
+## Prerequisites
+
+**For Users (Quick Start):**
+- Firefox (latest version recommended)
+- No other dependencies required!
+
+**For Developers (Building from Source):**
+- **Node.js**: Version 22.14.0+ or 24.10.0+
+  - Check your version: `node --version`
+  - Install via [nvm](https://github.com/nvm-sh/nvm) or [nodejs.org](https://nodejs.org/)
+- **Yarn**: Package manager
+  - Install: `npm install -g yarn`
+- **Python 3.8+** (only for development mode with `--dev` flag)
+
+The version check runs automatically during installation and will provide clear instructions if your Node.js version needs updating.
+
 ## Installation
 
 ### Quick Start (No Python Required) ⚡
