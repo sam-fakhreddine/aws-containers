@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import browser from "webextension-polyfill";
+import { applyMode, Mode } from "@cloudscape-design/global-styles";
 import { STORAGE_KEYS } from "../constants";
 
 export type ThemeMode = "light" | "dark" | "system";
@@ -99,6 +100,13 @@ export function useTheme(): UseThemeReturn {
      */
     const resolvedTheme: ResolvedTheme =
         mode === "system" ? systemTheme : mode;
+
+    /**
+     * Apply theme using Cloudscape's applyMode
+     */
+    useEffect(() => {
+        applyMode(resolvedTheme as Mode);
+    }, [resolvedTheme]);
 
     return {
         mode,

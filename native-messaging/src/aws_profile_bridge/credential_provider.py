@@ -15,6 +15,7 @@ try:
 except ImportError:
     BOTO3_AVAILABLE = False
 
+from .debug_logger import timer, log_operation, log_result
 from .file_parsers import (
     CredentialsFileParser,
     ConfigFileParser,
@@ -85,6 +86,7 @@ class ProfileAggregator:
         self.sso_enricher = sso_enricher
         self.config_reader = config_reader
 
+    @timer("get_all_profiles")
     def get_all_profiles(self, skip_sso_enrichment: bool = True) -> List[Dict]:
         """
         Get all profiles from both credentials and config files.
@@ -93,10 +95,17 @@ class ProfileAggregator:
             skip_sso_enrichment: If True, skip SSO token validation (faster).
                                 If False, check SSO token expiration (slower).
         """
+        log_operation(f"Getting all profiles (skip_sso_enrichment={skip_sso_enrichment})")
+
         if BOTO3_AVAILABLE:
-            return self._get_profiles_with_boto3(skip_sso_enrichment)
+            log_operation("Using boto3 for profile enumeration")
+            result = self._get_profiles_with_boto3(skip_sso_enrichment)
         else:
-            return self._get_profiles_manual(skip_sso_enrichment)
+            log_operation("Using manual parsing for profile enumeration (boto3 not available)")
+            result = self._get_profiles_manual(skip_sso_enrichment)
+
+        log_result(f"Retrieved {len(result)} profiles")
+        return result
 
     def _get_profiles_with_boto3(self, skip_sso_enrichment: bool = True) -> List[Dict]:
         """Use boto3 to enumerate profiles (faster and more reliable)."""

@@ -100,7 +100,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     const { containers, clearContainers } = useContainers();
     const { recentProfiles, addRecentProfile } = useRecentProfiles();
     const { selectedRegion, setRegion } = useRegion();
-    const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
+    const { mode: themeMode, setMode: setThemeMode } = useTheme();
 
     // Local UI state
     const [searchFilter, setSearchFilter] = useState("");
@@ -108,16 +108,6 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     const [selectedOrgTab, setSelectedOrgTab] = useState<string>("all");
     const [isRemoving, setIsRemoving] = useState(false);
     const [openProfileError, setOpenProfileError] = useState<string | null>(null);
-
-    /**
-     * Apply theme to the container element
-     */
-    useEffect(() => {
-        const container = document.getElementById("popup");
-        if (container) {
-            container.setAttribute("data-awsui-theme", resolvedTheme);
-        }
-    }, [resolvedTheme]);
 
     /**
      * Notify background page that popup mounted

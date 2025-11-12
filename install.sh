@@ -60,9 +60,12 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
+# Parse Node version, handling pre-release (e.g., 22.14.0-rc.1) and build metadata (e.g., 24.10.0+build)
 NODE_VERSION=$(node --version | sed 's/v//')
-NODE_MAJOR=$(echo $NODE_VERSION | cut -d. -f1)
-NODE_MINOR=$(echo $NODE_VERSION | cut -d. -f2)
+# Strip pre-release and build metadata for version comparison
+NODE_VERSION_BASE=$(echo $NODE_VERSION | sed 's/[-+].*//')
+NODE_MAJOR=$(echo $NODE_VERSION_BASE | cut -d. -f1)
+NODE_MINOR=$(echo $NODE_VERSION_BASE | cut -d. -f2)
 
 # Check if Node version meets requirements: ^22.14.0 || >= 24.10.0
 MEETS_REQUIREMENT=false
@@ -223,6 +226,9 @@ if [ ! -d "$VENV_DIR" ]; then
     echo "Please run install.sh --dev again" >&2
     exit 1
 fi
+
+# Enable debug logging in development mode
+export DEBUG=1
 
 # Activate virtual environment and run the bridge
 source "$VENV_DIR/bin/activate"
@@ -392,10 +398,32 @@ echo "=========================================="
 echo ""
 
 if [ "$DEV_MODE" = true ]; then
+    # Create log directory
+    LOG_DIR="$HOME/.aws/logs"
+    mkdir -p "$LOG_DIR"
+    chmod 700 "$LOG_DIR" 2>/dev/null || true
+
     echo -e "${GREEN}Development Mode Summary:${NC}"
     echo "  • Using system Python with uv virtual environment"
     echo "  • Virtual environment: $(pwd)/native-messaging/.venv"
     echo "  • Wrapper script: $INSTALLED_PATH"
+    echo "  • Debug logging: ENABLED"
+    echo ""
+    echo "Debug logs are written to:"
+    echo "  • stderr (visible in Firefox Browser Console)"
+    echo "  • File: $LOG_DIR/aws_profile_bridge.log"
+    echo ""
+    echo "Log rotation:"
+    echo "  • Max file size: 10 MB"
+    echo "  • Backup files: 5 (automatically rotated)"
+    echo "  • Total max size: ~50 MB"
+    echo ""
+    echo "Debug logs show:"
+    echo "  • Operation timing"
+    echo "  • File parsing details"
+    echo "  • SSO token lookup"
+    echo "  • Profile aggregation"
+    echo "  • Error diagnostics"
     echo ""
 fi
 
@@ -434,6 +462,14 @@ echo "  cat $NATIVE_MESSAGING_DIR/aws_profile_bridge.json"
 if [ "$DEV_MODE" = true ]; then
     echo "- Testing the wrapper script manually:"
     echo "  echo '{\"action\":\"getProfiles\"}' | $INSTALLED_PATH"
+    echo ""
+    echo "To view debug logs:"
+    echo "  1. Real-time: Open Firefox Browser Console (Ctrl+Shift+J / Cmd+Shift+J)"
+    echo "  2. File logs: tail -f ~/.aws/logs/aws_profile_bridge.log"
+    echo "  3. View all logs: cat ~/.aws/logs/aws_profile_bridge.log"
+    echo "  4. Clean old logs: rm ~/.aws/logs/aws_profile_bridge.log.*"
+    echo ""
+    echo "Log files are automatically rotated when reaching 10 MB"
 fi
 echo ""
 if [[ "$OS" == "macos" ]]; then
