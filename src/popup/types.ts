@@ -60,6 +60,7 @@ export interface AWSProfile {
     icon: string;
     is_sso?: boolean;
     sso_start_url?: string;
+    sso_session?: string;
 }
 
 /**

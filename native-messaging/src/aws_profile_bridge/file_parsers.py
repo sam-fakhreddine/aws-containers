@@ -209,6 +209,9 @@ class ConfigFileParser(INIFileParser):
         if key == 'sso_start_url':
             profile_data['is_sso'] = True
             profile_data['sso_start_url'] = value
+        elif key == 'sso_session':
+            profile_data['is_sso'] = True
+            profile_data['sso_session'] = value
         elif key == 'sso_region':
             profile_data['sso_region'] = value
         elif key == 'sso_account_id':

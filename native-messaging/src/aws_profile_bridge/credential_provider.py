@@ -128,9 +128,12 @@ class ProfileAggregator:
 
             # Check if this is an SSO profile
             profile_config = self.config_reader.get_config(profile_name)
-            if profile_config and profile_config.get('sso_start_url'):
+            if profile_config and (profile_config.get('sso_start_url') or profile_config.get('sso_session')):
                 profile_data['is_sso'] = True
-                profile_data['sso_start_url'] = profile_config['sso_start_url']
+                if 'sso_start_url' in profile_config:
+                    profile_data['sso_start_url'] = profile_config['sso_start_url']
+                if 'sso_session' in profile_config:
+                    profile_data['sso_session'] = profile_config['sso_session']
                 profile_data['sso_region'] = profile_config.get('sso_region', 'us-east-1')
                 profile_data['sso_account_id'] = profile_config.get('sso_account_id')
                 profile_data['sso_role_name'] = profile_config.get('sso_role_name')
