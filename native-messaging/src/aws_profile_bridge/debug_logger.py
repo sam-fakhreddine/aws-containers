@@ -3,6 +3,7 @@
 Debug Logger for AWS Profile Bridge
 
 Provides detailed logging and timing information for debugging purposes.
+Supports both stderr and file logging with automatic rotation.
 SECURITY: Never logs credentials or sensitive data.
 """
 
@@ -10,10 +11,19 @@ import sys
 import time
 import os
 import json
+import logging
+from pathlib import Path
+from logging.handlers import RotatingFileHandler
 from functools import wraps
 from contextlib import contextmanager
 from typing import Any, Dict, Optional, Callable
 from datetime import datetime
+
+# Log configuration
+DEFAULT_LOG_DIR = Path.home() / '.aws' / 'logs'
+DEFAULT_LOG_FILE = 'aws_profile_bridge.log'
+MAX_LOG_SIZE = 10 * 1024 * 1024  # 10 MB
+BACKUP_COUNT = 5  # Keep 5 backup files
 
 
 class DebugLogger:
@@ -21,6 +31,7 @@ class DebugLogger:
     Debug logger with timing support.
 
     Outputs to stderr to avoid interfering with native messaging protocol.
+    Also writes to rotating log files for persistent debugging.
     Can be enabled via DEBUG environment variable or programmatically.
     """
 
@@ -40,12 +51,13 @@ class DebugLogger:
         'secret',
     }
 
-    def __init__(self, enabled: bool = None):
+    def __init__(self, enabled: bool = None, log_file: Optional[Path] = None):
         """
         Initialize debug logger.
 
         Args:
             enabled: If None, checks DEBUG environment variable
+            log_file: Optional custom log file path
         """
         if enabled is None:
             enabled = os.environ.get('DEBUG', '').lower() in ('1', 'true', 'yes')
@@ -53,9 +65,56 @@ class DebugLogger:
         self.enabled = enabled
         self.start_time = time.time()
         self._indent_level = 0
+        self._file_handler: Optional[RotatingFileHandler] = None
 
         if self.enabled:
+            self._setup_file_logging(log_file)
             self._log_header()
+
+    def _setup_file_logging(self, log_file: Optional[Path] = None):
+        """
+        Setup file logging with rotation.
+
+        Args:
+            log_file: Optional custom log file path
+        """
+        try:
+            # Determine log file path
+            if log_file is None:
+                log_dir = DEFAULT_LOG_DIR
+                log_file = log_dir / DEFAULT_LOG_FILE
+            else:
+                log_dir = log_file.parent
+
+            # Create log directory if it doesn't exist
+            log_dir.mkdir(parents=True, exist_ok=True)
+
+            # Ensure directory has secure permissions (user only)
+            try:
+                os.chmod(log_dir, 0o700)
+            except Exception:
+                pass  # Best effort
+
+            # Create rotating file handler
+            self._file_handler = RotatingFileHandler(
+                filename=str(log_file),
+                maxBytes=MAX_LOG_SIZE,
+                backupCount=BACKUP_COUNT,
+                encoding='utf-8'
+            )
+
+            # Ensure log file has secure permissions
+            try:
+                os.chmod(log_file, 0o600)
+            except Exception:
+                pass  # Best effort
+
+            self._log_file_path = log_file
+
+        except Exception as e:
+            # If file logging setup fails, continue with stderr only
+            sys.stderr.write(f"Warning: Could not setup file logging: {e}\n")
+            self._file_handler = None
 
     def _log_header(self):
         """Log session header."""
@@ -63,6 +122,8 @@ class DebugLogger:
         self._write(f"AWS Profile Bridge - Debug Session Started")
         self._write(f"Time: {datetime.now().isoformat()}")
         self._write(f"PID: {os.getpid()}")
+        if self._file_handler:
+            self._write(f"Log file: {self._log_file_path}")
         self._write("=" * 80)
 
     def _get_elapsed_time(self) -> str:
@@ -71,11 +132,29 @@ class DebugLogger:
         return f"{elapsed:.3f}s"
 
     def _write(self, message: str):
-        """Write message to stderr."""
+        """Write message to both stderr and log file."""
         indent = "  " * self._indent_level
         timestamp = self._get_elapsed_time()
-        sys.stderr.write(f"[{timestamp}] {indent}{message}\n")
+        formatted_message = f"[{timestamp}] {indent}{message}"
+
+        # Write to stderr
+        sys.stderr.write(f"{formatted_message}\n")
         sys.stderr.flush()
+
+        # Write to file if available
+        if self._file_handler:
+            try:
+                # Use proper logging format with timestamp
+                iso_timestamp = datetime.now().isoformat()
+                file_message = f"{iso_timestamp} [PID:{os.getpid()}] {formatted_message}\n"
+                self._file_handler.stream.write(file_message)
+                self._file_handler.stream.flush()
+                # Perform rotation if needed
+                self._file_handler.doRollover() if self._file_handler.shouldRollover(
+                    logging.LogRecord('', 0, '', 0, file_message, (), None)
+                ) else None
+            except Exception:
+                pass  # Don't let file logging errors break the application
 
     def log(self, message: str):
         """Log a message."""
@@ -219,13 +298,25 @@ def get_logger() -> DebugLogger:
     return _logger
 
 
-def set_debug_enabled(enabled: bool):
-    """Enable or disable debug logging."""
+def set_debug_enabled(enabled: bool, log_file: Optional[Path] = None):
+    """
+    Enable or disable debug logging.
+
+    Args:
+        enabled: Whether to enable debug logging
+        log_file: Optional custom log file path
+    """
     global _logger
     if _logger is None:
-        _logger = DebugLogger(enabled=enabled)
+        _logger = DebugLogger(enabled=enabled, log_file=log_file)
     else:
         _logger.enabled = enabled
+
+
+def get_log_file_path() -> Optional[Path]:
+    """Get the current log file path."""
+    logger = get_logger()
+    return getattr(logger, '_log_file_path', None)
 
 
 # Convenience functions

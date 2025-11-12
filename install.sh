@@ -398,18 +398,32 @@ echo "=========================================="
 echo ""
 
 if [ "$DEV_MODE" = true ]; then
+    # Create log directory
+    LOG_DIR="$HOME/.aws/logs"
+    mkdir -p "$LOG_DIR"
+    chmod 700 "$LOG_DIR" 2>/dev/null || true
+
     echo -e "${GREEN}Development Mode Summary:${NC}"
     echo "  • Using system Python with uv virtual environment"
     echo "  • Virtual environment: $(pwd)/native-messaging/.venv"
     echo "  • Wrapper script: $INSTALLED_PATH"
-    echo "  • Debug logging: ENABLED (output to Firefox Browser Console)"
+    echo "  • Debug logging: ENABLED"
     echo ""
-    echo "Debug logs will show:"
+    echo "Debug logs are written to:"
+    echo "  • stderr (visible in Firefox Browser Console)"
+    echo "  • File: $LOG_DIR/aws_profile_bridge.log"
+    echo ""
+    echo "Log rotation:"
+    echo "  • Max file size: 10 MB"
+    echo "  • Backup files: 5 (automatically rotated)"
+    echo "  • Total max size: ~50 MB"
+    echo ""
+    echo "Debug logs show:"
     echo "  • Operation timing"
     echo "  • File parsing details"
     echo "  • SSO token lookup"
     echo "  • Profile aggregation"
-    echo "  • All logs sent to stderr (visible in Browser Console)"
+    echo "  • Error diagnostics"
     echo ""
 fi
 
@@ -450,9 +464,12 @@ if [ "$DEV_MODE" = true ]; then
     echo "  echo '{\"action\":\"getProfiles\"}' | $INSTALLED_PATH"
     echo ""
     echo "To view debug logs:"
-    echo "  1. Open Firefox Browser Console (Ctrl+Shift+J / Cmd+Shift+J)"
-    echo "  2. Look for [DEBUG] messages showing timing and operations"
-    echo "  3. Debug logs appear on stderr and won't interfere with native messaging"
+    echo "  1. Real-time: Open Firefox Browser Console (Ctrl+Shift+J / Cmd+Shift+J)"
+    echo "  2. File logs: tail -f ~/.aws/logs/aws_profile_bridge.log"
+    echo "  3. View all logs: cat ~/.aws/logs/aws_profile_bridge.log"
+    echo "  4. Clean old logs: rm ~/.aws/logs/aws_profile_bridge.log.*"
+    echo ""
+    echo "Log files are automatically rotated when reaching 10 MB"
 fi
 echo ""
 if [[ "$OS" == "macos" ]]; then

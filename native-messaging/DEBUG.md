@@ -9,7 +9,10 @@ The AWS Profile Bridge includes a comprehensive debug logging system to help tro
 - **Timing Information**: Automatically tracks and reports execution time for all major operations
 - **Operation Tracking**: Logs each step of profile loading, parsing, and credential retrieval
 - **Safe Logging**: Automatically redacts sensitive data (credentials, tokens, secrets)
-- **Non-intrusive**: Outputs to stderr, doesn't interfere with native messaging protocol
+- **Dual Output**: Logs to both stderr (real-time) and files (persistent)
+- **Automatic Rotation**: Log files automatically rotate at 10 MB with 5 backups (~50 MB total)
+- **Secure Storage**: Log files have 0600 permissions (user-only access)
+- **Non-intrusive**: stderr output doesn't interfere with native messaging protocol
 - **Zero Overhead**: When disabled, has no performance impact
 
 ## Enabling Debug Logging
@@ -44,22 +47,97 @@ export DEBUG=1
 
 ## Viewing Debug Logs
 
-Debug logs are sent to **stderr** and can be viewed in:
+Debug logs are sent to **both stderr and log files**:
 
-### Firefox Browser Console
+### Real-Time Logs (stderr)
+
+#### Firefox Browser Console
 
 1. Open Firefox
 2. Press `Ctrl+Shift+J` (Windows/Linux) or `Cmd+Shift+J` (macOS)
 3. Click on the extension icon to trigger operations
 4. Watch debug logs appear in real-time
 
-### Terminal (for manual testing)
+#### Terminal (for manual testing)
 
 ```bash
 echo '{"action":"getProfiles"}' | ~/.local/bin/aws_profile_bridge 2>&1
 ```
 
 The `2>&1` redirects stderr to stdout so you can see the debug output.
+
+### Persistent Logs (Files)
+
+#### Log File Location
+
+Default location: `~/.aws/logs/aws_profile_bridge.log`
+
+#### Viewing Log Files
+
+```bash
+# View current log file
+cat ~/.aws/logs/aws_profile_bridge.log
+
+# Follow log file in real-time (like tail -f)
+tail -f ~/.aws/logs/aws_profile_bridge.log
+
+# View most recent entries
+tail -n 100 ~/.aws/logs/aws_profile_bridge.log
+
+# Search for errors
+grep "✗" ~/.aws/logs/aws_profile_bridge.log
+
+# View timing information
+grep "⏱" ~/.aws/logs/aws_profile_bridge.log
+```
+
+#### Log Rotation
+
+Logs automatically rotate when they reach **10 MB**:
+
+- Current log: `aws_profile_bridge.log`
+- Rotated logs: `aws_profile_bridge.log.1`, `aws_profile_bridge.log.2`, etc.
+- Maximum backups: 5 files (~50 MB total)
+- Oldest logs are automatically deleted
+
+#### Cleaning Old Logs
+
+Use the provided cleanup script:
+
+```bash
+# Remove rotated logs only (keep current)
+./scripts/clean-logs.sh
+
+# Remove all logs including current
+./scripts/clean-logs.sh --all
+```
+
+Or manually:
+
+```bash
+# Remove all rotated logs (keep current)
+rm ~/.aws/logs/aws_profile_bridge.log.*
+
+# Remove all logs including current
+rm ~/.aws/logs/aws_profile_bridge.log*
+
+# View total log size
+du -sh ~/.aws/logs/
+```
+
+#### Log File Format
+
+File logs include additional information:
+
+```
+2025-01-12T10:30:45.123456 [PID:12345] [0.001s] ▸ Get Profiles (Fast Mode)
+2025-01-12T10:30:45.124567 [PID:12345] [0.002s]   → Fetching all profiles
+```
+
+- **ISO Timestamp**: Exact time of log entry
+- **PID**: Process ID for distinguishing concurrent sessions
+- **Elapsed Time**: Time since session started
+- **Message**: Log content with indentation
 
 ## Log Format
 
