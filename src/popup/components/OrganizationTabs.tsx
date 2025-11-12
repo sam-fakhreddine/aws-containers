@@ -30,11 +30,7 @@ const OrganizationTabsComponent: FunctionComponent<OrganizationTabsProps> = ({
     onTabChange,
     totalProfiles,
 }) => {
-    // Don't show tabs if there's only one organization or less
-    if (organizations.size <= 1) {
-        return null;
-    }
-
+    // Always show tabs
     const tabs = [
         {
             id: "all",
@@ -49,13 +45,12 @@ const OrganizationTabsComponent: FunctionComponent<OrganizationTabsProps> = ({
     ];
 
     return (
-        <div style={{ padding: "8px 8px 0 8px" }}>
-            <Tabs
-                tabs={tabs}
-                activeTabId={selectedTab}
-                onChange={(event) => onTabChange(event.detail.activeTabId)}
-            />
-        </div>
+        <Tabs
+            tabs={tabs}
+            activeTabId={selectedTab}
+            onChange={(event) => onTabChange(event.detail.activeTabId)}
+            variant="container"
+        />
     );
 };
 

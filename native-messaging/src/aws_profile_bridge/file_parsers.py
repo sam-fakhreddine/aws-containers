@@ -74,7 +74,7 @@ class INIFileParser(ABC):
         current_profile = None
         profile_data = {}
 
-        with open(self.file_path, 'r') as f:
+        with open(self.file_path, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
 
@@ -240,7 +240,7 @@ class ProfileConfigReader:
         credentials = {}
         in_profile = False
 
-        with open(self.credentials_file, 'r') as f:
+        with open(self.credentials_file, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
 
@@ -274,7 +274,7 @@ class ProfileConfigReader:
         profile_config = {}
         in_profile = False
 
-        with open(self.config_file, 'r') as f:
+        with open(self.config_file, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
 

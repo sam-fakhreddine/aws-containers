@@ -288,7 +288,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     // Installation instructions view
     if (!nativeMessagingAvailable && !profilesLoading) {
         return (
-            <Container header={<Header variant="h2">Setup Required</Header>}>
+            <Container header={<Header variant="h2">Setup Required</Header>} variant="default">
                 <SpaceBetween size="l">
                     <Alert type="warning" header="AWS Profile Bridge Not Found">
                         The native messaging host is required to read AWS credentials from
@@ -353,9 +353,10 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
     // Main view
     return (
-        <>
+        <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
             <Container
                 header={<Header variant="h2">AWS Profile Containers</Header>}
+                variant="default"
             >
                 {profilesLoading ? (
                     <LoadingState />
@@ -383,8 +384,10 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
                         <div
                             style={{
-                                maxHeight: "400px",
+                                flex: "1",
                                 overflowY: "auto",
+                                minHeight: "200px",
+                                maxHeight: "calc(100vh - 250px)",
                             }}
                         >
                             <ProfileList
@@ -451,6 +454,6 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             >
                 Are you sure you want to clear all AWS containers?
             </Modal>
-        </>
+        </div>
     );
 };
