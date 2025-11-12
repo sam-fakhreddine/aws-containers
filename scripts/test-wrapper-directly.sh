@@ -26,7 +26,7 @@ echo "This will send getProfiles action and wait 5 seconds for response"
 echo ""
 
 # Create a test script that sends proper native messaging format
-python3 << 'PYTHON_EOF'
+python3 - "$WRAPPER" << 'PYTHON_EOF'
 import struct
 import subprocess
 import json
@@ -104,4 +104,4 @@ except:
 
 proc.kill()
 print("\nTest complete")
-PYTHON_EOF "$WRAPPER"
+PYTHON_EOF
