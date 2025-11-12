@@ -91,6 +91,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
         nativeMessagingAvailable,
         loadProfiles,
         refreshProfiles,
+        enrichSSOProfiles,
     } = useProfiles();
 
     const { favorites, toggleFavorite } = useFavorites();
@@ -399,15 +400,34 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                             />
                         </div>
 
-                        <Box padding={{ top: "s" }}>
-                            <Button
-                                variant="primary"
-                                onClick={() => refreshProfiles()}
-                                fullWidth
-                            >
-                                Refresh Profiles
-                            </Button>
-                        </Box>
+                        <SpaceBetween size="s">
+                            {selectedOrgTab !== "all" && selectedOrgTab !== "credentials" && (
+                                <Box padding={{ top: "s" }}>
+                                    <Button
+                                        variant="normal"
+                                        onClick={() => {
+                                            const selectedOrg = organizations.get(selectedOrgTab);
+                                            if (selectedOrg) {
+                                                const ssoProfileNames = selectedOrg.profiles.map(p => p.name);
+                                                enrichSSOProfiles(ssoProfileNames);
+                                            }
+                                        }}
+                                        fullWidth
+                                    >
+                                        Load Entitlements
+                                    </Button>
+                                </Box>
+                            )}
+                            <Box padding={{ top: "s" }}>
+                                <Button
+                                    variant="primary"
+                                    onClick={() => refreshProfiles()}
+                                    fullWidth
+                                >
+                                    Refresh Profiles
+                                </Button>
+                            </Box>
+                        </SpaceBetween>
                     </SpaceBetween>
                 )}
             </Container>
