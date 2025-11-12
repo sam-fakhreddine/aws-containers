@@ -25,6 +25,7 @@ import {
     useContainers,
     useRecentProfiles,
     useRegion,
+    useTheme,
 } from "./hooks";
 
 // UI Components
@@ -34,6 +35,7 @@ import {
     OrganizationTabs,
     LoadingState,
     ErrorState,
+    ThemeSelector,
 } from "./components";
 
 /**
@@ -98,6 +100,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     const { containers, clearContainers } = useContainers();
     const { recentProfiles, addRecentProfile } = useRecentProfiles();
     const { selectedRegion, setRegion } = useRegion();
+    const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
 
     // Local UI state
     const [searchFilter, setSearchFilter] = useState("");
@@ -105,6 +108,16 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     const [selectedOrgTab, setSelectedOrgTab] = useState<string>("all");
     const [isRemoving, setIsRemoving] = useState(false);
     const [openProfileError, setOpenProfileError] = useState<string | null>(null);
+
+    /**
+     * Apply theme to the container element
+     */
+    useEffect(() => {
+        const container = document.getElementById("popup");
+        if (container) {
+            container.setAttribute("data-awsui-theme", resolvedTheme);
+        }
+    }, [resolvedTheme]);
 
     /**
      * Notify background page that popup mounted
@@ -355,7 +368,19 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     return (
         <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
             <Container
-                header={<Header variant="h2">AWS Profile Containers</Header>}
+                header={
+                    <Header
+                        variant="h2"
+                        actions={
+                            <ThemeSelector
+                                mode={themeMode}
+                                onModeChange={setThemeMode}
+                            />
+                        }
+                    >
+                        AWS Profile Containers
+                    </Header>
+                }
                 variant="default"
             >
                 {profilesLoading ? (
