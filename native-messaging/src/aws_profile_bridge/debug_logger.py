@@ -111,9 +111,9 @@ class DebugLogger:
 
             self._log_file_path = log_file
 
-        except Exception as e:
-            # If file logging setup fails, continue with stderr only
-            sys.stderr.write(f"Warning: Could not setup file logging: {e}\n")
+        except Exception:
+            # If file logging setup fails, disable logging silently
+            # (can't write to stderr - it interferes with native messaging)
             self._file_handler = None
 
     def _log_header(self):
@@ -132,16 +132,12 @@ class DebugLogger:
         return f"{elapsed:.3f}s"
 
     def _write(self, message: str):
-        """Write message to both stderr and log file."""
+        """Write message to log file only (not stderr to avoid interfering with native messaging)."""
         indent = "  " * self._indent_level
         timestamp = self._get_elapsed_time()
         formatted_message = f"[{timestamp}] {indent}{message}"
 
-        # Write to stderr
-        sys.stderr.write(f"{formatted_message}\n")
-        sys.stderr.flush()
-
-        # Write to file if available
+        # Write to file only (not stderr - it interferes with native messaging protocol)
         if self._file_handler:
             try:
                 # Use proper logging format with timestamp

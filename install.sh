@@ -227,10 +227,8 @@ if [ ! -d "$VENV_DIR" ]; then
     exit 1
 fi
 
-# Enable debug logging in development mode
-export DEBUG=1
-
 # Activate virtual environment and run the bridge
+# Note: Set DEBUG=1 environment variable before running to enable debug logging
 source "$VENV_DIR/bin/activate"
 exec python3 -m aws_profile_bridge "$@"
 WRAPPER_EOF
@@ -460,15 +458,17 @@ echo "  ls -la $INSTALLED_PATH"
 echo "- Checking the native messaging manifest:"
 echo "  cat $NATIVE_MESSAGING_DIR/aws_profile_bridge.json"
 if [ "$DEV_MODE" = true ]; then
-    echo "- Testing the wrapper script manually:"
-    echo "  echo '{\"action\":\"getProfiles\"}' | $INSTALLED_PATH"
+    echo "- Testing the extension:"
+    echo "  1. Load the extension in Firefox (about:debugging)"
+    echo "  2. Click the extension icon to trigger profile loading"
     echo ""
     echo "To view debug logs:"
-    echo "  1. Real-time: Open Firefox Browser Console (Ctrl+Shift+J / Cmd+Shift+J)"
-    echo "  2. File logs: tail -f ~/.aws/logs/aws_profile_bridge.log"
-    echo "  3. View all logs: cat ~/.aws/logs/aws_profile_bridge.log"
-    echo "  4. Clean old logs: rm ~/.aws/logs/aws_profile_bridge.log.*"
+    echo "  • Set DEBUG=1 in the wrapper script: $INSTALLED_PATH"
+    echo "  • View log file: tail -f ~/.aws/logs/aws_profile_bridge.log"
+    echo "  • View all logs: cat ~/.aws/logs/aws_profile_bridge.log"
+    echo "  • Clean old logs: rm ~/.aws/logs/aws_profile_bridge.log.*"
     echo ""
+    echo "Note: Debug logs are written to files only (not stderr)"
     echo "Log files are automatically rotated when reaching 10 MB"
 fi
 echo ""
