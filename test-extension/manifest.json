@@ -15,7 +15,7 @@
   },
 
   "browser_action": {
-    "default_title": "Open Test Page",
-    "default_popup": "test-page.html"
+    "default_title": "Open Debug Page",
+    "default_popup": "debug-page.html"
   }
 }
