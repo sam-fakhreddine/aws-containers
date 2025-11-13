@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 from abc import ABC, abstractmethod
 
-from .debug_logger import timer, log_operation, log_result
+from .debug_logger import timer, log_operation, log_result, log_error
 
 
 class FileCache:
@@ -153,6 +153,7 @@ class CredentialsFileParser(INIFileParser):
         if line.startswith('#') and 'Expires' in line:
             expiration = self._parse_expiration(line)
             if expiration:
+                log_operation(f"  → Found expiration: {expiration['expiration']} (expired={expiration['expired']})")
                 profile_data['expiration'] = expiration['expiration']
                 profile_data['expired'] = expiration['expired']
 
@@ -161,6 +162,8 @@ class CredentialsFileParser(INIFileParser):
             key, value = line.split('=', 1)
             key = key.strip()
             if key in ['aws_access_key_id', 'aws_secret_access_key', 'aws_session_token']:
+                if not profile_data['has_credentials']:
+                    log_operation(f"  → Found credential key: {key}")
                 profile_data['has_credentials'] = True
 
         return profile_data
@@ -215,25 +218,36 @@ class ConfigFileParser(INIFileParser):
 
         # Parse SSO configuration
         if key == 'sso_start_url':
+            log_operation(f"  → Found SSO marker: sso_start_url = {value}")
             profile_data['is_sso'] = True
             profile_data['sso_start_url'] = value
         elif key == 'sso_session':
+            log_operation(f"  → Found SSO marker: sso_session = {value}")
             profile_data['is_sso'] = True
             profile_data['sso_session'] = value
         elif key == 'sso_region':
+            log_operation(f"  → Found SSO field: sso_region = {value}")
             profile_data['sso_region'] = value
         elif key == 'sso_account_id':
+            log_operation(f"  → Found SSO field: sso_account_id = {value}")
             profile_data['sso_account_id'] = value
         elif key == 'sso_role_name':
+            log_operation(f"  → Found SSO field: sso_role_name = {value}")
             profile_data['sso_role_name'] = value
         elif key == 'region':
+            log_operation(f"  → Found region: {value}")
             profile_data['aws_region'] = value
 
         return profile_data
 
     def _should_include_profile(self, profile_data: Dict) -> bool:
         """Only include SSO profiles."""
-        return profile_data.get('is_sso', False)
+        is_sso = profile_data.get('is_sso', False)
+        if is_sso:
+            log_result(f"  ✓ Including SSO profile: {profile_data['name']}")
+        else:
+            log_operation(f"  → Skipping non-SSO profile: {profile_data['name']}")
+        return is_sso
 
 
 class ProfileConfigReader:
@@ -308,6 +322,7 @@ class ProfileConfigReader:
 
                     if current == profile_name:
                         in_profile = True
+                        log_operation(f"  → Found profile section [{current}]")
                         continue
                     elif in_profile:
                         break
@@ -321,8 +336,12 @@ class ProfileConfigReader:
                     value = value.strip()
                     profile_config[key] = value
 
+                    # Log SSO-specific keys
+                    if key.startswith('sso_'):
+                        log_operation(f"    • {key} = {value}")
+
         if profile_config:
-            log_result(f"Found config for profile: {profile_name}")
+            log_result(f"Found config for profile: {profile_name} ({len(profile_config)} keys)")
         else:
             log_result(f"No config found for profile: {profile_name}", success=False)
 

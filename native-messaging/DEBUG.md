@@ -9,10 +9,10 @@ The AWS Profile Bridge includes a comprehensive debug logging system to help tro
 - **Timing Information**: Automatically tracks and reports execution time for all major operations
 - **Operation Tracking**: Logs each step of profile loading, parsing, and credential retrieval
 - **Safe Logging**: Automatically redacts sensitive data (credentials, tokens, secrets)
-- **Dual Output**: Logs to both stderr (real-time) and files (persistent)
+- **File-Only Output**: Logs to files only (not stderr to avoid interfering with native messaging)
 - **Automatic Rotation**: Log files automatically rotate at 10 MB with 5 backups (~50 MB total)
 - **Secure Storage**: Log files have 0600 permissions (user-only access)
-- **Non-intrusive**: stderr output doesn't interfere with native messaging protocol
+- **Non-intrusive**: Logging doesn't interfere with native messaging protocol
 - **Zero Overhead**: When disabled, has no performance impact
 
 ## Enabling Debug Logging
@@ -47,26 +47,9 @@ export DEBUG=1
 
 ## Viewing Debug Logs
 
-Debug logs are sent to **both stderr and log files**:
+Debug logs are written to **log files only** (not stderr, to avoid interfering with the native messaging protocol).
 
-### Real-Time Logs (stderr)
-
-#### Firefox Browser Console
-
-1. Open Firefox
-2. Press `Ctrl+Shift+J` (Windows/Linux) or `Cmd+Shift+J` (macOS)
-3. Click on the extension icon to trigger operations
-4. Watch debug logs appear in real-time
-
-#### Terminal (for manual testing)
-
-```bash
-echo '{"action":"getProfiles"}' | ~/.local/bin/aws_profile_bridge 2>&1
-```
-
-The `2>&1` redirects stderr to stdout so you can see the debug output.
-
-### Persistent Logs (Files)
+### Log Files
 
 #### Log File Location
 
