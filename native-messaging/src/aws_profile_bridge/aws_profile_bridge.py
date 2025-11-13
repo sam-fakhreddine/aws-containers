@@ -125,18 +125,18 @@ class AWSProfileBridgeHandler(MessageHandler):
         """
         Handle getProfiles action.
 
-        Returns profiles quickly without SSO token validation (instant load).
+        Returns profiles WITH expiration metadata (fast - just file I/O, no API calls).
         Also updates the cache for future fast access.
-        Use enrichSSOProfiles action to validate SSO tokens on-demand.
         """
-        with section("Get Profiles (Fast Mode)"):
-            # Get all profiles (skip SSO enrichment for fast initial load)
-            log_operation("Fetching all profiles (skip SSO enrichment)")
-            profiles = self.profile_aggregator.get_all_profiles(skip_sso_enrichment=True)
+        with section("Get Profiles (Fast Mode with TTL)"):
+            # Get all profiles WITH SSO token expiration (fast - just reads token files)
+            # This does NOT call AWS APIs, just reads ~/.aws/sso/cache/*.json
+            log_operation("Fetching all profiles with token expiration metadata")
+            profiles = self.profile_aggregator.get_all_profiles(skip_sso_enrichment=False)
             log_result(f"Found {len(profiles)} profiles")
 
-            # Add metadata (color, icon)
-            log_operation("Adding metadata to profiles")
+            # Add metadata (color, icon) and TTL info
+            log_operation("Adding metadata and TTL info to profiles")
             for profile in profiles:
                 self.metadata_provider.enrich_profile(profile)
 
@@ -148,7 +148,15 @@ class AWSProfileBridgeHandler(MessageHandler):
             # Count profile types
             sso_count = sum(1 for p in profiles if p.get('is_sso'))
             cred_count = len(profiles) - sso_count
-            log_result(f"Processed profiles: {cred_count} credential-based, {sso_count} SSO")
+
+            # Count expired profiles
+            expired_count = sum(1 for p in profiles if p.get('expired'))
+            has_ttl_count = sum(1 for p in profiles if p.get('expiration'))
+
+            log_result(
+                f"Processed profiles: {cred_count} credential-based, {sso_count} SSO "
+                f"({has_ttl_count} with TTL info, {expired_count} expired)"
+            )
 
             # Update cache for next time
             log_operation("Updating profile cache")
@@ -164,14 +172,14 @@ class AWSProfileBridgeHandler(MessageHandler):
         """
         Handle refreshCache action.
 
-        Reads profiles from files and updates cache.
+        Reads profiles from files with expiration metadata and updates cache.
         Returns success status (doesn't return profile data).
         """
         with section("Refresh Cache"):
             log_operation("Refreshing profile cache in background")
 
-            # Get profiles
-            profiles = self.profile_aggregator.get_all_profiles(skip_sso_enrichment=True)
+            # Get profiles with TTL metadata
+            profiles = self.profile_aggregator.get_all_profiles(skip_sso_enrichment=False)
             log_result(f"Found {len(profiles)} profiles")
 
             # Add metadata
@@ -181,15 +189,21 @@ class AWSProfileBridgeHandler(MessageHandler):
                     for key in ['sso_start_url', 'sso_session', 'sso_region', 'sso_account_id', 'sso_role_name']:
                         profile.pop(key, None)
 
+            # Count TTL stats
+            expired_count = sum(1 for p in profiles if p.get('expired'))
+            has_ttl_count = sum(1 for p in profiles if p.get('expiration'))
+
             # Update cache
             success = self.profile_cache.update_cache(profiles)
 
             if success:
-                log_result(f"Cache refreshed successfully ({len(profiles)} profiles)")
+                log_result(f"Cache refreshed successfully ({len(profiles)} profiles, {has_ttl_count} with TTL, {expired_count} expired)")
                 return {
                     'action': 'cacheRefreshed',
                     'success': True,
-                    'profile_count': len(profiles)
+                    'profile_count': len(profiles),
+                    'expired_count': expired_count,
+                    'has_ttl_count': has_ttl_count
                 }
             else:
                 log_result("Failed to refresh cache", success=False)
@@ -203,52 +217,13 @@ class AWSProfileBridgeHandler(MessageHandler):
         """
         Handle enrichSSOProfiles action.
 
-        Validates SSO tokens and returns enriched profile information.
-        This is a slow operation that should be triggered on-demand.
+        NOTE: This action now does the same thing as getProfiles (reads token expiration).
+        Kept for backward compatibility. Token expiration is fast (file I/O only).
+        For actual credential validation (slow AWS API calls), use a future validateTokens action.
         """
-        profile_names = message.get('profileNames', [])
-
-        with section("Enrich SSO Profiles (Slow Mode)"):
-            if not profile_names:
-                # If no specific profiles requested, enrich all SSO profiles
-                log_operation("Enriching ALL SSO profiles")
-                profiles = self.profile_aggregator.get_all_profiles(skip_sso_enrichment=False)
-            else:
-                # Enrich only requested profiles
-                log_operation(f"Enriching {len(profile_names)} specific profiles",
-                             {"profiles": profile_names})
-                all_profiles = self.profile_aggregator.get_all_profiles(skip_sso_enrichment=True)
-                profiles = []
-
-                for profile in all_profiles:
-                    if profile['name'] in profile_names and profile.get('is_sso'):
-                        # Re-build with enrichment
-                        log_operation(f"Enriching profile: {profile['name']}")
-                        enriched = self.profile_aggregator._build_profile_info(
-                            profile['name'],
-                            skip_sso_enrichment=False
-                        )
-                        if enriched:
-                            profiles.append(enriched)
-                    else:
-                        profiles.append(profile)
-
-            # Add metadata (color, icon)
-            log_operation("Adding metadata to profiles")
-            for profile in profiles:
-                self.metadata_provider.enrich_profile(profile)
-
-                # Clean up SSO-specific fields for non-SSO profiles
-                if not profile.get('is_sso'):
-                    for key in ['sso_start_url', 'sso_session', 'sso_region', 'sso_account_id', 'sso_role_name']:
-                        profile.pop(key, None)
-
-            log_result(f"Enriched {len(profiles)} profiles")
-
-            return {
-                'action': 'profileList',
-                'profiles': profiles
-            }
+        # Just call getProfiles - they're now equivalent
+        log_operation("enrichSSOProfiles called (now equivalent to getProfiles)")
+        return self._handle_get_profiles()
 
     def _handle_open_profile(self, message: Dict) -> Dict:
         """Handle openProfile action."""
