@@ -380,13 +380,29 @@ echo ""
 # Step 5: Build extension
 echo "Step 5: Building extension..."
 
+# Clean previous build artifacts for fresh rebuild
+if [ "$DEV_MODE" = true ]; then
+    echo "Cleaning previous build artifacts..."
+    rm -rf dist/js/ node_modules/.cache/
+    echo "Clean complete - forcing fresh build"
+fi
+
 if [ "$USE_NPM" = true ]; then
     npm run build
 else
     yarn build
 fi
 
+# Verify build succeeded by checking for output files
+if [ ! -f "dist/js/popup.js" ]; then
+    echo -e "${RED}✗${NC} Build failed - dist/js/popup.js not found"
+    exit 1
+fi
+
 echo -e "${GREEN}✓${NC} Extension built successfully"
+echo "  Build timestamp: $(date)"
+echo "  Output files:"
+ls -lh dist/js/*.js 2>/dev/null || echo "  (no js files found - build may have failed)"
 echo ""
 
 # Step 6: Check for AWS credentials file
@@ -418,6 +434,13 @@ if [ "$DEV_MODE" = true ]; then
     echo "  • Virtual environment: $(pwd)/native-messaging/.venv"
     echo "  • Wrapper script: $INSTALLED_PATH"
     echo "  • Debug logging: ENABLED"
+    echo "  • Fresh build completed at: $(date +%H:%M:%S)"
+    echo ""
+    echo -e "${YELLOW}⚠️  IMPORTANT: Reload the extension in Firefox!${NC}"
+    echo "  1. Go to: about:debugging#/runtime/this-firefox"
+    echo "  2. Find 'AWS Profile Containers'"
+    echo "  3. Click the RELOAD button (⟳)"
+    echo "  Without reloading, you'll still see the old code!"
     echo ""
     echo "Debug logs are written to:"
     echo "  • stderr (visible in Firefox Browser Console)"
