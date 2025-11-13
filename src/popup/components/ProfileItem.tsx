@@ -60,7 +60,7 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
 }) => {
     return (
         <Box
-            padding={{ vertical: "xs", horizontal: "s" }}
+            padding={{ vertical: "xxs", horizontal: "s" }}
             margin={{ bottom: "xxxs" }}
         >
             <div
@@ -68,10 +68,10 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                 style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: "12px",
+                    gap: "8px",
                     cursor: "pointer",
-                    padding: "8px",
-                    borderRadius: "8px",
+                    padding: "4px",
+                    borderRadius: "6px",
                     transition: "background-color 0.2s",
                 }}
                 onMouseEnter={(e) => {
@@ -94,7 +94,7 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                         display: "flex",
                         flexDirection: "column",
                         flex: 1,
-                        gap: "4px",
+                        gap: "2px",
                     }}
                 >
                     <div
