@@ -47,6 +47,7 @@ from .console_url_generator import (
     ConsoleURLGenerator,
     ProfileConsoleURLGenerator
 )
+from .profile_cache import ProfileCache
 
 
 class AWSProfileBridgeHandler(MessageHandler):
@@ -60,11 +61,13 @@ class AWSProfileBridgeHandler(MessageHandler):
         self,
         profile_aggregator: ProfileAggregator,
         console_url_generator: ProfileConsoleURLGenerator,
-        metadata_provider
+        metadata_provider,
+        profile_cache: ProfileCache
     ):
         self.profile_aggregator = profile_aggregator
         self.console_url_generator = console_url_generator
         self.metadata_provider = metadata_provider
+        self.profile_cache = profile_cache
 
     def handle_message(self, message: Dict) -> Dict:
         """Handle incoming messages from the extension."""
@@ -72,8 +75,14 @@ class AWSProfileBridgeHandler(MessageHandler):
 
         log_operation(f"Received message", {"action": action})
 
-        if action == 'getProfiles':
+        if action == 'getCachedProfiles':
+            return self._handle_get_cached_profiles()
+
+        elif action == 'getProfiles':
             return self._handle_get_profiles()
+
+        elif action == 'refreshCache':
+            return self._handle_refresh_cache()
 
         elif action == 'enrichSSOProfiles':
             return self._handle_enrich_sso_profiles(message)
@@ -89,11 +98,35 @@ class AWSProfileBridgeHandler(MessageHandler):
                 'message': error_msg
             }
 
+    def _handle_get_cached_profiles(self) -> Dict:
+        """
+        Handle getCachedProfiles action.
+
+        Returns profiles from cache instantly if available.
+        Falls back to reading from files if cache is empty/expired.
+        """
+        with section("Get Cached Profiles (Instant Mode)"):
+            # Try to get from cache first
+            cached_profiles = self.profile_cache.get_cached_profiles()
+
+            if cached_profiles is not None:
+                log_result(f"Returning {len(cached_profiles)} profiles from cache (instant)")
+                return {
+                    'action': 'profileList',
+                    'profiles': cached_profiles,
+                    'fromCache': True
+                }
+
+            # Cache miss - fall back to reading from files
+            log_operation("Cache miss - reading from files")
+            return self._handle_get_profiles()
+
     def _handle_get_profiles(self) -> Dict:
         """
         Handle getProfiles action.
 
         Returns profiles quickly without SSO token validation (instant load).
+        Also updates the cache for future fast access.
         Use enrichSSOProfiles action to validate SSO tokens on-demand.
         """
         with section("Get Profiles (Fast Mode)"):
@@ -117,10 +150,54 @@ class AWSProfileBridgeHandler(MessageHandler):
             cred_count = len(profiles) - sso_count
             log_result(f"Processed profiles: {cred_count} credential-based, {sso_count} SSO")
 
+            # Update cache for next time
+            log_operation("Updating profile cache")
+            self.profile_cache.update_cache(profiles)
+
             return {
                 'action': 'profileList',
-                'profiles': profiles
+                'profiles': profiles,
+                'fromCache': False
             }
+
+    def _handle_refresh_cache(self) -> Dict:
+        """
+        Handle refreshCache action.
+
+        Reads profiles from files and updates cache.
+        Returns success status (doesn't return profile data).
+        """
+        with section("Refresh Cache"):
+            log_operation("Refreshing profile cache in background")
+
+            # Get profiles
+            profiles = self.profile_aggregator.get_all_profiles(skip_sso_enrichment=True)
+            log_result(f"Found {len(profiles)} profiles")
+
+            # Add metadata
+            for profile in profiles:
+                self.metadata_provider.enrich_profile(profile)
+                if not profile.get('is_sso'):
+                    for key in ['sso_start_url', 'sso_session', 'sso_region', 'sso_account_id', 'sso_role_name']:
+                        profile.pop(key, None)
+
+            # Update cache
+            success = self.profile_cache.update_cache(profiles)
+
+            if success:
+                log_result(f"Cache refreshed successfully ({len(profiles)} profiles)")
+                return {
+                    'action': 'cacheRefreshed',
+                    'success': True,
+                    'profile_count': len(profiles)
+                }
+            else:
+                log_result("Failed to refresh cache", success=False)
+                return {
+                    'action': 'cacheRefreshed',
+                    'success': False,
+                    'error': 'Failed to update cache'
+                }
 
     def _handle_enrich_sso_profiles(self, message: Dict) -> Dict:
         """
@@ -267,11 +344,15 @@ class AWSProfileBridge:
             url_generator
         )
 
+        # Profile cache
+        profile_cache = ProfileCache()
+
         # Message handler
         message_handler = AWSProfileBridgeHandler(
             profile_aggregator,
             console_url_generator,
-            metadata_provider
+            metadata_provider,
+            profile_cache
         )
 
         # Native messaging host

@@ -42,51 +42,89 @@ export function useProfiles(): UseProfilesReturn {
     const portRef = useRef<Runtime.Port | null>(null);
 
     /**
-     * Loads profiles from cache if available and recent
+     * Loads profiles from TinyDB cache (via native messaging host)
+     * This is instant as the cache is maintained by the Python backend
      */
     const loadFromCache = useCallback(async (): Promise<boolean> => {
         try {
-            const data = await browser.storage.local.get([
-                STORAGE_KEYS.CACHED_PROFILES,
-                STORAGE_KEYS.PROFILES_CACHE_TIME,
-            ]);
+            // Connect to native messaging host
+            const port = browser.runtime.connectNative(NATIVE_MESSAGING_HOST_NAME);
+            portRef.current = port;
+            setNativeMessagingAvailable(true);
 
-            if (data.cachedProfiles && data.profilesCacheTime) {
-                if (
-                    typeof data.profilesCacheTime === "number" &&
-                    isAWSProfileArray(data.cachedProfiles)
-                ) {
-                    const cacheAge = Date.now() - data.profilesCacheTime;
-                    if (cacheAge < CACHE_DURATION_MS) {
-                        setProfiles(data.cachedProfiles);
-                        setLoading(false);
-                        return true;
+            return new Promise((resolve) => {
+                let resolved = false;
+
+                // Message listener
+                const messageListener = async (response: unknown) => {
+                    if (resolved) return;
+                    resolved = true;
+
+                    try {
+                        if (isProfileListResponse(response)) {
+                            // Sort profiles alphabetically by name
+                            const sortedProfiles = response.profiles.sort(
+                                (a: AWSProfile, b: AWSProfile) =>
+                                    a.name.localeCompare(b.name)
+                            );
+                            setProfiles(sortedProfiles);
+                            setLoading(false);
+
+                            // Check if this came from cache
+                            const fromCache = (response as any).fromCache === true;
+                            console.log(
+                                `Loaded ${sortedProfiles.length} profiles ${fromCache ? "from cache (instant)" : "from files"}`
+                            );
+
+                            resolve(true);
+                        } else if (isErrorResponse(response)) {
+                            console.error("Error loading cached profiles:", response.message);
+                            resolve(false);
+                        } else {
+                            console.error("Invalid response from getCachedProfiles");
+                            resolve(false);
+                        }
+                    } catch (err) {
+                        console.error("Error handling cached profile response:", err);
+                        resolve(false);
+                    } finally {
+                        // Clean up port
+                        try {
+                            port.disconnect();
+                        } catch (e) {
+                            // Ignore
+                        }
+                        portRef.current = null;
                     }
-                }
-            }
-            return false;
-        } catch (err) {
-            console.error("Failed to load profiles from cache:", err);
-            return false;
-        }
-    }, []);
+                };
 
-    /**
-     * Saves profiles to cache
-     */
-    const saveToCache = useCallback(async (profileList: AWSProfile[]): Promise<void> => {
-        try {
-            await browser.storage.local.set({
-                [STORAGE_KEYS.CACHED_PROFILES]: profileList,
-                [STORAGE_KEYS.PROFILES_CACHE_TIME]: Date.now(),
+                // Disconnect listener
+                const disconnectListener = () => {
+                    if (!resolved) {
+                        resolved = true;
+                        console.error("Native messaging disconnected during cache load");
+                        resolve(false);
+                    }
+                    portRef.current = null;
+                };
+
+                // Attach listeners
+                port.onMessage.addListener(messageListener);
+                port.onDisconnect.addListener(disconnectListener);
+
+                // Request cached profiles (instant if cache is valid)
+                port.postMessage({ action: "getCachedProfiles" });
             });
         } catch (err) {
-            console.error("Failed to save profiles to cache:", err);
+            console.error("Failed to load profiles from cache:", err);
+            setNativeMessagingAvailable(false);
+            return false;
         }
     }, []);
 
     /**
      * Loads profiles from native messaging host
+     * Uses cache for instant loading, falls back to file reading if needed
      */
     const loadProfiles = useCallback(
         async (forceRefresh: boolean = false): Promise<void> => {
@@ -95,7 +133,8 @@ export function useProfiles(): UseProfilesReturn {
                 return;
             }
 
-            // Try to load from cache first (unless forcing refresh)
+            //Try to load from cache first (unless forcing refresh)
+            // Cache loading is handled by Python backend (TinyDB)
             if (!forceRefresh) {
                 const cachedSuccessfully = await loadFromCache();
                 if (cachedSuccessfully) {
@@ -103,6 +142,7 @@ export function useProfiles(): UseProfilesReturn {
                 }
             }
 
+            // If cache failed or force refresh, read from files
             setLoading(true);
             setError(null);
 
@@ -134,8 +174,7 @@ export function useProfiles(): UseProfilesReturn {
                             setProfiles(sortedProfiles);
                             setLoading(false);
 
-                            // Cache the profiles
-                            await saveToCache(sortedProfiles);
+                            console.log(`Loaded ${sortedProfiles.length} profiles from files and updated cache`);
                         } else if (isErrorResponse(response)) {
                             setError(response.message);
                             setLoading(false);
@@ -166,7 +205,7 @@ export function useProfiles(): UseProfilesReturn {
                 port.onMessage.addListener(messageListener);
                 port.onDisconnect.addListener(disconnectListener);
 
-                // Request profile list
+                // Request profile list (reads from files and updates cache)
                 port.postMessage({ action: "getProfiles" });
             } catch (err) {
                 console.error("Native messaging connection error:", err);
@@ -179,7 +218,7 @@ export function useProfiles(): UseProfilesReturn {
                 setLoading(false);
             }
         },
-        [profiles.length, loadFromCache, saveToCache]
+        [profiles.length, loadFromCache]
     );
 
     /**
@@ -214,8 +253,7 @@ export function useProfiles(): UseProfilesReturn {
                         setProfiles(sortedProfiles);
                         setLoading(false);
 
-                        // Cache the enriched profiles
-                        await saveToCache(sortedProfiles);
+                        console.log(`Enriched ${sortedProfiles.length} SSO profiles`);
                     } else if (isErrorResponse(response)) {
                         setError(response.message);
                         setLoading(false);
@@ -255,7 +293,7 @@ export function useProfiles(): UseProfilesReturn {
             setError("Failed to enrich SSO profiles");
             setLoading(false);
         }
-    }, [saveToCache]);
+    }, []);
 
     /**
      * Cleanup: Disconnect port when component unmounts
