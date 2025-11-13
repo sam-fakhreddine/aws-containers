@@ -112,8 +112,8 @@ class DebugLogger:
             self._log_file_path = log_file
 
         except Exception as e:
-            # If file logging setup fails, continue with stderr only
-            sys.stderr.write(f"Warning: Could not setup file logging: {e}\n")
+            # If file logging setup fails, continue silently (no stderr output)
+            # Note: We don't write to stderr because it pollutes the Firefox console
             self._file_handler = None
 
     def _log_header(self):
@@ -132,14 +132,15 @@ class DebugLogger:
         return f"{elapsed:.3f}s"
 
     def _write(self, message: str):
-        """Write message to both stderr and log file."""
+        """Write message to log file only (not stderr to avoid polluting browser console)."""
         indent = "  " * self._indent_level
         timestamp = self._get_elapsed_time()
         formatted_message = f"[{timestamp}] {indent}{message}"
 
-        # Write to stderr
-        sys.stderr.write(f"{formatted_message}\n")
-        sys.stderr.flush()
+        # IMPORTANT: Do NOT write to stderr!
+        # When running as a native messaging host, stderr output appears in Firefox
+        # browser console as noise. We only log to file for debugging.
+        # See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging
 
         # Write to file if available
         if self._file_handler:

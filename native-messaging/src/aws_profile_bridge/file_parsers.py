@@ -143,7 +143,8 @@ class CredentialsFileParser(INIFileParser):
             'name': profile_name,
             'has_credentials': False,
             'expiration': None,
-            'expired': False
+            'expired': False,
+            'is_sso': False  # Credentials file profiles are not SSO
         }
 
     def _parse_line(self, line: str, profile_data: Dict) -> Dict:
