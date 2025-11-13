@@ -60,18 +60,18 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
 }) => {
     return (
         <Box
-            padding={{ vertical: "xs", horizontal: "s" }}
-            margin={{ bottom: "xxxs" }}
+            padding={{ vertical: "xxxs", horizontal: "s" }}
+            margin={{ bottom: "n" }}
         >
             <div
                 onClick={() => onProfileClick(profile)}
                 style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: "12px",
+                    gap: "8px",
                     cursor: "pointer",
-                    padding: "8px",
-                    borderRadius: "8px",
+                    padding: "4px 6px",
+                    borderRadius: "6px",
                     transition: "background-color 0.2s",
                 }}
                 onMouseEnter={(e) => {
@@ -94,14 +94,14 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                         display: "flex",
                         flexDirection: "column",
                         flex: 1,
-                        gap: "4px",
+                        gap: "2px",
                     }}
                 >
                     <div
                         style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "8px",
+                            gap: "6px",
                         }}
                     >
                         <Box fontSize="body-m" fontWeight="bold">
@@ -117,7 +117,7 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                                 fontSize="body-s"
                                 color={profile.expired ? "text-status-error" : "text-body-secondary"}
                             >
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
                                     <Icon name={expirationInfo.icon as any} size="small" />
                                     <span>{expirationInfo.text}</span>
                                 </div>
@@ -128,7 +128,7 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                 <div
                     onClick={(e) => onFavoriteToggle(profile.name, e)}
                     style={{
-                        padding: "6px 10px",
+                        padding: "2px 6px",
                         cursor: "pointer",
                     }}
                 >
