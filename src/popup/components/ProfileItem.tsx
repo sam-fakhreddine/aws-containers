@@ -195,10 +195,10 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                         return (
                             <Box
                                 fontSize="body-s"
-                                color={expirationInfo.color as any}
+                                color={expirationInfo.color as "text-status-error" | "text-status-warning" | "text-status-info" | "text-status-success"}
                             >
                                 <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-                                    <Icon name={expirationInfo.icon as any} size="small" />
+                                    <Icon name={expirationInfo.icon as "status-negative" | "status-warning" | "status-info" | "status-positive"} size="small" />
                                     <span style={{ fontWeight: expirationInfo.severity === "expiring-soon" ? "bold" : "normal" }}>
                                         {expirationInfo.text}
                                     </span>

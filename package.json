@@ -16,7 +16,7 @@
     "test": "jest",
     "test:perf": "jest --testNamePattern=\"Performance\" --verbose",
     "test:perf:watch": "jest --testNamePattern=\"Performance\" --watch",
-    "lint": "eslint --fix -c ./config/.eslintrc.js \"src/**/*.ts*\"",
+    "lint": "eslint --fix \"src/**/*.ts*\"",
     "prettify": "prettier --write \"src/**/*.ts*\" --config config/.prettierrc.js",
     "start:firefox": "web-ext run --source-dir ./dist/",
     "semantic-release": "semantic-release",

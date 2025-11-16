@@ -1,37 +1,5 @@
-import { Container, OpenerParamsSchema } from "../types";
+import { Container } from "../types";
 import { CONTAINER_COLORS, CONTAINER_ICONS, CUSTOM_PROTOCOL_PREFIX } from "../constants";
-import {
-    sanitizeURLSearchParams,
-    required,
-    url,
-    integer,
-    boolean,
-    atLeastOneRequired,
-    oneOfOrEmpty,
-} from "./validator";
-
-/**
- * Schema for validating opener parameters
- */
-const openerParamsSchema: OpenerParamsSchema = {
-    // signature
-    signature: [],
-
-    // container params
-    id: [],
-    name: [],
-    color: [oneOfOrEmpty([...CONTAINER_COLORS])],
-    icon: [oneOfOrEmpty([...CONTAINER_ICONS])],
-
-    // url params
-    url: [required, url],
-    index: [integer],
-    pinned: [boolean],
-    openInReaderMode: [boolean],
-
-    // global validators
-    __validators: [atLeastOneRequired(["id", "name"])],
-};
 
 /**
  * Parses opener parameters from a location hash
@@ -67,8 +35,8 @@ export function parseOpenerParams(rawHash: string): Container {
     const container: Container = {
         name,
         url: parsedUrl,
-        color: color && CONTAINER_COLORS.includes(color as any) ? color : undefined,
-        icon: icon && CONTAINER_ICONS.includes(icon as any) ? icon : undefined,
+        color: color && CONTAINER_COLORS.includes(color as typeof CONTAINER_COLORS[number]) ? color : undefined,
+        icon: icon && CONTAINER_ICONS.includes(icon as typeof CONTAINER_ICONS[number]) ? icon : undefined,
     };
 
     return container;

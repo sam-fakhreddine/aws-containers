@@ -14,7 +14,7 @@ from io import BytesIO
 from aws_profile_bridge.native_messaging import (
     NativeMessagingReader,
     NativeMessagingWriter,
-    NativeMessagingHost
+    NativeMessagingHost,
 )
 
 
@@ -23,10 +23,10 @@ class TestNativeMessagingReader:
 
     def test_read_message_decodes_valid_message(self):
         """Test read_message correctly decodes a valid message."""
-        message = {'action': 'test', 'data': 'value'}
+        message = {"action": "test", "data": "value"}
         message_json = json.dumps(message)
-        message_bytes = message_json.encode('utf-8')
-        length_bytes = struct.pack('I', len(message_bytes))
+        message_bytes = message_json.encode("utf-8")
+        length_bytes = struct.pack("I", len(message_bytes))
 
         input_stream = BytesIO(length_bytes + message_bytes)
         reader = NativeMessagingReader(input_stream)
@@ -37,7 +37,7 @@ class TestNativeMessagingReader:
 
     def test_read_message_returns_none_on_empty_stream(self):
         """Test read_message returns None when stream is empty."""
-        input_stream = BytesIO(b'')
+        input_stream = BytesIO(b"")
         reader = NativeMessagingReader(input_stream)
 
         result = reader.read_message()
@@ -46,7 +46,7 @@ class TestNativeMessagingReader:
 
     def test_read_message_handles_incomplete_length(self):
         """Test read_message returns None when length is incomplete."""
-        input_stream = BytesIO(b'\x01\x02')  # Only 2 bytes instead of 4
+        input_stream = BytesIO(b"\x01\x02")  # Only 2 bytes instead of 4
         reader = NativeMessagingReader(input_stream)
 
         result = reader.read_message()
@@ -55,8 +55,8 @@ class TestNativeMessagingReader:
 
     def test_read_message_handles_incomplete_content(self):
         """Test read_message returns None when message content is incomplete."""
-        length_bytes = struct.pack('I', 100)  # Says 100 bytes
-        input_stream = BytesIO(length_bytes + b'short')  # But only has 5 bytes
+        length_bytes = struct.pack("I", 100)  # Says 100 bytes
+        input_stream = BytesIO(length_bytes + b"short")  # But only has 5 bytes
         reader = NativeMessagingReader(input_stream)
 
         result = reader.read_message()
@@ -65,8 +65,8 @@ class TestNativeMessagingReader:
 
     def test_read_message_handles_invalid_json(self):
         """Test read_message returns None for invalid JSON."""
-        invalid_json = b'not valid json'
-        length_bytes = struct.pack('I', len(invalid_json))
+        invalid_json = b"not valid json"
+        length_bytes = struct.pack("I", len(invalid_json))
         input_stream = BytesIO(length_bytes + invalid_json)
         reader = NativeMessagingReader(input_stream)
 
@@ -76,14 +76,14 @@ class TestNativeMessagingReader:
 
     def test_read_message_handles_multiple_messages(self):
         """Test read_message can read multiple messages sequentially."""
-        message1 = {'action': 'first'}
-        message2 = {'action': 'second'}
+        message1 = {"action": "first"}
+        message2 = {"action": "second"}
 
-        msg1_bytes = json.dumps(message1).encode('utf-8')
-        msg2_bytes = json.dumps(message2).encode('utf-8')
+        msg1_bytes = json.dumps(message1).encode("utf-8")
+        msg2_bytes = json.dumps(message2).encode("utf-8")
 
-        length1 = struct.pack('I', len(msg1_bytes))
-        length2 = struct.pack('I', len(msg2_bytes))
+        length1 = struct.pack("I", len(msg1_bytes))
+        length2 = struct.pack("I", len(msg2_bytes))
 
         input_stream = BytesIO(length1 + msg1_bytes + length2 + msg2_bytes)
         reader = NativeMessagingReader(input_stream)
@@ -100,7 +100,7 @@ class TestNativeMessagingWriter:
 
     def test_write_message_encodes_message_correctly(self):
         """Test write_message correctly encodes message."""
-        message = {'action': 'test', 'data': 'value'}
+        message = {"action": "test", "data": "value"}
         output_stream = BytesIO()
         writer = NativeMessagingWriter(output_stream)
 
@@ -108,15 +108,15 @@ class TestNativeMessagingWriter:
 
         # Read back and verify
         output_stream.seek(0)
-        length = struct.unpack('I', output_stream.read(4))[0]
+        length = struct.unpack("I", output_stream.read(4))[0]
         message_bytes = output_stream.read(length)
-        decoded_message = json.loads(message_bytes.decode('utf-8'))
+        decoded_message = json.loads(message_bytes.decode("utf-8"))
 
         assert decoded_message == message
 
     def test_write_message_writes_correct_length(self):
         """Test write_message writes correct message length."""
-        message = {'action': 'test'}
+        message = {"action": "test"}
         output_stream = BytesIO()
         writer = NativeMessagingWriter(output_stream)
 
@@ -124,14 +124,14 @@ class TestNativeMessagingWriter:
 
         # Check length
         output_stream.seek(0)
-        length = struct.unpack('I', output_stream.read(4))[0]
-        message_json = json.dumps(message).encode('utf-8')
+        length = struct.unpack("I", output_stream.read(4))[0]
+        message_json = json.dumps(message).encode("utf-8")
 
         assert length == len(message_json)
 
     def test_write_message_handles_unicode(self):
         """Test write_message handles unicode characters correctly."""
-        message = {'text': 'Hello 世界 🌍'}
+        message = {"text": "Hello 世界 🌍"}
         output_stream = BytesIO()
         writer = NativeMessagingWriter(output_stream)
 
@@ -139,19 +139,19 @@ class TestNativeMessagingWriter:
 
         # Read back and verify
         output_stream.seek(0)
-        length = struct.unpack('I', output_stream.read(4))[0]
+        length = struct.unpack("I", output_stream.read(4))[0]
         message_bytes = output_stream.read(length)
-        decoded_message = json.loads(message_bytes.decode('utf-8'))
+        decoded_message = json.loads(message_bytes.decode("utf-8"))
 
         assert decoded_message == message
 
     def test_write_message_handles_write_errors_silently(self):
         """Test write_message handles write errors without raising."""
-        message = {'action': 'test'}
+        message = {"action": "test"}
 
         # Create a mock stream that raises an error
         mock_stream = Mock()
-        mock_stream.write.side_effect = Exception('Write error')
+        mock_stream.write.side_effect = Exception("Write error")
 
         writer = NativeMessagingWriter(mock_stream)
 
@@ -160,7 +160,7 @@ class TestNativeMessagingWriter:
 
     def test_write_message_flushes_output(self):
         """Test write_message flushes the output stream."""
-        message = {'action': 'test'}
+        message = {"action": "test"}
         mock_stream = Mock()
 
         writer = NativeMessagingWriter(mock_stream)
@@ -181,8 +181,8 @@ class TestNativeMessagingHost:
         mock_handler = Mock()
 
         # Setup message flow
-        input_message = {'action': 'test'}
-        output_message = {'result': 'success'}
+        input_message = {"action": "test"}
+        output_message = {"result": "success"}
 
         mock_reader.read_message.side_effect = [input_message, None]  # Message then EOF
         mock_handler.handle_message.return_value = output_message
@@ -202,17 +202,17 @@ class TestNativeMessagingHost:
         mock_handler = Mock()
 
         messages = [
-            {'action': 'first'},
-            {'action': 'second'},
-            {'action': 'third'},
-            None  # EOF
+            {"action": "first"},
+            {"action": "second"},
+            {"action": "third"},
+            None,  # EOF
         ]
 
         mock_reader.read_message.side_effect = messages
         mock_handler.handle_message.side_effect = [
-            {'result': '1'},
-            {'result': '2'},
-            {'result': '3'}
+            {"result": "1"},
+            {"result": "2"},
+            {"result": "3"},
         ]
 
         host = NativeMessagingHost(mock_reader, mock_writer, mock_handler)

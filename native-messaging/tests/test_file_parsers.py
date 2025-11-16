@@ -14,7 +14,7 @@ from aws_profile_bridge.file_parsers import (
     FileCache,
     CredentialsFileParser,
     ConfigFileParser,
-    ProfileConfigReader
+    ProfileConfigReader,
 )
 
 
@@ -24,7 +24,7 @@ class TestFileCache:
     def test_cache_returns_none_for_nonexistent_file(self):
         """Test cache returns None for files that don't exist."""
         cache = FileCache()
-        result = cache.get(Path('/nonexistent/file'))
+        result = cache.get(Path("/nonexistent/file"))
         assert result is None
 
     def test_cache_returns_none_for_uncached_file(self):
@@ -46,7 +46,7 @@ class TestFileCache:
         mock_path.stat.return_value = mock_stat
 
         # Set data
-        test_data = [{'name': 'test'}]
+        test_data = [{"name": "test"}]
         cache.set(mock_path, test_data)
 
         # Get data
@@ -64,7 +64,7 @@ class TestFileCache:
         mock_stat1.st_mtime = 12345.0
         mock_path.stat.return_value = mock_stat1
 
-        test_data = [{'name': 'test'}]
+        test_data = [{"name": "test"}]
         cache.set(mock_path, test_data)
 
         # Change mtime
@@ -85,7 +85,7 @@ class TestFileCache:
         mock_stat.st_mtime = 12345.0
         mock_path.stat.return_value = mock_stat
 
-        cache.set(mock_path, [{'name': 'test'}])
+        cache.set(mock_path, [{"name": "test"}])
         cache.clear()
 
         result = cache.get(mock_path)
@@ -119,13 +119,13 @@ aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 
         parser = CredentialsFileParser(mock_path)
 
-        with patch('builtins.open', mock_open(read_data=credentials_content)):
+        with patch("builtins.open", mock_open(read_data=credentials_content)):
             result = parser.parse()
 
         assert len(result) == 1
-        assert result[0]['name'] == 'default'
-        assert result[0]['has_credentials'] is True
-        assert result[0]['expired'] is False
+        assert result[0]["name"] == "default"
+        assert result[0]["has_credentials"] is True
+        assert result[0]["expired"] is False
 
     def test_parser_parses_multiple_profiles(self):
         """Test parser correctly parses multiple profiles."""
@@ -145,13 +145,13 @@ aws_secret_access_key = SECRET2
 
         parser = CredentialsFileParser(mock_path)
 
-        with patch('builtins.open', mock_open(read_data=credentials_content)):
+        with patch("builtins.open", mock_open(read_data=credentials_content)):
             result = parser.parse()
 
         assert len(result) == 2
-        assert result[0]['name'] == 'profile1'
-        assert result[1]['name'] == 'profile2'
-        assert all(p['has_credentials'] for p in result)
+        assert result[0]["name"] == "profile1"
+        assert result[1]["name"] == "profile2"
+        assert all(p["has_credentials"] for p in result)
 
     def test_parser_parses_expiration_comment(self):
         """Test parser correctly parses expiration comments."""
@@ -169,12 +169,12 @@ aws_session_token = TOKEN
 
         parser = CredentialsFileParser(mock_path)
 
-        with patch('builtins.open', mock_open(read_data=credentials_content)):
+        with patch("builtins.open", mock_open(read_data=credentials_content)):
             result = parser.parse()
 
         assert len(result) == 1
-        assert result[0]['expiration'] is not None
-        assert '2024-12-31' in result[0]['expiration']
+        assert result[0]["expiration"] is not None
+        assert "2024-12-31" in result[0]["expiration"]
 
     def test_parser_uses_cache(self):
         """Test parser uses cache for repeated calls."""
@@ -193,7 +193,7 @@ aws_secret_access_key = SECRET
 
         parser = CredentialsFileParser(mock_path, mock_cache)
 
-        with patch('builtins.open', mock_open(read_data=credentials_content)):
+        with patch("builtins.open", mock_open(read_data=credentials_content)):
             result1 = parser.parse()
 
         # Verify cache was used
@@ -220,11 +220,11 @@ region = us-east-1
 
         parser = CredentialsFileParser(mock_path)
 
-        with patch('builtins.open', mock_open(read_data=credentials_content)):
+        with patch("builtins.open", mock_open(read_data=credentials_content)):
             result = parser.parse()
 
         assert len(result) == 1
-        assert result[0]['has_credentials'] is False
+        assert result[0]["has_credentials"] is False
 
 
 class TestConfigFileParser:
@@ -257,18 +257,18 @@ region = us-west-2
 
         parser = ConfigFileParser(mock_path)
 
-        with patch('builtins.open', mock_open(read_data=config_content)):
+        with patch("builtins.open", mock_open(read_data=config_content)):
             result = parser.parse()
 
         assert len(result) == 1
         profile = result[0]
-        assert profile['name'] == 'sso-dev'
-        assert profile['is_sso'] is True
-        assert profile['sso_start_url'] == 'https://my-sso-portal.awsapps.com/start'
-        assert profile['sso_region'] == 'us-east-1'
-        assert profile['sso_account_id'] == '123456789012'
-        assert profile['sso_role_name'] == 'DeveloperAccess'
-        assert profile['aws_region'] == 'us-west-2'
+        assert profile["name"] == "sso-dev"
+        assert profile["is_sso"] is True
+        assert profile["sso_start_url"] == "https://my-sso-portal.awsapps.com/start"
+        assert profile["sso_region"] == "us-east-1"
+        assert profile["sso_account_id"] == "123456789012"
+        assert profile["sso_role_name"] == "DeveloperAccess"
+        assert profile["aws_region"] == "us-west-2"
 
     def test_parser_strips_profile_prefix(self):
         """Test parser strips 'profile ' prefix from section names."""
@@ -286,10 +286,10 @@ sso_role_name = Admin
 
         parser = ConfigFileParser(mock_path)
 
-        with patch('builtins.open', mock_open(read_data=config_content)):
+        with patch("builtins.open", mock_open(read_data=config_content)):
             result = parser.parse()
 
-        assert result[0]['name'] == 'my-profile'
+        assert result[0]["name"] == "my-profile"
 
     def test_parser_ignores_non_sso_profiles(self):
         """Test parser only returns SSO profiles."""
@@ -310,12 +310,12 @@ sso_role_name = Admin
 
         parser = ConfigFileParser(mock_path)
 
-        with patch('builtins.open', mock_open(read_data=config_content)):
+        with patch("builtins.open", mock_open(read_data=config_content)):
             result = parser.parse()
 
         # Should only return SSO profile
         assert len(result) == 1
-        assert result[0]['name'] == 'sso-profile'
+        assert result[0]["name"] == "sso-profile"
 
 
 class TestProfileConfigReader:
@@ -328,7 +328,7 @@ class TestProfileConfigReader:
         mock_config_path = Mock(spec=Path)
 
         reader = ProfileConfigReader(mock_cred_path, mock_config_path)
-        result = reader.get_credentials('test-profile')
+        result = reader.get_credentials("test-profile")
 
         assert result is None
 
@@ -353,13 +353,13 @@ aws_secret_access_key = SECRET3
 
         reader = ProfileConfigReader(mock_cred_path, mock_config_path)
 
-        with patch('builtins.open', mock_open(read_data=credentials_content)):
-            result = reader.get_credentials('test-profile')
+        with patch("builtins.open", mock_open(read_data=credentials_content)):
+            result = reader.get_credentials("test-profile")
 
         assert result is not None
-        assert result['aws_access_key_id'] == 'KEY2'
-        assert result['aws_secret_access_key'] == 'SECRET2'
-        assert result['aws_session_token'] == 'TOKEN2'
+        assert result["aws_access_key_id"] == "KEY2"
+        assert result["aws_secret_access_key"] == "SECRET2"
+        assert result["aws_session_token"] == "TOKEN2"
 
     def test_get_credentials_returns_none_for_missing_profile(self):
         """Test get_credentials returns None for missing profile."""
@@ -373,8 +373,8 @@ aws_secret_access_key = SECRET
 
         reader = ProfileConfigReader(mock_cred_path, mock_config_path)
 
-        with patch('builtins.open', mock_open(read_data=credentials_content)):
-            result = reader.get_credentials('nonexistent')
+        with patch("builtins.open", mock_open(read_data=credentials_content)):
+            result = reader.get_credentials("nonexistent")
 
         assert result is None
 
@@ -394,14 +394,14 @@ sso_role_name = Admin
 
         reader = ProfileConfigReader(mock_cred_path, mock_config_path)
 
-        with patch('builtins.open', mock_open(read_data=config_content)):
-            result = reader.get_config('test-profile')
+        with patch("builtins.open", mock_open(read_data=config_content)):
+            result = reader.get_config("test-profile")
 
         assert result is not None
-        assert result['region'] == 'us-west-2'
-        assert result['output'] == 'json'
-        assert result['sso_start_url'] == 'https://example.com/start'
-        assert result['sso_account_id'] == '123456789012'
+        assert result["region"] == "us-west-2"
+        assert result["output"] == "json"
+        assert result["sso_start_url"] == "https://example.com/start"
+        assert result["sso_account_id"] == "123456789012"
 
     def test_get_config_returns_none_for_nonexistent_file(self):
         """Test get_config returns None when file doesn't exist."""
@@ -410,6 +410,6 @@ sso_role_name = Admin
         mock_config_path.exists.return_value = False
 
         reader = ProfileConfigReader(mock_cred_path, mock_config_path)
-        result = reader.get_config('test-profile')
+        result = reader.get_config("test-profile")
 
         assert result is None

@@ -58,7 +58,9 @@ class INIFileParser(ABC):
         # Check cache first
         cached_data = self.cache.get(self.file_path)
         if cached_data is not None:
-            log_result(f"Using cached data for {self.file_path.name} ({len(cached_data)} profiles)")
+            log_result(
+                f"Using cached data for {self.file_path.name} ({len(cached_data)} profiles)"
+            )
             return cached_data
 
         # Parse file
@@ -81,7 +83,7 @@ class INIFileParser(ABC):
         current_profile = None
         profile_data = {}
 
-        with open(self.file_path, 'r', encoding='utf-8') as f:
+        with open(self.file_path, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
 
@@ -108,7 +110,7 @@ class INIFileParser(ABC):
     @staticmethod
     def _is_section_header(line: str) -> bool:
         """Check if line is a section header [...]."""
-        return line.startswith('[') and line.endswith(']')
+        return line.startswith("[") and line.endswith("]")
 
     @abstractmethod
     def _extract_profile_name(self, header: str) -> str:
@@ -140,30 +142,36 @@ class CredentialsFileParser(INIFileParser):
     def _create_profile_data(self, profile_name: str) -> Dict:
         """Create initial credentials profile data."""
         return {
-            'name': profile_name,
-            'has_credentials': False,
-            'expiration': None,
-            'expired': False
+            "name": profile_name,
+            "has_credentials": False,
+            "expiration": None,
+            "expired": False,
         }
 
     def _parse_line(self, line: str, profile_data: Dict) -> Dict:
         """Parse credentials file line."""
         # Parse expiration comment
-        if line.startswith('#') and 'Expires' in line:
+        if line.startswith("#") and "Expires" in line:
             expiration = self._parse_expiration(line)
             if expiration:
-                log_operation(f"  → Found expiration: {expiration['expiration']} (expired={expiration['expired']})")
-                profile_data['expiration'] = expiration['expiration']
-                profile_data['expired'] = expiration['expired']
+                log_operation(
+                    f"  → Found expiration: {expiration['expiration']} (expired={expiration['expired']})"
+                )
+                profile_data["expiration"] = expiration["expiration"]
+                profile_data["expired"] = expiration["expired"]
 
         # Check for credentials
-        elif '=' in line:
-            key, value = line.split('=', 1)
+        elif "=" in line:
+            key, value = line.split("=", 1)
             key = key.strip()
-            if key in ['aws_access_key_id', 'aws_secret_access_key', 'aws_session_token']:
-                if not profile_data['has_credentials']:
+            if key in [
+                "aws_access_key_id",
+                "aws_secret_access_key",
+                "aws_session_token",
+            ]:
+                if not profile_data["has_credentials"]:
                     log_operation(f"  → Found credential key: {key}")
-                profile_data['has_credentials'] = True
+                profile_data["has_credentials"] = True
 
         return profile_data
 
@@ -171,14 +179,14 @@ class CredentialsFileParser(INIFileParser):
     def _parse_expiration(comment: str) -> Optional[Dict]:
         """Parse expiration timestamp from comment."""
         # Format: # Expires 2024-11-10 15:30:00 UTC
-        match = re.search(r'Expires\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})', comment)
+        match = re.search(r"Expires\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})", comment)
         if match:
             try:
-                exp_time = datetime.strptime(match.group(1), '%Y-%m-%d %H:%M:%S')
+                exp_time = datetime.strptime(match.group(1), "%Y-%m-%d %H:%M:%S")
                 exp_time = exp_time.replace(tzinfo=timezone.utc)
                 return {
-                    'expiration': exp_time.isoformat(),
-                    'expired': exp_time < datetime.now(timezone.utc)
+                    "expiration": exp_time.isoformat(),
+                    "expired": exp_time < datetime.now(timezone.utc),
                 }
             except ValueError:
                 pass
@@ -192,56 +200,56 @@ class ConfigFileParser(INIFileParser):
         """Extract profile name from [profile name] or [default]."""
         profile_name = header[1:-1]
         # Strip 'profile ' prefix if present
-        if profile_name.startswith('profile '):
+        if profile_name.startswith("profile "):
             profile_name = profile_name[8:]
         return profile_name
 
     def _create_profile_data(self, profile_name: str) -> Dict:
         """Create initial config profile data."""
         return {
-            'name': profile_name,
-            'has_credentials': False,
-            'expiration': None,
-            'expired': False,
-            'is_sso': False
+            "name": profile_name,
+            "has_credentials": False,
+            "expiration": None,
+            "expired": False,
+            "is_sso": False,
         }
 
     def _parse_line(self, line: str, profile_data: Dict) -> Dict:
         """Parse config file line."""
-        if '=' not in line:
+        if "=" not in line:
             return profile_data
 
-        key, value = line.split('=', 1)
+        key, value = line.split("=", 1)
         key = key.strip()
         value = value.strip()
 
         # Parse SSO configuration
-        if key == 'sso_start_url':
+        if key == "sso_start_url":
             log_operation(f"  → Found SSO marker: sso_start_url = {value}")
-            profile_data['is_sso'] = True
-            profile_data['sso_start_url'] = value
-        elif key == 'sso_session':
+            profile_data["is_sso"] = True
+            profile_data["sso_start_url"] = value
+        elif key == "sso_session":
             log_operation(f"  → Found SSO marker: sso_session = {value}")
-            profile_data['is_sso'] = True
-            profile_data['sso_session'] = value
-        elif key == 'sso_region':
+            profile_data["is_sso"] = True
+            profile_data["sso_session"] = value
+        elif key == "sso_region":
             log_operation(f"  → Found SSO field: sso_region = {value}")
-            profile_data['sso_region'] = value
-        elif key == 'sso_account_id':
+            profile_data["sso_region"] = value
+        elif key == "sso_account_id":
             log_operation(f"  → Found SSO field: sso_account_id = {value}")
-            profile_data['sso_account_id'] = value
-        elif key == 'sso_role_name':
+            profile_data["sso_account_id"] = value
+        elif key == "sso_role_name":
             log_operation(f"  → Found SSO field: sso_role_name = {value}")
-            profile_data['sso_role_name'] = value
-        elif key == 'region':
+            profile_data["sso_role_name"] = value
+        elif key == "region":
             log_operation(f"  → Found region: {value}")
-            profile_data['aws_region'] = value
+            profile_data["aws_region"] = value
 
         return profile_data
 
     def _should_include_profile(self, profile_data: Dict) -> bool:
         """Only include SSO profiles."""
-        is_sso = profile_data.get('is_sso', False)
+        is_sso = profile_data.get("is_sso", False)
         if is_sso:
             log_result(f"  ✓ Including SSO profile: {profile_data['name']}")
         else:
@@ -260,41 +268,49 @@ class ProfileConfigReader:
     def get_credentials(self, profile_name: str) -> Optional[Dict[str, str]]:
         """Extract credentials for a specific profile."""
         if not self.credentials_file.exists():
-            log_result(f"Credentials file not found for profile: {profile_name}", success=False)
+            log_result(
+                f"Credentials file not found for profile: {profile_name}", success=False
+            )
             return None
 
         log_operation(f"Reading credentials for profile: {profile_name}")
         credentials = {}
         in_profile = False
 
-        with open(self.credentials_file, 'r', encoding='utf-8') as f:
+        with open(self.credentials_file, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
 
                 # Check if we're in the target profile
-                if line == f'[{profile_name}]':
+                if line == f"[{profile_name}]":
                     in_profile = True
                     continue
 
                 # Check if we've moved to another profile
-                if line.startswith('[') and line.endswith(']'):
+                if line.startswith("[") and line.endswith("]"):
                     if in_profile:
                         break
                     in_profile = False
                     continue
 
                 # Parse credentials
-                if in_profile and '=' in line:
-                    key, value = line.split('=', 1)
+                if in_profile and "=" in line:
+                    key, value = line.split("=", 1)
                     key = key.strip()
                     value = value.strip()
-                    if key in ['aws_access_key_id', 'aws_secret_access_key', 'aws_session_token']:
+                    if key in [
+                        "aws_access_key_id",
+                        "aws_secret_access_key",
+                        "aws_session_token",
+                    ]:
                         credentials[key] = value
 
         if credentials:
             log_result(f"Found credentials for profile: {profile_name}")
         else:
-            log_result(f"No credentials found for profile: {profile_name}", success=False)
+            log_result(
+                f"No credentials found for profile: {profile_name}", success=False
+            )
 
         return credentials if credentials else None
 
@@ -302,21 +318,23 @@ class ProfileConfigReader:
     def get_config(self, profile_name: str) -> Optional[Dict[str, str]]:
         """Get profile configuration from config file."""
         if not self.config_file.exists():
-            log_result(f"Config file not found for profile: {profile_name}", success=False)
+            log_result(
+                f"Config file not found for profile: {profile_name}", success=False
+            )
             return None
 
         log_operation(f"Reading config for profile: {profile_name}")
         profile_config = {}
         in_profile = False
 
-        with open(self.config_file, 'r', encoding='utf-8') as f:
+        with open(self.config_file, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
 
                 # Check profile headers
-                if line.startswith('[') and line.endswith(']'):
+                if line.startswith("[") and line.endswith("]"):
                     current = line[1:-1]
-                    if current.startswith('profile '):
+                    if current.startswith("profile "):
                         current = current[8:]
 
                     if current == profile_name:
@@ -329,18 +347,20 @@ class ProfileConfigReader:
                     continue
 
                 # Parse config
-                if in_profile and '=' in line:
-                    key, value = line.split('=', 1)
+                if in_profile and "=" in line:
+                    key, value = line.split("=", 1)
                     key = key.strip()
                     value = value.strip()
                     profile_config[key] = value
 
                     # Log SSO-specific keys
-                    if key.startswith('sso_'):
+                    if key.startswith("sso_"):
                         log_operation(f"    • {key} = {value}")
 
         if profile_config:
-            log_result(f"Found config for profile: {profile_name} ({len(profile_config)} keys)")
+            log_result(
+                f"Found config for profile: {profile_name} ({len(profile_config)} keys)"
+            )
         else:
             log_result(f"No config found for profile: {profile_name}", success=False)
 

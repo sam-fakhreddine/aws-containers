@@ -168,10 +168,12 @@ describe("AWSProfilesPopup", () => {
                 },
             ];
 
-            const recentTime = Date.now() - 60000; // 1 minute ago
+            const recentTime = Date.now() - 30000; // 30 seconds ago (within 1 minute cache)
             (browser.storage.local.get as jest.Mock).mockResolvedValue({
-                cachedProfiles: mockProfiles,
-                profilesCacheTime: recentTime,
+                "aws-profiles": {
+                    profiles: mockProfiles,
+                    timestamp: recentTime,
+                },
             });
 
             const mockPort = {
@@ -203,10 +205,12 @@ describe("AWSProfilesPopup", () => {
                 },
             ];
 
-            const staleTime = Date.now() - 10 * 60 * 1000; // 10 minutes ago
+            const staleTime = Date.now() - 10 * 60 * 1000; // 10 minutes ago (stale)
             (browser.storage.local.get as jest.Mock).mockResolvedValue({
-                cachedProfiles: mockProfiles,
-                profilesCacheTime: staleTime,
+                "aws-profiles": {
+                    profiles: mockProfiles,
+                    timestamp: staleTime,
+                },
             });
 
             const mockPort = {
@@ -277,6 +281,7 @@ describe("AWSProfilesPopup", () => {
                 },
                 onDisconnect: { addListener: jest.fn() },
                 postMessage: jest.fn(),
+                disconnect: jest.fn(),
             };
             (browser.runtime.connectNative as jest.Mock).mockReturnValue(mockPort);
 
@@ -295,7 +300,9 @@ describe("AWSProfilesPopup", () => {
             await waitFor(() => {
                 expect(browser.storage.local.set).toHaveBeenCalledWith(
                     expect.objectContaining({
-                        cachedProfiles: expect.arrayContaining(mockProfiles),
+                        "aws-profiles": expect.objectContaining({
+                            profiles: expect.arrayContaining(mockProfiles),
+                        }),
                     })
                 );
             });
@@ -314,6 +321,7 @@ describe("AWSProfilesPopup", () => {
                 },
                 onDisconnect: { addListener: jest.fn() },
                 postMessage: jest.fn(),
+                disconnect: jest.fn(),
             };
             (browser.runtime.connectNative as jest.Mock).mockReturnValue(mockPort);
 
@@ -468,6 +476,7 @@ describe("AWSProfilesPopup", () => {
                 },
                 onDisconnect: { addListener: jest.fn() },
                 postMessage: jest.fn(),
+                disconnect: jest.fn(),
             };
             (browser.runtime.connectNative as jest.Mock).mockReturnValue(mockPort);
 
@@ -485,7 +494,9 @@ describe("AWSProfilesPopup", () => {
             await waitFor(() => {
                 expect(browser.storage.local.set).toHaveBeenCalledWith(
                     expect.objectContaining({
-                        cachedProfiles: expect.any(Array),
+                        "aws-profiles": expect.objectContaining({
+                            profiles: expect.any(Array),
+                        }),
                     })
                 );
             });
@@ -515,6 +526,7 @@ describe("AWSProfilesPopup", () => {
                 },
                 onDisconnect: { addListener: jest.fn() },
                 postMessage: jest.fn(),
+                disconnect: jest.fn(),
             };
             (browser.runtime.connectNative as jest.Mock).mockReturnValue(mockPort);
 
@@ -533,14 +545,16 @@ describe("AWSProfilesPopup", () => {
             await waitFor(() => {
                 expect(browser.storage.local.set).toHaveBeenCalledWith(
                     expect.objectContaining({
-                        profilesCacheTime: expect.any(Number),
+                        "aws-profiles": expect.objectContaining({
+                            timestamp: expect.any(Number),
+                        }),
                     })
                 );
 
                 const call = (browser.storage.local.set as jest.Mock).mock.calls.find(
-                    (c) => c[0].profilesCacheTime
+                    (c) => c[0]["aws-profiles"]?.timestamp
                 );
-                expect(call[0].profilesCacheTime).toBeGreaterThanOrEqual(beforeTime);
+                expect(call[0]["aws-profiles"].timestamp).toBeGreaterThanOrEqual(beforeTime);
             });
         });
 
@@ -561,8 +575,10 @@ describe("AWSProfilesPopup", () => {
 
             // Set up cached profiles
             (browser.storage.local.get as jest.Mock).mockResolvedValue({
-                cachedProfiles: profiles,
-                profilesCacheTime: Date.now(),
+                "aws-profiles": {
+                    profiles: profiles,
+                    timestamp: Date.now(),
+                },
             });
 
             let messageListener: any;
@@ -574,6 +590,7 @@ describe("AWSProfilesPopup", () => {
                 },
                 onDisconnect: { addListener: jest.fn() },
                 postMessage: jest.fn(),
+                disconnect: jest.fn(),
             };
             (browser.runtime.connectNative as jest.Mock).mockReturnValue(mockPort);
 
@@ -600,6 +617,7 @@ describe("AWSProfilesPopup", () => {
                     }),
                 },
                 postMessage: jest.fn(),
+                disconnect: jest.fn(),
             };
             (browser.runtime.connectNative as jest.Mock).mockReturnValue(mockPort);
 
@@ -636,6 +654,7 @@ describe("AWSProfilesPopup", () => {
                     }),
                 },
                 postMessage: jest.fn(),
+                disconnect: jest.fn(),
             };
             (browser.runtime.connectNative as jest.Mock).mockReturnValue(mockPort);
 

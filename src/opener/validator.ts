@@ -23,8 +23,8 @@ function isEmpty(v: string | null | undefined): boolean {
 export function sanitizeURLSearchParams(
     qs: URLSearchParams,
     schema: OpenerParamsSchema,
-): Record<string, any> {
-    let params: Record<string, any> = {};
+): Record<string, unknown> {
+    let params: Record<string, unknown> = {};
 
     // validate each key from the schema
     // except the __validators one
@@ -34,9 +34,12 @@ export function sanitizeURLSearchParams(
         }
 
         // apply each validator
-        let param: any = qs.get(k);
-        for (let v of (schema as any)[k]) {
-            param = v(param, k);
+        let param: string | null | undefined = qs.get(k);
+        const validators = (schema as unknown as Record<string, ParameterValidator[]>)[k];
+        if (validators) {
+            for (let v of validators) {
+                param = v(param, k) as string | null | undefined;
+            }
         }
 
         // skip empty params
@@ -63,10 +66,12 @@ export function sanitizeURLSearchParams(
  * @returns The validated URL string
  * @throws Error if URL is invalid or uses dangerous protocol
  */
-export function url(p: any): any {
+export function url(p: string | null | undefined): string | null | undefined {
     if (isEmpty(p)) {
         return p;
     }
+
+    if (!p) return p;
 
     let urlObj: URL;
 
@@ -80,15 +85,15 @@ export function url(p: any): any {
             // Try adding https:// prefix for cases like "localhost:3000"
             try {
                 urlObj = new URL("https://" + p);
-            } catch (retryError) {
+            } catch {
                 throw new Error(`URL protocol "${urlObj.protocol}" is not allowed. Only HTTP and HTTPS are permitted.`);
             }
         }
-    } catch (firstError) {
+    } catch {
         // If first parse fails, try adding https:// prefix
         try {
             urlObj = new URL("https://" + p);
-        } catch (secondError) {
+        } catch {
             throw new Error(`Invalid URL: ${p}`);
         }
     }
@@ -103,11 +108,11 @@ export function url(p: any): any {
  * @returns The parameter value if present
  * @throws Error if parameter is missing
  */
-export function required(p: any, name?: string): any {
+export function required(p: string | null | undefined, name?: string): string {
     if (isEmpty(p)) {
         throw new Error(`"${name}" parameter is missing`);
     }
-    return p;
+    return p!;
 }
 
 /**
@@ -117,12 +122,12 @@ export function required(p: any, name?: string): any {
  * @returns The integer value or the original if empty
  * @throws Error if parameter is not a valid integer
  */
-export function integer(p: any, name?: string): any {
+export function integer(p: string | null | undefined, name?: string): number | string | null | undefined {
     if (isEmpty(p)) {
         return p;
     }
 
-    if (!/^[-+]?(\d+|Infinity)$/.test(p)) {
+    if (!p || !/^[-+]?(\d+|Infinity)$/.test(p)) {
         throw new Error(`"${name}" parameter should be an integer`);
     }
 
@@ -137,10 +142,12 @@ export function integer(p: any, name?: string): any {
  * @returns The boolean value or the original if empty
  * @throws Error if parameter is not a valid boolean
  */
-export function boolean(p: any, name?: string): any {
+export function boolean(p: string | null | undefined, name?: string): boolean | string | null | undefined {
     if (isEmpty(p)) {
         return p;
     }
+
+    if (!p) return p;
 
     switch (p.toLowerCase()) {
         case "true":
@@ -165,8 +172,8 @@ export function boolean(p: any, name?: string): any {
  * @param val - The fallback value
  * @returns A validator function
  */
-export function fallback(val: any): ParameterValidator {
-    return function (p: any): any {
+export function fallback(val: unknown): ParameterValidator {
+    return function (p: string | null | undefined): unknown {
         if (isEmpty(p)) {
             return val;
         }
@@ -181,9 +188,9 @@ export function fallback(val: any): ParameterValidator {
  * @returns A validator function
  * @throws Error if parameter is not in the allowed list
  */
-export function oneOf(vals: any[]): ParameterValidator {
-    return function (p: any, name?: string): any {
-        if (vals.indexOf(p) === -1) {
+export function oneOf(vals: string[]): ParameterValidator {
+    return function (p: string | null | undefined, name?: string): string | null | undefined {
+        if (!p || vals.indexOf(p) === -1) {
             throw new Error(
                 `"${name}" parameter should be in a list ${vals}`,
             );
@@ -198,14 +205,14 @@ export function oneOf(vals: any[]): ParameterValidator {
  * @param vals - Array of allowed values
  * @returns A validator function
  */
-export function oneOfOrEmpty(vals: any[]): ParameterValidator {
+export function oneOfOrEmpty(vals: string[]): ParameterValidator {
     const oneOfFunc = oneOf(vals);
-    return function (p: any, name?: string): any {
+    return function (p: string | null | undefined, name?: string): string | null | undefined {
         if (isEmpty(p)) {
             return p;
         }
 
-        return oneOfFunc(p, name);
+        return oneOfFunc(p, name) as string | null | undefined;
     };
 }
 
@@ -218,10 +225,10 @@ export function oneOfOrEmpty(vals: any[]): ParameterValidator {
 export function atLeastOneRequired(
     requiredParams: string[],
 ): GlobalValidator {
-    return function (params: Record<string, any>): Record<string, any> {
+    return function (params: Record<string, unknown>): Record<string, unknown> {
         let valid = false;
         for (let p of requiredParams) {
-            if (!isEmpty(params[p])) {
+            if (!isEmpty(params[p] as string | null | undefined)) {
                 valid = true;
                 break;
             }

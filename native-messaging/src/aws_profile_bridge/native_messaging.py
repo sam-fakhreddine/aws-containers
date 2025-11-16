@@ -17,9 +17,9 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 # Create log directory
-log_dir = Path.home() / '.aws' / 'logs'
+log_dir = Path.home() / ".aws" / "logs"
 log_dir.mkdir(parents=True, exist_ok=True)
-log_file = log_dir / 'aws_profile_bridge_errors.log'
+log_file = log_dir / "aws_profile_bridge_errors.log"
 
 # Clear any existing handlers from root logger
 root_logger = logging.getLogger()
@@ -28,15 +28,15 @@ root_logger.handlers.clear()
 # Configure ONLY file logging (no stderr!)
 logging.basicConfig(
     level=logging.ERROR,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[logging.FileHandler(str(log_file))],
-    force=True  # Override any existing configuration
+    force=True,  # Override any existing configuration
 )
 
 # Ensure boto3/botocore don't log to stderr
-logging.getLogger('boto3').setLevel(logging.CRITICAL)
-logging.getLogger('botocore').setLevel(logging.CRITICAL)
-logging.getLogger('urllib3').setLevel(logging.CRITICAL)
+logging.getLogger("boto3").setLevel(logging.CRITICAL)
+logging.getLogger("botocore").setLevel(logging.CRITICAL)
+logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class NativeMessagingReader(MessageReader):
                 raise ValueError("Incomplete message length")
 
             # Unpack message length
-            message_length = struct.unpack('I', length_bytes)[0]
+            message_length = struct.unpack("I", length_bytes)[0]
 
             # Read message content
             message_bytes = self.input_stream.read(message_length)
@@ -94,7 +94,7 @@ class NativeMessagingReader(MessageReader):
                 raise ValueError("Incomplete message content")
 
             # Decode and parse JSON
-            message_text = message_bytes.decode('utf-8')
+            message_text = message_bytes.decode("utf-8")
             return json.loads(message_text)
 
         except ValueError as e:
@@ -125,10 +125,10 @@ class NativeMessagingWriter(MessageWriter):
         try:
             # Encode message as JSON
             message_json = json.dumps(message)
-            message_bytes = message_json.encode('utf-8')
+            message_bytes = message_json.encode("utf-8")
 
             # Write message length (4 bytes)
-            length_bytes = struct.pack('I', len(message_bytes))
+            length_bytes = struct.pack("I", len(message_bytes))
             self.output_stream.write(length_bytes)
 
             # Write message content
@@ -170,10 +170,7 @@ class NativeMessagingHost:
     """
 
     def __init__(
-        self,
-        reader: MessageReader,
-        writer: MessageWriter,
-        handler: MessageHandler
+        self, reader: MessageReader, writer: MessageWriter, handler: MessageHandler
     ):
         self.reader = reader
         self.writer = writer

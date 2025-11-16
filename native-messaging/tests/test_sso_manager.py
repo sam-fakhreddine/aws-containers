@@ -14,7 +14,7 @@ from datetime import datetime, timezone, timedelta
 from aws_profile_bridge.sso_manager import (
     SSOTokenCache,
     SSOCredentialsProvider,
-    SSOProfileEnricher
+    SSOProfileEnricher,
 )
 
 
@@ -27,19 +27,19 @@ class TestSSOTokenCache:
         mock_cache_dir.exists.return_value = False
 
         cache = SSOTokenCache(mock_cache_dir)
-        result = cache.get_token('https://example.com/start')
+        result = cache.get_token("https://example.com/start")
 
         assert result is None
 
     def test_get_token_returns_valid_token_from_hashed_file(self):
         """Test get_token retrieves valid token from hashed cache file."""
-        start_url = 'https://example.com/start'
+        start_url = "https://example.com/start"
         expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
 
         token_data = {
-            'startUrl': start_url,
-            'accessToken': 'test-token',
-            'expiresAt': expires_at.isoformat()
+            "startUrl": start_url,
+            "accessToken": "test-token",
+            "expiresAt": expires_at.isoformat(),
         }
 
         mock_cache_dir = Mock(spec=Path)
@@ -52,21 +52,21 @@ class TestSSOTokenCache:
 
         cache = SSOTokenCache(mock_cache_dir)
 
-        with patch('builtins.open', mock_open(read_data=json.dumps(token_data))):
+        with patch("builtins.open", mock_open(read_data=json.dumps(token_data))):
             result = cache.get_token(start_url)
 
         assert result is not None
-        assert result['accessToken'] == 'test-token'
+        assert result["accessToken"] == "test-token"
 
     def test_get_token_returns_none_for_expired_token(self):
         """Test get_token returns None for expired tokens."""
-        start_url = 'https://example.com/start'
+        start_url = "https://example.com/start"
         expires_at = datetime.now(timezone.utc) - timedelta(hours=1)  # Expired
 
         token_data = {
-            'startUrl': start_url,
-            'accessToken': 'test-token',
-            'expiresAt': expires_at.isoformat()
+            "startUrl": start_url,
+            "accessToken": "test-token",
+            "expiresAt": expires_at.isoformat(),
         }
 
         mock_cache_dir = Mock(spec=Path)
@@ -74,27 +74,27 @@ class TestSSOTokenCache:
 
         cache_file = Mock(spec=Path)
         cache_file.exists.return_value = True
-        cache_file.name = 'test.json'
+        cache_file.name = "test.json"
         mock_cache_dir.__truediv__ = Mock(return_value=cache_file)
         # Mock glob to return the same file (for fallback search)
         mock_cache_dir.glob.return_value = [cache_file]
 
         cache = SSOTokenCache(mock_cache_dir)
 
-        with patch('builtins.open', mock_open(read_data=json.dumps(token_data))):
+        with patch("builtins.open", mock_open(read_data=json.dumps(token_data))):
             result = cache.get_token(start_url)
 
         assert result is None
 
     def test_get_token_uses_memory_cache(self):
         """Test get_token uses memory cache for repeated calls."""
-        start_url = 'https://example.com/start'
+        start_url = "https://example.com/start"
         expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
 
         token_data = {
-            'startUrl': start_url,
-            'accessToken': 'test-token',
-            'expiresAt': expires_at.isoformat()
+            "startUrl": start_url,
+            "accessToken": "test-token",
+            "expiresAt": expires_at.isoformat(),
         }
 
         mock_cache_dir = Mock(spec=Path)
@@ -107,12 +107,16 @@ class TestSSOTokenCache:
         cache = SSOTokenCache(mock_cache_dir)
 
         # First call - loads from file
-        with patch('builtins.open', mock_open(read_data=json.dumps(token_data))) as mock_file:
+        with patch(
+            "builtins.open", mock_open(read_data=json.dumps(token_data))
+        ) as mock_file:
             result1 = cache.get_token(start_url)
             file_open_count = mock_file.call_count
 
         # Second call - should use memory cache
-        with patch('builtins.open', mock_open(read_data=json.dumps(token_data))) as mock_file:
+        with patch(
+            "builtins.open", mock_open(read_data=json.dumps(token_data))
+        ) as mock_file:
             result2 = cache.get_token(start_url)
             # Should not open file again (memory cache hit)
             assert mock_file.call_count == 0
@@ -121,13 +125,13 @@ class TestSSOTokenCache:
 
     def test_get_token_searches_all_cache_files_as_fallback(self):
         """Test get_token searches all cache files when hash lookup fails."""
-        start_url = 'https://example.com/start'
+        start_url = "https://example.com/start"
         expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
 
         token_data = {
-            'startUrl': start_url,
-            'accessToken': 'test-token',
-            'expiresAt': expires_at.isoformat()
+            "startUrl": start_url,
+            "accessToken": "test-token",
+            "expiresAt": expires_at.isoformat(),
         }
 
         mock_cache_dir = Mock(spec=Path)
@@ -136,11 +140,11 @@ class TestSSOTokenCache:
         # Hash lookup fails
         hashed_cache_file = Mock(spec=Path)
         hashed_cache_file.exists.return_value = False
-        hashed_cache_file.name = 'hash.json'
+        hashed_cache_file.name = "hash.json"
 
         # But we have other cache files
         other_cache_file = Mock(spec=Path)
-        other_cache_file.name = 'other.json'
+        other_cache_file.name = "other.json"
         mock_cache_dir.glob.return_value = [hashed_cache_file, other_cache_file]
 
         # Setup path division to return the hashed file
@@ -148,18 +152,18 @@ class TestSSOTokenCache:
 
         cache = SSOTokenCache(mock_cache_dir)
 
-        with patch('builtins.open', mock_open(read_data=json.dumps(token_data))):
+        with patch("builtins.open", mock_open(read_data=json.dumps(token_data))):
             result = cache.get_token(start_url)
 
         # Should have searched all files
-        mock_cache_dir.glob.assert_called_once_with('*.json')
+        mock_cache_dir.glob.assert_called_once_with("*.json")
 
     def test_clear_removes_memory_cache(self):
         """Test clear removes all cached tokens from memory."""
         cache = SSOTokenCache(Mock(spec=Path))
 
         # Manually add to memory cache
-        cache._memory_cache['test'] = ({'token': 'value'}, datetime.now(timezone.utc))
+        cache._memory_cache["test"] = ({"token": "value"}, datetime.now(timezone.utc))
 
         cache.clear()
 
@@ -174,7 +178,7 @@ class TestSSOCredentialsProvider:
         mock_token_cache = Mock(spec=SSOTokenCache)
         provider = SSOCredentialsProvider(mock_token_cache)
 
-        result = provider.get_credentials({'sso_region': 'us-east-1'})
+        result = provider.get_credentials({"sso_region": "us-east-1"})
 
         assert result is None
 
@@ -184,8 +188,8 @@ class TestSSOCredentialsProvider:
         provider = SSOCredentialsProvider(mock_token_cache)
 
         profile_config = {
-            'sso_start_url': 'https://example.com/start',
-            'sso_role_name': 'Admin'
+            "sso_start_url": "https://example.com/start",
+            "sso_role_name": "Admin",
         }
 
         result = provider.get_credentials(profile_config)
@@ -198,8 +202,8 @@ class TestSSOCredentialsProvider:
         provider = SSOCredentialsProvider(mock_token_cache)
 
         profile_config = {
-            'sso_start_url': 'https://example.com/start',
-            'sso_account_id': '123456789012'
+            "sso_start_url": "https://example.com/start",
+            "sso_account_id": "123456789012",
         }
 
         result = provider.get_credentials(profile_config)
@@ -214,34 +218,36 @@ class TestSSOCredentialsProvider:
         provider = SSOCredentialsProvider(mock_token_cache)
 
         profile_config = {
-            'sso_start_url': 'https://example.com/start',
-            'sso_region': 'us-east-1',
-            'sso_account_id': '123456789012',
-            'sso_role_name': 'Admin'
+            "sso_start_url": "https://example.com/start",
+            "sso_region": "us-east-1",
+            "sso_account_id": "123456789012",
+            "sso_role_name": "Admin",
         }
 
         result = provider.get_credentials(profile_config)
 
         assert result is None
-        mock_token_cache.get_token.assert_called_once_with('https://example.com/start')
+        mock_token_cache.get_token.assert_called_once_with("https://example.com/start")
 
-    @patch('urllib.request.urlopen')
+    @patch("urllib.request.urlopen")
     def test_get_credentials_fetches_role_credentials(self, mock_urlopen):
         """Test get_credentials successfully fetches role credentials."""
         # Mock SSO token
         mock_token_cache = Mock(spec=SSOTokenCache)
         mock_token_cache.get_token.return_value = {
-            'accessToken': 'test-sso-token',
-            'expiresAt': (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+            "accessToken": "test-sso-token",
+            "expiresAt": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
         }
 
         # Mock API response
         api_response = {
-            'roleCredentials': {
-                'accessKeyId': 'ASIA-ACCESS-KEY',
-                'secretAccessKey': 'SECRET-KEY',
-                'sessionToken': 'SESSION-TOKEN',
-                'expiration': int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp() * 1000)
+            "roleCredentials": {
+                "accessKeyId": "ASIA-ACCESS-KEY",
+                "secretAccessKey": "SECRET-KEY",
+                "sessionToken": "SESSION-TOKEN",
+                "expiration": int(
+                    (datetime.now(timezone.utc) + timedelta(hours=1)).timestamp() * 1000
+                ),
             }
         }
 
@@ -254,27 +260,27 @@ class TestSSOCredentialsProvider:
         provider = SSOCredentialsProvider(mock_token_cache)
 
         profile_config = {
-            'sso_start_url': 'https://example.com/start',
-            'sso_region': 'us-east-1',
-            'sso_account_id': '123456789012',
-            'sso_role_name': 'Admin'
+            "sso_start_url": "https://example.com/start",
+            "sso_region": "us-east-1",
+            "sso_account_id": "123456789012",
+            "sso_role_name": "Admin",
         }
 
         result = provider.get_credentials(profile_config)
 
         assert result is not None
-        assert result['aws_access_key_id'] == 'ASIA-ACCESS-KEY'
-        assert result['aws_secret_access_key'] == 'SECRET-KEY'
-        assert result['aws_session_token'] == 'SESSION-TOKEN'
-        assert 'expiration' in result
+        assert result["aws_access_key_id"] == "ASIA-ACCESS-KEY"
+        assert result["aws_secret_access_key"] == "SECRET-KEY"
+        assert result["aws_session_token"] == "SESSION-TOKEN"
+        assert "expiration" in result
 
-    @patch('urllib.request.urlopen')
+    @patch("urllib.request.urlopen")
     def test_get_credentials_returns_none_on_api_error(self, mock_urlopen):
         """Test get_credentials returns None when API call fails."""
         mock_token_cache = Mock(spec=SSOTokenCache)
         mock_token_cache.get_token.return_value = {
-            'accessToken': 'test-sso-token',
-            'expiresAt': (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+            "accessToken": "test-sso-token",
+            "expiresAt": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
         }
 
         # Mock API error
@@ -286,35 +292,35 @@ class TestSSOCredentialsProvider:
         provider = SSOCredentialsProvider(mock_token_cache)
 
         profile_config = {
-            'sso_start_url': 'https://example.com/start',
-            'sso_region': 'us-east-1',
-            'sso_account_id': '123456789012',
-            'sso_role_name': 'Admin'
+            "sso_start_url": "https://example.com/start",
+            "sso_region": "us-east-1",
+            "sso_account_id": "123456789012",
+            "sso_role_name": "Admin",
         }
 
         result = provider.get_credentials(profile_config)
 
         assert result is None
 
-    @patch('urllib.request.urlopen')
+    @patch("urllib.request.urlopen")
     def test_get_credentials_handles_network_exception(self, mock_urlopen):
         """Test get_credentials handles network exceptions gracefully."""
         mock_token_cache = Mock(spec=SSOTokenCache)
         mock_token_cache.get_token.return_value = {
-            'accessToken': 'test-sso-token',
-            'expiresAt': (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+            "accessToken": "test-sso-token",
+            "expiresAt": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
         }
 
         # Mock network error
-        mock_urlopen.side_effect = Exception('Network error')
+        mock_urlopen.side_effect = Exception("Network error")
 
         provider = SSOCredentialsProvider(mock_token_cache)
 
         profile_config = {
-            'sso_start_url': 'https://example.com/start',
-            'sso_region': 'us-east-1',
-            'sso_account_id': '123456789012',
-            'sso_role_name': 'Admin'
+            "sso_start_url": "https://example.com/start",
+            "sso_region": "us-east-1",
+            "sso_account_id": "123456789012",
+            "sso_role_name": "Admin",
         }
 
         result = provider.get_credentials(profile_config)
@@ -330,10 +336,7 @@ class TestSSOProfileEnricher:
         mock_token_cache = Mock(spec=SSOTokenCache)
         enricher = SSOProfileEnricher(mock_token_cache)
 
-        profile = {
-            'name': 'test-profile',
-            'is_sso': False
-        }
+        profile = {"name": "test-profile", "is_sso": False}
 
         result = enricher.enrich_profile(profile)
 
@@ -346,23 +349,23 @@ class TestSSOProfileEnricher:
 
         mock_token_cache = Mock(spec=SSOTokenCache)
         mock_token_cache.get_token.return_value = {
-            'accessToken': 'test-token',
-            'expiresAt': expires_at.isoformat()
+            "accessToken": "test-token",
+            "expiresAt": expires_at.isoformat(),
         }
 
         enricher = SSOProfileEnricher(mock_token_cache)
 
         profile = {
-            'name': 'sso-profile',
-            'is_sso': True,
-            'sso_start_url': 'https://example.com/start'
+            "name": "sso-profile",
+            "is_sso": True,
+            "sso_start_url": "https://example.com/start",
         }
 
         result = enricher.enrich_profile(profile)
 
-        assert result['expiration'] == expires_at.isoformat()
-        assert result['expired'] is False
-        assert result['has_credentials'] is True
+        assert result["expiration"] == expires_at.isoformat()
+        assert result["expired"] is False
+        assert result["has_credentials"] is True
 
     def test_enrich_profile_marks_expired_token(self):
         """Test enrich_profile marks profile as expired when token is expired."""
@@ -370,22 +373,22 @@ class TestSSOProfileEnricher:
 
         mock_token_cache = Mock(spec=SSOTokenCache)
         mock_token_cache.get_token.return_value = {
-            'accessToken': 'test-token',
-            'expiresAt': expires_at.isoformat()
+            "accessToken": "test-token",
+            "expiresAt": expires_at.isoformat(),
         }
 
         enricher = SSOProfileEnricher(mock_token_cache)
 
         profile = {
-            'name': 'sso-profile',
-            'is_sso': True,
-            'sso_start_url': 'https://example.com/start'
+            "name": "sso-profile",
+            "is_sso": True,
+            "sso_start_url": "https://example.com/start",
         }
 
         result = enricher.enrich_profile(profile)
 
-        assert result['expired'] is True
-        assert result['has_credentials'] is False
+        assert result["expired"] is True
+        assert result["has_credentials"] is False
 
     def test_enrich_profile_marks_no_token_as_expired(self):
         """Test enrich_profile marks profile as expired when no token exists."""
@@ -395,12 +398,12 @@ class TestSSOProfileEnricher:
         enricher = SSOProfileEnricher(mock_token_cache)
 
         profile = {
-            'name': 'sso-profile',
-            'is_sso': True,
-            'sso_start_url': 'https://example.com/start'
+            "name": "sso-profile",
+            "is_sso": True,
+            "sso_start_url": "https://example.com/start",
         }
 
         result = enricher.enrich_profile(profile)
 
-        assert result['expired'] is True
-        assert result['has_credentials'] is False
+        assert result["expired"] is True
+        assert result["has_credentials"] is False

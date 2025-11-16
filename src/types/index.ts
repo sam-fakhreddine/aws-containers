@@ -50,15 +50,15 @@ export interface Organization {
 export type ParameterValidator = (
     p: string | null | undefined,
     name?: string,
-) => any;
+) => unknown;
 
 /**
  * Global validator function type
  * Takes all parameters and returns validated parameters object
  */
 export type GlobalValidator = (
-    params: Record<string, any>,
-) => Record<string, any>;
+    params: Record<string, unknown>,
+) => Record<string, unknown>;
 
 /**
  * Schema for validating opener parameters

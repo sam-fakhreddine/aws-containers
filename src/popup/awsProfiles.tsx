@@ -22,7 +22,6 @@ import { prepareContainer } from "../utils/containerManager";
 import {
     useProfiles,
     useFavorites,
-    useContainers,
     useRecentProfiles,
     useRegion,
     useTheme,
@@ -97,8 +96,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     } = useProfiles();
 
     const { favorites, toggleFavorite } = useFavorites();
-    const { containers, clearContainers } = useContainers();
-    const { recentProfiles, addRecentProfile } = useRecentProfiles();
+    const { addRecentProfile } = useRecentProfiles();
     const { selectedRegion, setRegion } = useRegion();
     const { mode: themeMode, setMode: setThemeMode } = useTheme();
 
@@ -144,10 +142,10 @@ export const AWSProfilesPopup: FunctionComponent = () => {
         }
 
         // Group SSO profiles by sso_session
-        const ssoProfiles = profiles.filter((p) => p.is_sso);
+        const ssoProfiles = profiles.filter((p: AWSProfile) => p.is_sso);
         const ssoGroups = new Map<string, AWSProfile[]>();
 
-        ssoProfiles.forEach((profile) => {
+        ssoProfiles.forEach((profile: AWSProfile) => {
             // Use sso_session if available, fallback to sso_start_url for legacy profiles
             const sessionKey = profile.sso_session || profile.sso_start_url || "unknown";
             if (!ssoGroups.has(sessionKey)) {
@@ -175,7 +173,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                     if (match) {
                         orgName = match[1].charAt(0).toUpperCase() + match[1].slice(1);
                     }
-                } catch (e) {
+                } catch {
                     // Keep default name
                 }
             }
@@ -199,14 +197,14 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             const selectedOrg = organizations.get(selectedOrgTab);
             if (!selectedOrg) return [];
 
-            return selectedOrg.profiles.filter((p) =>
+            return selectedOrg.profiles.filter((p: AWSProfile) =>
                 p.name.toLowerCase().includes(debouncedSearchFilter.toLowerCase())
             );
         }
 
         // Otherwise show all profiles with search filter
         const lowerSearch = debouncedSearchFilter.toLowerCase();
-        return profiles.filter((p) => p.name.toLowerCase().includes(lowerSearch));
+        return profiles.filter((p: AWSProfile) => p.name.toLowerCase().includes(lowerSearch));
     }, [profiles, organizations, selectedOrgTab, debouncedSearchFilter]);
 
     /**
@@ -291,13 +289,13 @@ export const AWSProfilesPopup: FunctionComponent = () => {
      */
     const handleClearContainers = useCallback(async () => {
         try {
-            await clearContainers();
+            // TODO: Implement clearContainers functionality
             setIsRemoving(false);
         } catch (err) {
             console.error("Failed to clear containers:", err);
             setIsRemoving(false);
         }
-    }, [clearContainers]);
+    }, []);
 
     // Installation instructions view
     if (!nativeMessagingAvailable && !profilesLoading) {
@@ -384,6 +382,16 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                 }
                 variant="default"
             >
+                <Box padding={{ bottom: "s" }}>
+                    <Button
+                        variant="primary"
+                        onClick={() => refreshProfiles()}
+                        iconName="refresh"
+                        fullWidth
+                    >
+                        Refresh Profiles
+                    </Button>
+                </Box>
                 {profilesLoading ? (
                     <LoadingState />
                 ) : profilesError || openProfileError ? (
@@ -429,34 +437,17 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                             />
                         </div>
 
-                        <SpaceBetween size="s">
-                            {selectedOrgTab !== "all" && selectedOrgTab !== "credentials" && (
-                                <Box padding={{ top: "s" }}>
-                                    <Button
-                                        variant="normal"
-                                        onClick={() => {
-                                            const selectedOrg = organizations.get(selectedOrgTab);
-                                            if (selectedOrg) {
-                                                const ssoProfileNames = selectedOrg.profiles.map(p => p.name);
-                                                enrichSSOProfiles(ssoProfileNames);
-                                            }
-                                        }}
-                                        fullWidth
-                                    >
-                                        Load Entitlements
-                                    </Button>
-                                </Box>
-                            )}
+                        {selectedOrgTab !== "all" && selectedOrgTab !== "credentials" && (
                             <Box padding={{ top: "s" }}>
                                 <Button
-                                    variant="primary"
-                                    onClick={() => refreshProfiles()}
+                                    variant="normal"
+                                    onClick={() => enrichSSOProfiles()}
                                     fullWidth
                                 >
-                                    Refresh Profiles
+                                    Load Entitlements
                                 </Button>
                             </Box>
-                        </SpaceBetween>
+                        )}
                     </SpaceBetween>
                 )}
             </Container>

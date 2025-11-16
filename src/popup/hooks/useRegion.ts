@@ -29,8 +29,9 @@ export function useRegion(): UseRegionReturn {
     useEffect(() => {
         const loadRegion = async () => {
             try {
-                const data = await browser.storage.local.get(STORAGE_KEYS.SELECTED_REGION);
-                if (data.selectedRegion && typeof data.selectedRegion === "string") {
+                const result = await browser.storage.local.get(STORAGE_KEYS.SELECTED_REGION);
+                const data = result as Record<string, unknown>;
+                if (data && 'selectedRegion' in data && typeof data.selectedRegion === "string") {
                     setSelectedRegion(data.selectedRegion);
                 }
             } catch (err) {

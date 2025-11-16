@@ -6,7 +6,6 @@
 
 import React, { FunctionComponent, memo } from "react";
 import Box from "@cloudscape-design/components/box";
-import Container from "@cloudscape-design/components/container";
 import { AWSProfile } from "../types";
 import { ProfileItem } from "./ProfileItem";
 

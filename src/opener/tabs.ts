@@ -15,7 +15,6 @@ export async function newTab(
     params: { url: string },
 ): Promise<void> {
     try {
-        const browserInfo = await browser.runtime.getBrowserInfo();
         const currentTab = await browser.tabs.getCurrent();
 
         const createTabParams = {

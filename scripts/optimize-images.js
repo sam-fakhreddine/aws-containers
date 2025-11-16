@@ -17,11 +17,17 @@ const OUTPUT_IMAGE = path.join(__dirname, '../public/aws-console-containers-opti
 
 async function optimizeImage() {
     try {
-        console.log('📦 Optimizing extension icon...');
-
         // Get original file size
         const originalStats = fs.statSync(INPUT_IMAGE);
         const originalSize = originalStats.size;
+        
+        // Skip optimization if file is already under 100KB
+        if (originalSize < 100 * 1024) {
+            console.log('✅ Extension icon is already under 100KB, skipping optimization');
+            return;
+        }
+
+        console.log('📦 Optimizing extension icon...');
         console.log(`   Original size: ${(originalSize / 1024).toFixed(2)} KB`);
 
         // Resize and optimize

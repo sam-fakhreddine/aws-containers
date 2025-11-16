@@ -84,14 +84,14 @@ class SSOTokenCache:
 
     def _get_by_hash(self, start_url: str) -> Optional[Dict]:
         """Get token by SHA1 hash of start URL."""
-        cache_key = hashlib.sha1(start_url.encode('utf-8')).hexdigest()
+        cache_key = hashlib.sha1(start_url.encode("utf-8")).hexdigest()
         cache_file = self.cache_dir / f"{cache_key}.json"
 
         if not cache_file.exists():
             return None
 
         try:
-            with open(cache_file, 'r', encoding='utf-8') as f:
+            with open(cache_file, "r", encoding="utf-8") as f:
                 token_data = json.load(f)
                 if self._is_token_valid(token_data):
                     return token_data
@@ -102,13 +102,13 @@ class SSOTokenCache:
 
     def _search_cache_files(self, start_url: str) -> Optional[Dict]:
         """Search all cache files for matching start URL."""
-        cache_files = list(self.cache_dir.glob('*.json'))
+        cache_files = list(self.cache_dir.glob("*.json"))
 
         for cache_file_path in cache_files:
             try:
-                with open(cache_file_path, 'r', encoding='utf-8') as f:
+                with open(cache_file_path, "r", encoding="utf-8") as f:
                     token_data = json.load(f)
-                    if token_data.get('startUrl') == start_url:
+                    if token_data.get("startUrl") == start_url:
                         if self._is_token_valid(token_data):
                             return token_data
             except Exception:
@@ -119,11 +119,11 @@ class SSOTokenCache:
     @staticmethod
     def _is_token_valid(token_data: Dict) -> bool:
         """Check if token is not expired."""
-        if 'expiresAt' not in token_data:
+        if "expiresAt" not in token_data:
             return False
 
         expires_at = datetime.fromisoformat(
-            token_data['expiresAt'].replace('Z', '+00:00')
+            token_data["expiresAt"].replace("Z", "+00:00")
         )
         return expires_at > datetime.now(timezone.utc)
 
@@ -162,20 +162,20 @@ class SSOCredentialsProvider:
             return None
 
         # Get SSO token
-        sso_start_url = profile_config['sso_start_url']
+        sso_start_url = profile_config["sso_start_url"]
         token_data = self.token_cache.get_token(sso_start_url)
 
-        if not token_data or 'accessToken' not in token_data:
+        if not token_data or "accessToken" not in token_data:
             log_result("No valid SSO token available", success=False)
             return None
 
         # Fetch role credentials from AWS SSO API
         log_operation("Fetching role credentials from AWS SSO API")
         creds = self._fetch_role_credentials(
-            access_token=token_data['accessToken'],
-            sso_region=profile_config.get('sso_region', 'us-east-1'),
-            account_id=profile_config['sso_account_id'],
-            role_name=profile_config['sso_role_name']
+            access_token=token_data["accessToken"],
+            sso_region=profile_config.get("sso_region", "us-east-1"),
+            account_id=profile_config["sso_account_id"],
+            role_name=profile_config["sso_role_name"],
         )
 
         if creds:
@@ -188,23 +188,19 @@ class SSOCredentialsProvider:
     @staticmethod
     def _validate_profile_config(profile_config: Dict) -> Optional[str]:
         """Validate that profile has required SSO fields."""
-        if not profile_config.get('sso_start_url'):
+        if not profile_config.get("sso_start_url"):
             return "SSO profile missing sso_start_url"
 
-        if not profile_config.get('sso_account_id'):
+        if not profile_config.get("sso_account_id"):
             return "SSO profile missing sso_account_id"
 
-        if not profile_config.get('sso_role_name'):
+        if not profile_config.get("sso_role_name"):
             return "SSO profile missing sso_role_name"
 
         return None
 
     def _fetch_role_credentials(
-        self,
-        access_token: str,
-        sso_region: str,
-        account_id: str,
-        role_name: str
+        self, access_token: str, sso_region: str, account_id: str, role_name: str
     ) -> Optional[Dict[str, str]]:
         """
         Fetch role credentials from AWS SSO API.
@@ -212,12 +208,13 @@ class SSOCredentialsProvider:
         SECURITY: Sends access token to official AWS SSO endpoint.
         """
         try:
-            api_url = f"https://portal.sso.{sso_region}.amazonaws.com/federation/credentials"
+            api_url = (
+                f"https://portal.sso.{sso_region}.amazonaws.com/federation/credentials"
+            )
             api_url += f"?account_id={account_id}&role_name={role_name}"
 
             api_request = request.Request(
-                api_url,
-                headers={'x-amz-sso_bearer_token': access_token}
+                api_url, headers={"x-amz-sso_bearer_token": access_token}
             )
 
             with request.urlopen(api_request, timeout=10) as response:
@@ -225,7 +222,7 @@ class SSOCredentialsProvider:
                     return None
 
                 creds = json.loads(response.read())
-                return self._format_credentials(creds['roleCredentials'])
+                return self._format_credentials(creds["roleCredentials"])
 
         except Exception:
             return None
@@ -234,13 +231,12 @@ class SSOCredentialsProvider:
     def _format_credentials(role_creds: Dict) -> Dict[str, str]:
         """Format AWS SSO credentials to standard format."""
         return {
-            'aws_access_key_id': role_creds['accessKeyId'],
-            'aws_secret_access_key': role_creds['secretAccessKey'],
-            'aws_session_token': role_creds['sessionToken'],
-            'expiration': datetime.fromtimestamp(
-                role_creds['expiration'] / 1000,
-                tz=timezone.utc
-            ).isoformat()
+            "aws_access_key_id": role_creds["accessKeyId"],
+            "aws_secret_access_key": role_creds["secretAccessKey"],
+            "aws_session_token": role_creds["sessionToken"],
+            "expiration": datetime.fromtimestamp(
+                role_creds["expiration"] / 1000, tz=timezone.utc
+            ).isoformat(),
         }
 
 
@@ -252,20 +248,20 @@ class SSOProfileEnricher:
 
     def enrich_profile(self, profile: Dict) -> Dict:
         """Add SSO token expiration info to profile."""
-        if not profile.get('is_sso') or not profile.get('sso_start_url'):
+        if not profile.get("is_sso") or not profile.get("sso_start_url"):
             return profile
 
-        token = self.token_cache.get_token(profile['sso_start_url'])
+        token = self.token_cache.get_token(profile["sso_start_url"])
 
-        if token and 'expiresAt' in token:
+        if token and "expiresAt" in token:
             expires_at = datetime.fromisoformat(
-                token['expiresAt'].replace('Z', '+00:00')
+                token["expiresAt"].replace("Z", "+00:00")
             )
-            profile['expiration'] = expires_at.isoformat()
-            profile['expired'] = expires_at < datetime.now(timezone.utc)
-            profile['has_credentials'] = not profile['expired']
+            profile["expiration"] = expires_at.isoformat()
+            profile["expired"] = expires_at < datetime.now(timezone.utc)
+            profile["has_credentials"] = not profile["expired"]
         else:
-            profile['expired'] = True
-            profile['has_credentials'] = False
+            profile["expired"] = True
+            profile["has_credentials"] = False
 
         return profile

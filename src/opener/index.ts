@@ -9,7 +9,7 @@ import { Container } from "../types";
  * @param e - The error to sanitize
  * @returns User-friendly error message
  */
-function sanitizeErrorForDisplay(e: any): string {
+function _sanitizeErrorForDisplay(e: unknown): string {
     // If it's an Error object with a message, use that
     if (e instanceof Error) {
         // Remove file paths and line numbers from error messages
@@ -27,7 +27,7 @@ function sanitizeErrorForDisplay(e: any): string {
     return "An unexpected error occurred. Please try again.";
 }
 
-export function error(e: any) {
+export function error(e: unknown) {
     // Log full error details to console for debugging (only visible in dev tools)
     console.error(e);
 

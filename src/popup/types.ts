@@ -67,37 +67,46 @@ export interface AWSProfile {
  * Type guards for runtime validation
  */
 
-export function isProfileListResponse(response: any): response is ProfileListResponse {
+export function isProfileListResponse(response: unknown): response is ProfileListResponse {
     return (
-        response &&
+        response !== null &&
         typeof response === 'object' &&
+        'action' in response &&
         response.action === 'profileList' &&
+        'profiles' in response &&
         Array.isArray(response.profiles)
     );
 }
 
-export function isConsoleUrlResponse(response: any): response is ConsoleUrlResponse {
+export function isConsoleUrlResponse(response: unknown): response is ConsoleUrlResponse {
     return (
-        response &&
+        response !== null &&
         typeof response === 'object' &&
+        'action' in response &&
         response.action === 'consoleUrl' &&
+        'url' in response &&
         typeof response.url === 'string' &&
+        'profileName' in response &&
         typeof response.profileName === 'string' &&
+        'color' in response &&
         typeof response.color === 'string' &&
+        'icon' in response &&
         typeof response.icon === 'string'
     );
 }
 
-export function isErrorResponse(response: any): response is ErrorResponse {
+export function isErrorResponse(response: unknown): response is ErrorResponse {
     return (
-        response &&
+        response !== null &&
         typeof response === 'object' &&
+        'action' in response &&
         response.action === 'error' &&
+        'message' in response &&
         typeof response.message === 'string'
     );
 }
 
-export function isNativeMessagingResponse(response: any): response is NativeMessagingResponse {
+export function isNativeMessagingResponse(response: unknown): response is NativeMessagingResponse {
     return (
         isProfileListResponse(response) ||
         isConsoleUrlResponse(response) ||
@@ -105,51 +114,57 @@ export function isNativeMessagingResponse(response: any): response is NativeMess
     );
 }
 
-export function isStringArray(value: any): value is string[] {
+export function isStringArray(value: unknown): value is string[] {
     return Array.isArray(value) && value.every(item => typeof item === 'string');
 }
 
-export function isAWSProfile(value: any): value is AWSProfile {
+export function isAWSProfile(value: unknown): value is AWSProfile {
     return (
-        value &&
+        value !== null &&
         typeof value === 'object' &&
+        'name' in value &&
         typeof value.name === 'string' &&
+        'has_credentials' in value &&
         typeof value.has_credentials === 'boolean' &&
+        'expiration' in value &&
         (value.expiration === null || typeof value.expiration === 'string') &&
+        'expired' in value &&
         typeof value.expired === 'boolean' &&
+        'color' in value &&
         typeof value.color === 'string' &&
-        typeof value.icon === 'string' &&
-        (value.is_sso === undefined || typeof value.is_sso === 'boolean') &&
-        (value.sso_start_url === undefined || typeof value.sso_start_url === 'string')
+        'icon' in value &&
+        typeof value.icon === 'string'
     );
 }
 
-export function isAWSProfileArray(value: any): value is AWSProfile[] {
+export function isAWSProfileArray(value: unknown): value is AWSProfile[] {
     return Array.isArray(value) && value.every(item => isAWSProfile(item));
 }
 
-export function isStorageData(value: any): value is StorageData {
-    if (!value || typeof value !== 'object') {
+export function isStorageData(value: unknown): value is StorageData {
+    if (value === null || typeof value !== 'object') {
         return false;
     }
 
+    const data = value as Record<string, unknown>;
+
     // Check optional properties
-    if (value.favorites !== undefined && !isStringArray(value.favorites)) {
+    if (data.favorites !== undefined && !isStringArray(data.favorites)) {
         return false;
     }
-    if (value.recentProfiles !== undefined && !isStringArray(value.recentProfiles)) {
+    if (data.recentProfiles !== undefined && !isStringArray(data.recentProfiles)) {
         return false;
     }
-    if (value.selectedRegion !== undefined && typeof value.selectedRegion !== 'string') {
+    if (data.selectedRegion !== undefined && typeof data.selectedRegion !== 'string') {
         return false;
     }
-    if (value.cachedProfiles !== undefined && !isAWSProfileArray(value.cachedProfiles)) {
+    if (data.cachedProfiles !== undefined && !isAWSProfileArray(data.cachedProfiles)) {
         return false;
     }
-    if (value.profilesCacheTime !== undefined && typeof value.profilesCacheTime !== 'number') {
+    if (data.profilesCacheTime !== undefined && typeof data.profilesCacheTime !== 'number') {
         return false;
     }
-    if (value.containers !== undefined && !isStringArray(value.containers)) {
+    if (data.containers !== undefined && !isStringArray(data.containers)) {
         return false;
     }
 

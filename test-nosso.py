@@ -1,78 +1,59 @@
-#!/usr/bin/env python3
-"""
-Quick test script to verify .nosso file detection
-"""
-import sys
+import pytest
 from pathlib import Path
+from unittest.mock import MagicMock
+from native_messaging.src.aws_profile_bridge.credential_provider import (
+    ProfileAggregator,
+)
 
-# Add the native messaging source to path
-sys.path.insert(0, str(Path(__file__).parent / 'native-messaging' / 'src'))
 
-from aws_profile_bridge.file_parsers import FileCache, CredentialsFileParser, ConfigFileParser, ProfileConfigReader
-from aws_profile_bridge.sso_manager import SSOTokenCache, SSOProfileEnricher
-from aws_profile_bridge.credential_provider import ProfileAggregator
+@pytest.fixture
+def aws_dir(tmp_path):
+    """Create a temporary ~/.aws directory for testing."""
+    d = tmp_path / ".aws"
+    d.mkdir()
+    return d
 
-def test_nosso():
-    aws_dir = Path.home() / '.aws'
-    credentials_file = aws_dir / 'credentials'
-    config_file = aws_dir / 'config'
-    sso_cache_dir = aws_dir / 'sso' / 'cache'
-    nosso_file = aws_dir / '.nosso'
 
-    print(f"AWS Directory: {aws_dir}")
-    print(f"AWS Directory exists: {aws_dir.exists()}")
-    print(f".nosso file path: {nosso_file}")
-    print(f".nosso file exists: {nosso_file.exists()}")
-    print()
-
-    if not aws_dir.exists():
-        print("⚠️  ~/.aws directory doesn't exist - creating it for testing")
-        aws_dir.mkdir(parents=True, exist_ok=True)
-
-    # Initialize components
-    file_cache = FileCache()
-    credentials_parser = CredentialsFileParser(credentials_file, file_cache)
-    config_parser = ConfigFileParser(config_file, file_cache)
-    config_reader = ProfileConfigReader(credentials_file, config_file)
-    sso_token_cache = SSOTokenCache(sso_cache_dir)
-    sso_enricher = SSOProfileEnricher(sso_token_cache)
-
-    # Create ProfileAggregator
-    aggregator = ProfileAggregator(
-        credentials_parser,
-        config_parser,
-        sso_enricher,
-        config_reader,
-        aws_dir
+@pytest.fixture
+def mock_dependencies():
+    """Create mock objects for ProfileAggregator dependencies."""
+    return (
+        MagicMock(),  # credentials_parser
+        MagicMock(),  # config_parser
+        MagicMock(),  # sso_enricher
+        MagicMock(),  # config_reader
     )
 
-    # Test 1: Without .nosso file
-    print("=" * 60)
-    print("TEST 1: Without .nosso file")
-    print("=" * 60)
-    result = aggregator._should_skip_sso_profiles()
-    print(f"_should_skip_sso_profiles() returned: {result}")
-    print(f"Expected: False")
-    print(f"✓ PASS" if result == False else "✗ FAIL")
-    print()
 
-    # Test 2: Create .nosso file
-    print("=" * 60)
-    print("TEST 2: With .nosso file")
-    print("=" * 60)
-    print(f"Creating .nosso file at: {nosso_file}")
+def test_should_skip_sso_profiles_returns_false_when_nosso_file_does_not_exist(
+    aws_dir, mock_dependencies
+):
+    """
+    Verify that _should_skip_sso_profiles() returns False when .nosso does not exist.
+    """
+    # Arrange
+    aggregator = ProfileAggregator(*mock_dependencies, aws_dir=aws_dir)
+
+    # Act
+    result = aggregator._should_skip_sso_profiles()
+
+    # Assert
+    assert result is False, "Should return False when .nosso file is absent"
+
+
+def test_should_skip_sso_profiles_returns_true_when_nosso_file_exists(
+    aws_dir, mock_dependencies
+):
+    """
+    Verify that _should_skip_sso_profiles() returns True when .nosso exists.
+    """
+    # Arrange
+    nosso_file = aws_dir / ".nosso"
     nosso_file.touch()
-    print(f".nosso file exists: {nosso_file.exists()}")
+    aggregator = ProfileAggregator(*mock_dependencies, aws_dir=aws_dir)
+
+    # Act
     result = aggregator._should_skip_sso_profiles()
-    print(f"_should_skip_sso_profiles() returned: {result}")
-    print(f"Expected: True")
-    print(f"✓ PASS" if result == True else "✗ FAIL")
-    print()
 
-    # Cleanup
-    if nosso_file.exists():
-        print(f"Cleaning up: removing {nosso_file}")
-        nosso_file.unlink()
-
-if __name__ == '__main__':
-    test_nosso()
+    # Assert
+    assert result is True, "Should return True when .nosso file is present"
