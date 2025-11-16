@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import browser from "webextension-polyfill";
 import { AWSProfile, isErrorResponse, isProfileListResponse } from "../types";
 import { sortByCredentialStatus, logProfileSummary } from "../utils/profiles";
+import { NATIVE_MESSAGING_HOST_NAME } from "../constants";
 
 const CACHE_KEY = "aws-profiles";
 const CACHE_EXPIRATION_MS = 60000; // 1 minute
-const NATIVE_APP_ID = "com.samfakhreddine.aws_profile_bridge";
 const isDebugMode = process.env.NODE_ENV === "development";
 
 interface CachedData {
@@ -44,7 +44,7 @@ function useProfiles() {
       setError(null);
       try {
         const response: unknown = await new Promise((resolve, reject) => {
-          const port = browser.runtime.connectNative(NATIVE_APP_ID);
+          const port = browser.runtime.connectNative(NATIVE_MESSAGING_HOST_NAME);
           const listener = (resp: unknown) => {
             if (browser.runtime.lastError) {
               reject(new Error(browser.runtime.lastError.message));
