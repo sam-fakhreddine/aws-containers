@@ -40,6 +40,6 @@ for logger_name in ['boto3', 'botocore', 'urllib3', 'urllib3.connectionpool', 's
 
 # Ensure root logger has no stream handler pointing to stderr
 for handler in root_logger.handlers[:]:
-    if isinstance(handler, logging.StreamHandler):
-        if handler.stream in (sys.stderr, sys.stdout):
-            root_logger.removeHandler(handler)
+    if isinstance(handler, logging.StreamHandler) and handler.stream in (sys.stderr, sys.stdout):
+        root_logger.removeHandler(handler)
+
