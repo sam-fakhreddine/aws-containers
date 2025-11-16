@@ -227,7 +227,8 @@ if [ ! -d "$VENV_DIR" ]; then
     exit 1
 fi
 
-# Enable debug logging in development mode
+# Enable debug logging (writes to ~/.aws/logs/aws_profile_bridge.log)
+# This is safe - logs go to files only, not stderr
 export DEBUG=1
 
 # Activate virtual environment and run the bridge
@@ -319,7 +320,16 @@ echo ""
 
 # Step 2: Update native messaging manifest with correct path
 echo "Step 2: Installing native messaging host manifest..."
-mkdir -p "$NATIVE_MESSAGING_DIR"
+mkdir -p "$NATIVE_MESSAGING_DIR" || {
+    echo "Failed to create directory: $NATIVE_MESSAGING_DIR"
+    exit 1
+}
+
+# Verify directory was created
+if [ ! -d "$NATIVE_MESSAGING_DIR" ]; then
+    echo "Error: Directory was not created: $NATIVE_MESSAGING_DIR"
+    exit 1
+fi
 
 # Create manifest with correct path and extension ID
 cat > "$NATIVE_MESSAGING_DIR/aws_profile_bridge.json" <<EOF
@@ -460,16 +470,24 @@ echo "  ls -la $INSTALLED_PATH"
 echo "- Checking the native messaging manifest:"
 echo "  cat $NATIVE_MESSAGING_DIR/aws_profile_bridge.json"
 if [ "$DEV_MODE" = true ]; then
-    echo "- Testing the wrapper script manually:"
-    echo "  echo '{\"action\":\"getProfiles\"}' | $INSTALLED_PATH"
+    echo "- Testing the extension:"
+    echo "  1. Load the extension in Firefox (about:debugging)"
+    echo "  2. Click the extension icon to trigger profile loading"
     echo ""
-    echo "To view debug logs:"
-    echo "  1. Real-time: Open Firefox Browser Console (Ctrl+Shift+J / Cmd+Shift+J)"
-    echo "  2. File logs: tail -f ~/.aws/logs/aws_profile_bridge.log"
-    echo "  3. View all logs: cat ~/.aws/logs/aws_profile_bridge.log"
-    echo "  4. Clean old logs: rm ~/.aws/logs/aws_profile_bridge.log.*"
+    echo "📋 Debug logging is ENABLED by default in dev mode"
     echo ""
-    echo "Log files are automatically rotated when reaching 10 MB"
+    echo "To view debug logs (in real-time):"
+    echo -e "  ${GREEN}./scripts/watch-logs.sh${NC}"
+    echo ""
+    echo "Or manually:"
+    echo "  tail -f ~/.aws/logs/aws_profile_bridge.log"
+    echo ""
+    echo "Log files:"
+    echo "  • Debug log: ~/.aws/logs/aws_profile_bridge.log"
+    echo "  • Error log: ~/.aws/logs/aws_profile_bridge_errors.log"
+    echo "  • Auto-rotated at 10 MB (keeps 5 backups)"
+    echo ""
+    echo "Note: Logs go to FILES only (not stderr - safe for native messaging)"
 fi
 echo ""
 if [[ "$OS" == "macos" ]]; then

@@ -15,7 +15,7 @@ try:
 except ImportError:
     BOTO3_AVAILABLE = False
 
-from .debug_logger import timer, log_operation, log_result
+from .debug_logger import timer, log_operation, log_result, log_error
 from .file_parsers import (
     CredentialsFileParser,
     ConfigFileParser,
@@ -111,6 +111,7 @@ class ProfileAggregator:
         """Use boto3 to enumerate profiles (faster and more reliable)."""
         try:
             available_profiles = boto3.Session().available_profiles
+            log_operation(f"Boto3 found {len(available_profiles)} profiles: {', '.join(available_profiles)}")
             profiles = []
 
             for profile_name in available_profiles:
@@ -118,15 +119,26 @@ class ProfileAggregator:
                 if profile:
                     profiles.append(profile)
 
+            # Summary of classifications
+            sso_profiles = [p['name'] for p in profiles if p.get('is_sso')]
+            cred_profiles = [p['name'] for p in profiles if not p.get('is_sso')]
+
+            log_result(f"Profile classification summary:")
+            log_operation(f"  • SSO profiles ({len(sso_profiles)}): {', '.join(sso_profiles) if sso_profiles else 'none'}")
+            log_operation(f"  • Credential profiles ({len(cred_profiles)}): {', '.join(cred_profiles) if cred_profiles else 'none'}")
+
             return profiles
 
-        except Exception:
+        except Exception as e:
+            log_error(e, "Failed to get profiles with boto3")
             # Fall back to manual parsing
             return self._get_profiles_manual(skip_sso_enrichment)
 
     def _build_profile_info(self, profile_name: str, skip_sso_enrichment: bool = True) -> Optional[Dict]:
         """Build profile information for a single profile."""
         try:
+            log_operation(f"Building profile info for: {profile_name}")
+
             profile_data = {
                 'name': profile_name,
                 'has_credentials': False,
@@ -136,33 +148,84 @@ class ProfileAggregator:
             }
 
             # Check if this is an SSO profile
+            log_operation(f"Checking config file for SSO markers")
             profile_config = self.config_reader.get_config(profile_name)
-            if profile_config and (profile_config.get('sso_start_url') or profile_config.get('sso_session')):
-                profile_data['is_sso'] = True
-                if 'sso_start_url' in profile_config:
-                    profile_data['sso_start_url'] = profile_config['sso_start_url']
-                if 'sso_session' in profile_config:
-                    profile_data['sso_session'] = profile_config['sso_session']
-                profile_data['sso_region'] = profile_config.get('sso_region', 'us-east-1')
-                profile_data['sso_account_id'] = profile_config.get('sso_account_id')
-                profile_data['sso_role_name'] = profile_config.get('sso_role_name')
-                profile_data['aws_region'] = profile_config.get('region')
 
-                # Optionally enrich with SSO token info (slow operation)
-                if not skip_sso_enrichment:
-                    profile_data = self.sso_enricher.enrich_profile(profile_data)
+            if profile_config:
+                log_operation(f"Found config for {profile_name}", {"config_keys": list(profile_config.keys())})
+
+                # Check for SSO markers
+                has_sso_start_url = 'sso_start_url' in profile_config
+                has_sso_session = 'sso_session' in profile_config
+
+                if has_sso_start_url or has_sso_session:
+                    # This is an SSO profile
+                    sso_markers = []
+                    if has_sso_start_url:
+                        sso_markers.append(f"sso_start_url={profile_config['sso_start_url']}")
+                    if has_sso_session:
+                        sso_markers.append(f"sso_session={profile_config['sso_session']}")
+
+                    log_result(f"✓ CLASSIFIED AS SSO - Found markers: {', '.join(sso_markers)}")
+
+                    profile_data['is_sso'] = True
+                    if 'sso_start_url' in profile_config:
+                        profile_data['sso_start_url'] = profile_config['sso_start_url']
+                    if 'sso_session' in profile_config:
+                        profile_data['sso_session'] = profile_config['sso_session']
+                    profile_data['sso_region'] = profile_config.get('sso_region', 'us-east-1')
+                    profile_data['sso_account_id'] = profile_config.get('sso_account_id')
+                    profile_data['sso_role_name'] = profile_config.get('sso_role_name')
+                    profile_data['aws_region'] = profile_config.get('region')
+
+                    log_operation(f"SSO profile details", {
+                        "sso_region": profile_data['sso_region'],
+                        "sso_account_id": profile_data.get('sso_account_id', 'not set'),
+                        "sso_role_name": profile_data.get('sso_role_name', 'not set')
+                    })
+
+                    # Optionally enrich with SSO token info (slow operation)
+                    if not skip_sso_enrichment:
+                        log_operation("Enriching with SSO token info (slow)")
+                        profile_data = self.sso_enricher.enrich_profile(profile_data)
+                else:
+                    log_result(f"Config found but NO SSO markers - checking credentials file")
+                    # Has config but not SSO - check credentials
+                    cred_profiles = {p['name']: p for p in self.credentials_parser.parse()}
+                    if profile_name in cred_profiles:
+                        cred_profile = cred_profiles[profile_name]
+                        has_creds = cred_profile.get('has_credentials', False)
+                        if has_creds:
+                            log_result(f"✓ CLASSIFIED AS CREDENTIALS - Found in credentials file")
+                        else:
+                            log_result(f"Found in credentials file but no actual credentials", success=False)
+                        profile_data['has_credentials'] = has_creds
+                        profile_data['expiration'] = cred_profile.get('expiration')
+                        profile_data['expired'] = cred_profile.get('expired', False)
+                    else:
+                        log_result(f"Not found in credentials file - checking if it's role assumption", success=False)
             else:
-                # Check credentials file
+                # No config found - must be credentials-only profile
+                log_operation(f"No config found - checking credentials file only")
                 cred_profiles = {p['name']: p for p in self.credentials_parser.parse()}
                 if profile_name in cred_profiles:
                     cred_profile = cred_profiles[profile_name]
-                    profile_data['has_credentials'] = cred_profile.get('has_credentials', False)
+                    has_creds = cred_profile.get('has_credentials', False)
+                    if has_creds:
+                        log_result(f"✓ CLASSIFIED AS CREDENTIALS - Found only in credentials file (no config)")
+                    else:
+                        log_result(f"Found in credentials file but no actual credentials", success=False)
+                    profile_data['has_credentials'] = has_creds
                     profile_data['expiration'] = cred_profile.get('expiration')
                     profile_data['expired'] = cred_profile.get('expired', False)
+                else:
+                    log_result(f"Profile not found anywhere", success=False)
 
+            log_result(f"Final classification: {'SSO' if profile_data['is_sso'] else 'CREDENTIALS'} (has_credentials={profile_data['has_credentials']})")
             return profile_data
 
-        except Exception:
+        except Exception as e:
+            log_error(e, f"Failed to build profile info for {profile_name}")
             return None
 
     def _get_profiles_manual(self, skip_sso_enrichment: bool = True) -> List[Dict]:

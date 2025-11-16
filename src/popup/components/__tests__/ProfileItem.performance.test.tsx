@@ -111,7 +111,7 @@ describe('ProfileItem Performance', () => {
         );
 
         expect(screen.getByText('profile-1')).toBeInTheDocument();
-        expect(screen.queryByText('EXPIRED')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Expired/i)).not.toBeInTheDocument();
 
         // Change to expired profile
         rerender(
@@ -128,7 +128,8 @@ describe('ProfileItem Performance', () => {
         );
 
         expect(screen.getByText('profile-2')).toBeInTheDocument();
-        expect(screen.getByText('EXPIRED')).toBeInTheDocument();
+        // Should show "Expired X ago" or similar natural language format
+        expect(screen.getByText(/Expired.*ago/i)).toBeInTheDocument();
     });
 
     /**

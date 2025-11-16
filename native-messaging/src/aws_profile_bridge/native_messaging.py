@@ -13,12 +13,31 @@ import logging
 from typing import Optional, Dict, BinaryIO
 from abc import ABC, abstractmethod
 
-# Configure logging
+# Configure logging (file only - stderr interferes with native messaging protocol)
+from pathlib import Path
+
+# Create log directory
+log_dir = Path.home() / '.aws' / 'logs'
+log_dir.mkdir(parents=True, exist_ok=True)
+log_file = log_dir / 'aws_profile_bridge_errors.log'
+
+# Clear any existing handlers from root logger
+root_logger = logging.getLogger()
+root_logger.handlers.clear()
+
+# Configure ONLY file logging (no stderr!)
 logging.basicConfig(
     level=logging.ERROR,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.FileHandler('/tmp/aws_profile_bridge.log'), logging.StreamHandler(sys.stderr)]
+    handlers=[logging.FileHandler(str(log_file))],
+    force=True  # Override any existing configuration
 )
+
+# Ensure boto3/botocore don't log to stderr
+logging.getLogger('boto3').setLevel(logging.CRITICAL)
+logging.getLogger('botocore').setLevel(logging.CRITICAL)
+logging.getLogger('urllib3').setLevel(logging.CRITICAL)
+
 logger = logging.getLogger(__name__)
 
 
