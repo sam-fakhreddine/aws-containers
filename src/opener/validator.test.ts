@@ -97,10 +97,10 @@ describe("required validator", () => {
     });
 
     /**
-     * Test that numeric values pass validation
+     * Test that numeric string values pass validation
      */
-    it("should return numeric values", () => {
-        expect(required(123, "param")).toBe(123);
+    it("should return numeric string values", () => {
+        expect(required("123", "param")).toBe("123");
     });
 
     /**

@@ -29,8 +29,9 @@ export function useRecentProfiles(): UseRecentProfilesReturn {
     useEffect(() => {
         const loadRecentProfiles = async () => {
             try {
-                const data = await browser.storage.local.get(STORAGE_KEYS.RECENT_PROFILES);
-                if (data.recentProfiles && isStringArray(data.recentProfiles)) {
+                const result = await browser.storage.local.get(STORAGE_KEYS.RECENT_PROFILES);
+                const data = result as Record<string, unknown>;
+                if (data && 'recentProfiles' in data && isStringArray(data.recentProfiles)) {
                     setRecentProfiles(data.recentProfiles);
                 }
             } catch (err) {

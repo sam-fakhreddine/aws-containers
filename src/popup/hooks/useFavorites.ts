@@ -31,8 +31,9 @@ export function useFavorites(): UseFavoritesReturn {
     useEffect(() => {
         const loadFavorites = async () => {
             try {
-                const data = await browser.storage.local.get(STORAGE_KEYS.FAVORITES);
-                if (data.favorites && isStringArray(data.favorites)) {
+                const result = await browser.storage.local.get(STORAGE_KEYS.FAVORITES);
+                const data = result as Record<string, unknown>;
+                if (data && 'favorites' in data && isStringArray(data.favorites)) {
                     setFavorites(data.favorites);
                 }
             } catch (err) {

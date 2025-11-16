@@ -32,7 +32,7 @@ class ConsoleURLGenerator:
         federation_endpoint: str = "https://signin.aws.amazon.com/federation",
         console_url: str = "https://console.aws.amazon.com/",
         session_duration: int = 43200,  # 12 hours
-        timeout: int = 10
+        timeout: int = 10,
     ):
         self.federation_endpoint = federation_endpoint
         self.console_url = console_url
@@ -54,35 +54,35 @@ class ConsoleURLGenerator:
             # Validate credentials
             validation_error = self._validate_credentials(credentials)
             if validation_error:
-                return {'error': validation_error}
+                return {"error": validation_error}
 
             # Check if credentials are temporary
-            if not credentials.get('aws_session_token'):
+            if not credentials.get("aws_session_token"):
                 # Long-term credentials - return basic console URL
                 # SECURITY: Don't send long-term credentials over network
-                return {'url': self.console_url}
+                return {"url": self.console_url}
 
             # Get signin token from AWS
             signin_token = self._get_signin_token(credentials)
             if not signin_token:
-                return {'error': 'Failed to get federation token from AWS'}
+                return {"error": "Failed to get federation token from AWS"}
 
             # Build console URL
             console_url = self._build_console_url(signin_token)
-            return {'url': console_url}
+            return {"url": console_url}
 
         except Exception as e:
             # SECURITY: Don't include credentials in error message
-            return {'error': f'Failed to generate console URL: {str(e)}'}
+            return {"error": f"Failed to generate console URL: {str(e)}"}
 
     @staticmethod
     def _validate_credentials(credentials: Dict[str, str]) -> Optional[str]:
         """Validate that required credential fields are present."""
-        if not credentials.get('aws_access_key_id'):
-            return 'Missing aws_access_key_id'
+        if not credentials.get("aws_access_key_id"):
+            return "Missing aws_access_key_id"
 
-        if not credentials.get('aws_secret_access_key'):
-            return 'Missing aws_secret_access_key'
+        if not credentials.get("aws_secret_access_key"):
+            return "Missing aws_secret_access_key"
 
         return None
 
@@ -95,9 +95,9 @@ class ConsoleURLGenerator:
         try:
             # Format credentials for federation API
             session_credentials = {
-                'sessionId': credentials['aws_access_key_id'],
-                'sessionKey': credentials['aws_secret_access_key'],
-                'sessionToken': credentials['aws_session_token']
+                "sessionId": credentials["aws_access_key_id"],
+                "sessionKey": credentials["aws_secret_access_key"],
+                "sessionToken": credentials["aws_session_token"],
             }
 
             # Build request URL
@@ -109,7 +109,7 @@ class ConsoleURLGenerator:
                     return None
 
                 result = json.loads(response.read())
-                return result.get('SigninToken')
+                return result.get("SigninToken")
 
         except Exception:
             return None
@@ -117,14 +117,13 @@ class ConsoleURLGenerator:
     def _build_federation_request_url(self, session_credentials: Dict[str, str]) -> str:
         """Build AWS Federation API request URL."""
         params = {
-            'Action': 'getSigninToken',
-            'DurationSeconds': str(self.session_duration),
-            'Session': json.dumps(session_credentials)
+            "Action": "getSigninToken",
+            "DurationSeconds": str(self.session_duration),
+            "Session": json.dumps(session_credentials),
         }
 
-        query_string = '&'.join(
-            f"{key}={parse.quote_plus(value)}"
-            for key, value in params.items()
+        query_string = "&".join(
+            f"{key}={parse.quote_plus(value)}" for key, value in params.items()
         )
 
         return f"{self.federation_endpoint}?{query_string}"
@@ -132,15 +131,14 @@ class ConsoleURLGenerator:
     def _build_console_url(self, signin_token: str) -> str:
         """Build final console URL with signin token."""
         params = {
-            'Action': 'login',
-            'Destination': self.console_url,
-            'SigninToken': signin_token,
-            'Issuer': 'https://example.com'
+            "Action": "login",
+            "Destination": self.console_url,
+            "SigninToken": signin_token,
+            "Issuer": "https://example.com",
         }
 
-        query_string = '&'.join(
-            f"{key}={parse.quote_plus(value)}"
-            for key, value in params.items()
+        query_string = "&".join(
+            f"{key}={parse.quote_plus(value)}" for key, value in params.items()
         )
 
         return f"{self.federation_endpoint}?{query_string}"
@@ -152,7 +150,7 @@ class ProfileConsoleURLGenerator:
     def __init__(
         self,
         credential_provider,  # Type: CredentialProvider
-        url_generator: ConsoleURLGenerator
+        url_generator: ConsoleURLGenerator,
     ):
         self.credential_provider = credential_provider
         self.url_generator = url_generator
@@ -172,8 +170,8 @@ class ProfileConsoleURLGenerator:
 
         if not credentials:
             return {
-                'error': f'No credentials found for profile: {profile_name}. '
-                        f'For SSO profiles, run: aws sso login --profile {profile_name}'
+                "error": f"No credentials found for profile: {profile_name}. "
+                f"For SSO profiles, run: aws sso login --profile {profile_name}"
             }
 
         # Generate URL

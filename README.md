@@ -303,6 +303,29 @@ region = us-east-1
 - Monitors SSO token expiration
 - Works seamlessly alongside credential-based profiles
 
+### Disabling SSO Profile Enumeration
+
+If you want to **temporarily disable SSO profile enumeration** (for example, to speed up loading or if you only use credential-based profiles), create an empty `.nosso` file in your `~/.aws/` directory:
+
+```bash
+# Create the .nosso file to disable SSO profiles
+touch ~/.aws/.nosso
+```
+
+**When `.nosso` exists:**
+- ❌ SSO profiles will not be loaded from `~/.aws/config`
+- ✅ Credential-based profiles continue to work normally
+- ⚡ Faster profile loading (no SSO token validation)
+
+**To re-enable SSO profiles**, simply remove the file:
+
+```bash
+# Remove the .nosso file to re-enable SSO profiles
+rm ~/.aws/.nosso
+```
+
+**⚠️ Important:** After creating or removing the `.nosso` file, you **must** click the **"Refresh Profiles"** button in the extension popup to reload profiles from disk. The extension caches profiles for performance, so simply closing and reopening the popup won't pick up the changes.
+
 ## Troubleshooting
 
 ### Extension Shows "Setup Required"

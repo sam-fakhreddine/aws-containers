@@ -145,6 +145,7 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                     padding: "4px 6px",
                     borderRadius: "6px",
                     transition: "background-color 0.2s",
+                    border: !profile.has_credentials ? "2px solid #d13212" : "2px solid transparent",
                 }}
                 onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = "#f2f3f3";
@@ -181,16 +182,23 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                         </Box>
                         {profile.is_sso && <Badge color="blue">SSO</Badge>}
                     </div>
-                    {profile.expiration && (() => {
+                    {!profile.has_credentials && profile.is_sso ? (
+                        <Box fontSize="body-s" color="text-status-error">
+                            <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+                                <Icon name="status-warning" size="small" />
+                                <span>Run: aws sso login --profile {profile.name}</span>
+                            </div>
+                        </Box>
+                    ) : profile.expiration && (() => {
                         const expirationInfo = formatExpiration(profile.expiration, profile.expired);
                         if (!expirationInfo) return null;
                         return (
                             <Box
                                 fontSize="body-s"
-                                color={expirationInfo.color as any}
+                                color={expirationInfo.color as "text-status-error" | "text-status-warning" | "text-status-info" | "text-status-success"}
                             >
                                 <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-                                    <Icon name={expirationInfo.icon as any} size="small" />
+                                    <Icon name={expirationInfo.icon as "status-negative" | "status-warning" | "status-info" | "status-positive"} size="small" />
                                     <span style={{ fontWeight: expirationInfo.severity === "expiring-soon" ? "bold" : "normal" }}>
                                         {expirationInfo.text}
                                     </span>
@@ -215,7 +223,7 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
 
 /**
  * Custom comparison function for ProfileItem
- * Only re-render if profile name, expiration, or favorite status changed
+ * Only re-render if profile name, expiration, credential status, or favorite status changed
  */
 function areProfileItemPropsEqual(
     prevProps: Readonly<ProfileItemProps>,
@@ -225,6 +233,7 @@ function areProfileItemPropsEqual(
         prevProps.profile.name === nextProps.profile.name &&
         prevProps.profile.expired === nextProps.profile.expired &&
         prevProps.profile.expiration === nextProps.profile.expiration &&
+        prevProps.profile.has_credentials === nextProps.profile.has_credentials &&
         prevProps.isFavorite === nextProps.isFavorite
     );
 }

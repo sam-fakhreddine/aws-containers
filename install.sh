@@ -60,12 +60,13 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
-# Parse Node version, handling pre-release (e.g., 22.14.0-rc.1) and build metadata (e.g., 24.10.0+build)
-NODE_VERSION=$(node --version | sed 's/v//')
-# Strip pre-release and build metadata for version comparison
-NODE_VERSION_BASE=$(echo $NODE_VERSION | sed 's/[-+].*//')
-NODE_MAJOR=$(echo $NODE_VERSION_BASE | cut -d. -f1)
-NODE_MINOR=$(echo $NODE_VERSION_BASE | cut -d. -f2)
+# Parse Node version using parameter expansion (faster than subshells)
+NODE_VERSION=$(node --version)
+NODE_VERSION=${NODE_VERSION#v}  # Remove 'v' prefix
+NODE_VERSION_BASE=${NODE_VERSION%%[-+]*}  # Strip pre-release/build metadata
+NODE_MAJOR=${NODE_VERSION_BASE%%.*}  # Extract major version
+NODE_MINOR=${NODE_VERSION_BASE#*.}  # Remove major.
+NODE_MINOR=${NODE_MINOR%%.*}  # Extract minor version
 
 # Check if Node version meets requirements: ^22.14.0 || >= 24.10.0
 MEETS_REQUIREMENT=false
@@ -100,6 +101,9 @@ fi
 echo -e "${GREEN}✓${NC} Node.js v$NODE_VERSION"
 echo ""
 
+# Cache current directory for reuse
+PROJECT_ROOT="$(pwd)"
+
 # Determine OS, platform, and architecture
 if [[ "$OSTYPE" == "darwin"* ]]; then
     OS="macos"
@@ -131,8 +135,8 @@ echo ""
 if [ -n "$EXTENSION_ID" ]; then
     echo "Using extension ID from environment: $EXTENSION_ID"
 elif [ -f "dist/manifest.json" ]; then
-    # Try to extract from manifest.json
-    EXTENSION_ID=$(grep -o '"id"[[:space:]]*:[[:space:]]*"[^"]*"' dist/manifest.json | sed 's/.*"\([^"]*\)"/\1/')
+    # Try to extract from manifest.json (optimized with single grep)
+    EXTENSION_ID=$(grep -oP '"id"\s*:\s*"\K[^"]+' dist/manifest.json 2>/dev/null || grep -o '"id"[[:space:]]*:[[:space:]]*"[^"]*"' dist/manifest.json | sed 's/.*"\([^"]*\)"/\1/')
     if [ -n "$EXTENSION_ID" ]; then
         echo "Using extension ID from manifest.json: $EXTENSION_ID"
     fi
@@ -181,7 +185,7 @@ if [ "$DEV_MODE" = true ]; then
     echo -e "${GREEN}✓${NC} uv is available"
 
     # Create uv virtual environment in native-messaging directory
-    VENV_DIR="$(pwd)/native-messaging/.venv"
+    VENV_DIR="$PROJECT_ROOT/native-messaging/.venv"
 
     if [ -d "$VENV_DIR" ]; then
         echo "Virtual environment already exists, removing it..."
@@ -236,11 +240,18 @@ source "$VENV_DIR/bin/activate"
 exec python3 -m aws_profile_bridge "$@"
 WRAPPER_EOF
 
-    # Replace __PROJECT_ROOT__ with actual path
-    sed -i.bak "s|__PROJECT_ROOT__|$(pwd)|g" "$WRAPPER_SCRIPT"
-    rm -f "$WRAPPER_SCRIPT.bak"
+    # Replace __PROJECT_ROOT__ with actual path (portable sed)
+    PROJECT_ROOT_ESCAPED=$(printf '%s\n' "$PROJECT_ROOT" | sed 's/[&/\]/\\&/g')
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s|__PROJECT_ROOT__|$PROJECT_ROOT_ESCAPED|g" "$WRAPPER_SCRIPT"
+    else
+        sed -i "s|__PROJECT_ROOT__|$PROJECT_ROOT_ESCAPED|g" "$WRAPPER_SCRIPT"
+    fi
 
-    chmod +x "$WRAPPER_SCRIPT"
+    chmod +x "$WRAPPER_SCRIPT" || {
+        echo -e "${RED}✗${NC} Failed to set executable permissions on wrapper"
+        exit 1
+    }
     echo -e "${GREEN}✓${NC} Wrapper script installed to: $WRAPPER_SCRIPT"
     INSTALLED_PATH="$WRAPPER_SCRIPT"
 
@@ -249,8 +260,14 @@ else
     EXECUTABLE_PATH="bin/$PLATFORM/aws_profile_bridge"
     if [ -f "$EXECUTABLE_PATH" ]; then
         echo "Using pre-built standalone executable (no Python required)"
-        cp "$EXECUTABLE_PATH" "$INSTALL_DIR/aws_profile_bridge"
-        chmod +x "$INSTALL_DIR/aws_profile_bridge"
+        cp "$EXECUTABLE_PATH" "$INSTALL_DIR/aws_profile_bridge" || {
+            echo -e "${RED}✗${NC} Failed to copy executable"
+            exit 1
+        }
+        chmod +x "$INSTALL_DIR/aws_profile_bridge" || {
+            echo -e "${RED}✗${NC} Failed to set executable permissions"
+            exit 1
+        }
         echo -e "${GREEN}✓${NC} Standalone executable installed to: $INSTALL_DIR/aws_profile_bridge"
         INSTALLED_PATH="$INSTALL_DIR/aws_profile_bridge"
 
@@ -303,11 +320,18 @@ cd "$PROJECT_ROOT/native-messaging"
 exec python3 -m aws_profile_bridge "$@"
 WRAPPER_EOF
 
-        # Replace __PROJECT_ROOT__ with actual path
-        sed -i.bak "s|__PROJECT_ROOT__|$(pwd)|g" "$WRAPPER_SCRIPT"
-        rm -f "$WRAPPER_SCRIPT.bak"
+        # Replace __PROJECT_ROOT__ with actual path (portable sed)
+        PROJECT_ROOT_ESCAPED=$(printf '%s\n' "$PROJECT_ROOT" | sed 's/[&/\]/\\&/g')
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s|__PROJECT_ROOT__|$PROJECT_ROOT_ESCAPED|g" "$WRAPPER_SCRIPT"
+        else
+            sed -i "s|__PROJECT_ROOT__|$PROJECT_ROOT_ESCAPED|g" "$WRAPPER_SCRIPT"
+        fi
 
-        chmod +x "$WRAPPER_SCRIPT"
+        chmod +x "$WRAPPER_SCRIPT" || {
+            echo -e "${RED}✗${NC} Failed to set executable permissions on wrapper"
+            exit 1
+        }
         echo -e "${GREEN}✓${NC} Python wrapper script installed to: $WRAPPER_SCRIPT"
         INSTALLED_PATH="$WRAPPER_SCRIPT"
     else
@@ -321,20 +345,14 @@ echo ""
 # Step 2: Update native messaging manifest with correct path
 echo "Step 2: Installing native messaging host manifest..."
 mkdir -p "$NATIVE_MESSAGING_DIR" || {
-    echo "Failed to create directory: $NATIVE_MESSAGING_DIR"
+    echo -e "${RED}✗${NC} Failed to create directory: $NATIVE_MESSAGING_DIR"
     exit 1
 }
-
-# Verify directory was created
-if [ ! -d "$NATIVE_MESSAGING_DIR" ]; then
-    echo "Error: Directory was not created: $NATIVE_MESSAGING_DIR"
-    exit 1
-fi
 
 # Create manifest with correct path and extension ID
 cat > "$NATIVE_MESSAGING_DIR/aws_profile_bridge.json" <<EOF
 {
-  "name": "aws_profile_bridge",
+  "name": "com.samfakhreddine.aws_profile_bridge",
   "description": "AWS Profile Bridge for reading credentials file",
   "path": "$INSTALLED_PATH",
   "type": "stdio",
@@ -343,6 +361,11 @@ cat > "$NATIVE_MESSAGING_DIR/aws_profile_bridge.json" <<EOF
   ]
 }
 EOF
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}✗${NC} Failed to create manifest file"
+    exit 1
+fi
 
 echo -e "${GREEN}✓${NC} Native messaging manifest installed to: $NATIVE_MESSAGING_DIR/aws_profile_bridge.json"
 echo ""
@@ -393,8 +416,8 @@ echo ""
 echo "Step 6: Checking AWS credentials..."
 
 if [ -f "$HOME/.aws/credentials" ]; then
-    PROFILE_COUNT=$(grep -c '^\[' "$HOME/.aws/credentials" || echo "0")
-    echo -e "${GREEN}✓${NC} Found AWS credentials file with $PROFILE_COUNT profiles"
+    PROFILE_COUNT=$(grep -c '^\[' "$HOME/.aws/credentials" 2>/dev/null || echo "0")
+    echo -e "${GREEN}✓${NC} Found AWS credentials file with $PROFILE_COUNT profile(s)"
 else
     echo -e "${YELLOW}!${NC} AWS credentials file not found at: $HOME/.aws/credentials"
     echo "  You'll need to set up AWS credentials before using the extension."
@@ -415,7 +438,7 @@ if [ "$DEV_MODE" = true ]; then
 
     echo -e "${GREEN}Development Mode Summary:${NC}"
     echo "  • Using system Python with uv virtual environment"
-    echo "  • Virtual environment: $(pwd)/native-messaging/.venv"
+    echo "  • Virtual environment: $PROJECT_ROOT/native-messaging/.venv"
     echo "  • Wrapper script: $INSTALLED_PATH"
     echo "  • Debug logging: ENABLED"
     echo ""
@@ -444,7 +467,7 @@ echo ""
 echo "2. Click 'Load Temporary Add-on'"
 echo ""
 echo "3. Navigate to and select this file:"
-echo "   $(pwd)/dist/manifest.json"
+echo "   $PROJECT_ROOT/dist/manifest.json"
 echo ""
 echo "4. The extension icon should appear in your toolbar"
 echo ""

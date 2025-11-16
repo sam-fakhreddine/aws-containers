@@ -37,10 +37,15 @@ module.exports = merge(common, {
     },
 
     // Performance hints
+    // NOTE: For browser extensions, we can be more lenient with bundle sizes because:
+    // - Files are loaded locally from the extension directory (no network cost)
+    // - Bundles are cached indefinitely by the browser
+    // - The Cloudscape Design System provides excellent UX but is ~2MB
+    // - Users don't pay for bandwidth like they would on a website
     performance: {
         hints: "warning",
-        maxEntrypointSize: 512000, // 500 KB
-        maxAssetSize: 512000, // 500 KB
+        maxEntrypointSize: 2500000, // 2.5 MB (reasonable for extension with UI library)
+        maxAssetSize: 2500000, // 2.5 MB
     },
 
     plugins: [

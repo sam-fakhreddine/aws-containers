@@ -72,6 +72,8 @@ class ProfileAggregator:
 
     Uses boto3 when available for better profile discovery,
     falls back to manual parsing.
+
+    Supports ~/.aws/.nosso file to disable SSO profile enumeration.
     """
 
     def __init__(
@@ -79,12 +81,27 @@ class ProfileAggregator:
         credentials_parser: CredentialsFileParser,
         config_parser: ConfigFileParser,
         sso_enricher: SSOProfileEnricher,
-        config_reader: ProfileConfigReader
+        config_reader: ProfileConfigReader,
+        aws_dir: Path
     ):
         self.credentials_parser = credentials_parser
         self.config_parser = config_parser
         self.sso_enricher = sso_enricher
         self.config_reader = config_reader
+        self.aws_dir = aws_dir
+        self.nosso_file = aws_dir / '.nosso'
+
+    def _should_skip_sso_profiles(self) -> bool:
+        """
+        Check if SSO profiles should be skipped.
+
+        Returns True if ~/.aws/.nosso file exists, indicating that
+        SSO profiles should not be enumerated.
+        """
+        skip = self.nosso_file.exists()
+        if skip:
+            log_operation("Found ~/.aws/.nosso file - skipping all SSO profiles")
+        return skip
 
     @timer("get_all_profiles")
     def get_all_profiles(self, skip_sso_enrichment: bool = True) -> List[Dict]:
@@ -96,6 +113,10 @@ class ProfileAggregator:
                                 If False, check SSO token expiration (slower).
         """
         log_operation(f"Getting all profiles (skip_sso_enrichment={skip_sso_enrichment})")
+
+        # Check and log .nosso file status
+        if self.nosso_file.exists():
+            log_result(f"⚠️  ~/.aws/.nosso file detected - SSO profiles will be DISABLED")
 
         if BOTO3_AVAILABLE:
             log_operation("Using boto3 for profile enumeration")
@@ -159,6 +180,10 @@ class ProfileAggregator:
                 has_sso_session = 'sso_session' in profile_config
 
                 if has_sso_start_url or has_sso_session:
+                    # Check if SSO profiles should be skipped
+                    if self._should_skip_sso_profiles():
+                        log_result(f"Skipping SSO profile {profile_name} due to .nosso file")
+                        return None
                     # This is an SSO profile
                     sso_markers = []
                     if has_sso_start_url:
@@ -231,6 +256,12 @@ class ProfileAggregator:
     def _get_profiles_manual(self, skip_sso_enrichment: bool = True) -> List[Dict]:
         """Manual parsing when boto3 is not available."""
         cred_profiles = self.credentials_parser.parse()
+
+        # Check if SSO profiles should be skipped
+        if self._should_skip_sso_profiles():
+            log_result(f"Skipping SSO profiles due to .nosso file - returning only credential profiles")
+            return cred_profiles
+
         sso_profiles = self.config_parser.parse()
 
         # Optionally enrich SSO profiles with token info (slow operation)

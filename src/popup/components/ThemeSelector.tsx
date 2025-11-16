@@ -20,18 +20,6 @@ const ThemeSelectorComponent: FunctionComponent<ThemeSelectorProps> = ({
     mode,
     onModeChange,
 }) => {
-    const getIconName = (currentMode: ThemeMode): "status-positive" | "status-negative" | "settings" => {
-        switch (currentMode) {
-            case "light":
-                return "status-positive";
-            case "dark":
-                return "status-negative";
-            case "system":
-            default:
-                return "settings";
-        }
-    };
-
     const getLabel = (currentMode: ThemeMode): string => {
         switch (currentMode) {
             case "light":

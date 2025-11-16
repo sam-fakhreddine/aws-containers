@@ -57,7 +57,12 @@ class ProfileMetadataProvider:
     Follows Open/Closed Principle - add new rules without modifying existing code.
     """
 
-    def __init__(self, rules: List[MetadataRule], default_color: str = 'blue', default_icon: str = 'circle'):
+    def __init__(
+        self,
+        rules: List[MetadataRule],
+        default_color: str = "blue",
+        default_icon: str = "circle",
+    ):
         self.rules = rules
         self.default_color = default_color
         self.default_icon = default_icon
@@ -78,8 +83,8 @@ class ProfileMetadataProvider:
 
     def enrich_profile(self, profile: Dict) -> Dict:
         """Add color and icon to profile dict."""
-        profile['color'] = self.get_color(profile['name'])
-        profile['icon'] = self.get_icon(profile['name'])
+        profile["color"] = self.get_color(profile["name"])
+        profile["icon"] = self.get_icon(profile["name"])
         return profile
 
 
@@ -93,46 +98,26 @@ def create_default_metadata_provider() -> ProfileMetadataProvider:
     rules = [
         # Production profiles - red, briefcase
         KeywordMetadataRule(
-            keywords=['prod', 'production'],
-            color='red',
-            icon='briefcase'
+            keywords=["prod", "production"], color="red", icon="briefcase"
         ),
         # Staging profiles - yellow, circle
         KeywordMetadataRule(
-            keywords=['stg', 'staging', 'stage'],
-            color='yellow',
-            icon='circle'
+            keywords=["stg", "staging", "stage"], color="yellow", icon="circle"
         ),
         # Development profiles - green, fingerprint
         KeywordMetadataRule(
-            keywords=['dev', 'development'],
-            color='green',
-            icon='fingerprint'
+            keywords=["dev", "development"], color="green", icon="fingerprint"
         ),
         # Test/QA profiles - turquoise, circle
-        KeywordMetadataRule(
-            keywords=['test', 'qa'],
-            color='turquoise',
-            icon='circle'
-        ),
+        KeywordMetadataRule(keywords=["test", "qa"], color="turquoise", icon="circle"),
         # Integration profiles - blue, circle
         KeywordMetadataRule(
-            keywords=['ite', 'integration'],
-            color='blue',
-            icon='circle'
+            keywords=["ite", "integration"], color="blue", icon="circle"
         ),
         # VDI profiles - vacation icon
-        KeywordMetadataRule(
-            keywords=['vdi'],
-            color='blue',
-            icon='vacation'
-        ),
+        KeywordMetadataRule(keywords=["vdi"], color="blue", icon="vacation"),
         # Janus profiles - purple, circle
-        KeywordMetadataRule(
-            keywords=['janus'],
-            color='purple',
-            icon='circle'
-        )
+        KeywordMetadataRule(keywords=["janus"], color="purple", icon="circle"),
     ]
 
     return ProfileMetadataProvider(rules)

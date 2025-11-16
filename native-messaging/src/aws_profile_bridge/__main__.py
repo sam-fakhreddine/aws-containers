@@ -9,5 +9,5 @@ from . import logging_config  # noqa: F401
 
 from .aws_profile_bridge import main
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

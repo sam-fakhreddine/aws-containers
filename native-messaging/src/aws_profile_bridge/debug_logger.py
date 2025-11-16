@@ -20,8 +20,8 @@ from typing import Any, Dict, Optional, Callable
 from datetime import datetime
 
 # Log configuration
-DEFAULT_LOG_DIR = Path.home() / '.aws' / 'logs'
-DEFAULT_LOG_FILE = 'aws_profile_bridge.log'
+DEFAULT_LOG_DIR = Path.home() / ".aws" / "logs"
+DEFAULT_LOG_FILE = "aws_profile_bridge.log"
 MAX_LOG_SIZE = 10 * 1024 * 1024  # 10 MB
 BACKUP_COUNT = 5  # Keep 5 backup files
 
@@ -37,18 +37,18 @@ class DebugLogger:
 
     # Sensitive keys that should never be logged
     SENSITIVE_KEYS = {
-        'aws_access_key_id',
-        'aws_secret_access_key',
-        'aws_session_token',
-        'accessKeyId',
-        'secretAccessKey',
-        'sessionToken',
-        'accessToken',
-        'clientSecret',
-        'clientId',
-        'token',
-        'password',
-        'secret',
+        "aws_access_key_id",
+        "aws_secret_access_key",
+        "aws_session_token",
+        "accessKeyId",
+        "secretAccessKey",
+        "sessionToken",
+        "accessToken",
+        "clientSecret",
+        "clientId",
+        "token",
+        "password",
+        "secret",
     }
 
     def __init__(self, enabled: bool = None, log_file: Optional[Path] = None):
@@ -60,7 +60,7 @@ class DebugLogger:
             log_file: Optional custom log file path
         """
         if enabled is None:
-            enabled = os.environ.get('DEBUG', '').lower() in ('1', 'true', 'yes')
+            enabled = os.environ.get("DEBUG", "").lower() in ("1", "true", "yes")
 
         self.enabled = enabled
         self.start_time = time.time()
@@ -100,7 +100,7 @@ class DebugLogger:
                 filename=str(log_file),
                 maxBytes=MAX_LOG_SIZE,
                 backupCount=BACKUP_COUNT,
-                encoding='utf-8'
+                encoding="utf-8",
             )
 
             # Ensure log file has secure permissions
@@ -142,13 +142,19 @@ class DebugLogger:
             try:
                 # Use proper logging format with timestamp
                 iso_timestamp = datetime.now().isoformat()
-                file_message = f"{iso_timestamp} [PID:{os.getpid()}] {formatted_message}\n"
+                file_message = (
+                    f"{iso_timestamp} [PID:{os.getpid()}] {formatted_message}\n"
+                )
                 self._file_handler.stream.write(file_message)
                 self._file_handler.stream.flush()
                 # Perform rotation if needed
-                self._file_handler.doRollover() if self._file_handler.shouldRollover(
-                    logging.LogRecord('', 0, '', 0, file_message, (), None)
-                ) else None
+                (
+                    self._file_handler.doRollover()
+                    if self._file_handler.shouldRollover(
+                        logging.LogRecord("", 0, "", 0, file_message, (), None)
+                    )
+                    else None
+                )
             except Exception:
                 pass  # Don't let file logging errors break the application
 
@@ -254,6 +260,7 @@ class DebugLogger:
         Args:
             operation_name: Optional name for the operation (defaults to function name)
         """
+
         def decorator(func: Callable) -> Callable:
             @wraps(func)
             def wrapper(*args, **kwargs):
@@ -279,6 +286,7 @@ class DebugLogger:
                     raise
 
             return wrapper
+
         return decorator
 
 
@@ -312,7 +320,7 @@ def set_debug_enabled(enabled: bool, log_file: Optional[Path] = None):
 def get_log_file_path() -> Optional[Path]:
     """Get the current log file path."""
     logger = get_logger()
-    return getattr(logger, '_log_file_path', None)
+    return getattr(logger, "_log_file_path", None)
 
 
 # Convenience functions
