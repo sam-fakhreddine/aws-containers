@@ -114,6 +114,10 @@ class ProfileAggregator:
         """
         log_operation(f"Getting all profiles (skip_sso_enrichment={skip_sso_enrichment})")
 
+        # Check and log .nosso file status
+        if self.nosso_file.exists():
+            log_result(f"⚠️  ~/.aws/.nosso file detected - SSO profiles will be DISABLED")
+
         if BOTO3_AVAILABLE:
             log_operation("Using boto3 for profile enumeration")
             result = self._get_profiles_with_boto3(skip_sso_enrichment)

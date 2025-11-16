@@ -324,7 +324,7 @@ touch ~/.aws/.nosso
 rm ~/.aws/.nosso
 ```
 
-**Note:** Changes take effect after refreshing the extension popup or restarting Firefox.
+**⚠️ Important:** After creating or removing the `.nosso` file, you **must** click the **"Refresh Profiles"** button in the extension popup to reload profiles from disk. The extension caches profiles for performance, so simply closing and reopening the popup won't pick up the changes.
 
 ## Troubleshooting
 
