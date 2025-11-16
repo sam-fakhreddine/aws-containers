@@ -85,11 +85,20 @@ export function useProfiles(): UseProfilesReturn {
                 ) {
                     const cacheAge = Date.now() - data.profilesCacheTime;
                     if (cacheAge < CACHE_DURATION_MS) {
+                        const ssoCount = data.cachedProfiles.filter(p => p.is_sso).length;
+                        const credCount = data.cachedProfiles.length - ssoCount;
+                        console.log(`Loading ${data.cachedProfiles.length} profiles from cache (age: ${Math.round(cacheAge / 1000)}s)`);
+                        console.log(`  - SSO profiles: ${ssoCount}`);
+                        console.log(`  - Credential profiles: ${credCount}`);
                         setProfiles(data.cachedProfiles);
                         setLoading(false);
                         return true;
+                    } else {
+                        console.log(`Cache expired (age: ${Math.round(cacheAge / 1000)}s > ${CACHE_DURATION_MS / 1000}s)`);
                     }
                 }
+            } else {
+                console.log("No cache found");
             }
             return false;
         } catch (err) {
@@ -153,6 +162,13 @@ export function useProfiles(): UseProfilesReturn {
                 const messageListener = async (response: unknown) => {
                     try {
                         if (isProfileListResponse(response)) {
+                            // Debug logging
+                            console.log(`Received ${response.profiles.length} profiles from native messaging host`);
+                            const ssoCount = response.profiles.filter(p => p.is_sso).length;
+                            const credCount = response.profiles.length - ssoCount;
+                            console.log(`  - SSO profiles: ${ssoCount}`);
+                            console.log(`  - Credential profiles: ${credCount}`);
+
                             // Sort profiles by credential status, then alphabetically
                             const sortedProfiles = sortProfilesByCredentialStatus(response.profiles);
                             setProfiles(sortedProfiles);
@@ -208,8 +224,21 @@ export function useProfiles(): UseProfilesReturn {
 
     /**
      * Refreshes profiles (forces reload from native messaging host)
+     * Explicitly clears cache first to ensure fresh data
      */
     const refreshProfiles = useCallback(async (): Promise<void> => {
+        try {
+            // Explicitly clear the cache first
+            await browser.storage.local.remove([
+                STORAGE_KEYS.CACHED_PROFILES,
+                STORAGE_KEYS.PROFILES_CACHE_TIME,
+            ]);
+            console.log("Cache cleared, forcing fresh profile load from native messaging host");
+        } catch (err) {
+            console.error("Failed to clear cache:", err);
+        }
+
+        // Force reload from native messaging (bypass cache)
         await loadProfiles(true);
     }, [loadProfiles]);
 
