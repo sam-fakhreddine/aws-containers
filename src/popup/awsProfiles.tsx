@@ -379,7 +379,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                             />
                         }
                     >
-                        AWS Profile Containers
+                        AWS Profile Containers ({__BUILD_TIMESTAMP__})
                     </Header>
                 }
                 variant="default"
