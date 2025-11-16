@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Native Messaging Test</title>
+    <style>
+        body {
+            font-family: 'Monaco', 'Courier New', monospace;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        h1 {
+            color: #4ec9b0;
+        }
+        .section {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1177bb;
+        }
+        button:disabled {
+            background: #3e3e42;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 3px;
+            padding: 15px;
+            margin: 10px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #555;
+            padding-left: 10px;
+        }
+        .log-entry.sent {
+            border-left-color: #4ec9b0;
+            background: rgba(78, 201, 176, 0.1);
+        }
+        .log-entry.received {
+            border-left-color: #569cd6;
+            background: rgba(86, 156, 214, 0.1);
+        }
+        .log-entry.error {
+            border-left-color: #f48771;
+            background: rgba(244, 135, 113, 0.1);
+        }
+        .log-entry.info {
+            border-left-color: #dcdcaa;
+            background: rgba(220, 220, 170, 0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 3px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.connected {
+            background: rgba(78, 201, 176, 0.2);
+            color: #4ec9b0;
+        }
+        .status.disconnected {
+            background: rgba(244, 135, 113, 0.2);
+            color: #f48771;
+        }
+        .profile-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .profile {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 3px;
+            padding: 10px;
+        }
+        .profile.sso {
+            border-left: 3px solid #4ec9b0;
+        }
+        .profile.creds {
+            border-left: 3px solid #569cd6;
+        }
+        .profile-name {
+            font-weight: bold;
+            color: #dcdcaa;
+            margin-bottom: 5px;
+        }
+        .profile-type {
+            font-size: 11px;
+            color: #858585;
+        }
+        code {
+            background: #1e1e1e;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #ce9178;
+        }
+        pre {
+            background: #1e1e1e;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 AWS Profile Bridge - Native Messaging Test</h1>
+
+    <div class="section">
+        <h2>Connection Status</h2>
+        <div id="status" class="status disconnected">Disconnected</div>
+        <div style="margin-top: 10px;">
+            <button id="connectBtn" onclick="connectToNativeApp()">Connect</button>
+            <button id="disconnectBtn" onclick="disconnectFromNativeApp()" disabled>Disconnect</button>
+            <button id="getProfilesBtn" onclick="getProfiles()" disabled>Get Profiles</button>
+            <button id="clearLogBtn" onclick="clearLog()">Clear Log</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Profiles (<span id="profileCount">0</span>)</h2>
+        <div id="profiles" class="profile-list">
+            <div style="color: #858585;">No profiles loaded yet. Click "Get Profiles" to fetch.</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Communication Log</h2>
+        <div id="log" class="log">
+            <div class="log-entry info">
+                <strong>ℹ️ Instructions:</strong>
+                <ol style="margin: 10px 0; padding-left: 20px;">
+                    <li>Make sure you've run <code>./install.sh --dev</code></li>
+                    <li>Load this page as a temporary extension in Firefox</li>
+                    <li>Click "Connect" to establish native messaging connection</li>
+                    <li>Click "Get Profiles" to fetch AWS profiles</li>
+                    <li>Watch the logs below to see exactly what's happening</li>
+                </ol>
+                <strong>Note:</strong> This page must be loaded as an extension (not a regular webpage) for native messaging to work.
+                <br>
+                <strong>Extension ID must match:</strong> <code>aws-profile-containers@yourname.local</code>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let port = null;
+        const NATIVE_HOST_NAME = "aws_profile_bridge";
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+
+            const timestamp = new Date().toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                fractionalSecondDigits: 3
+            });
+
+            entry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${connected ? 'connected' : 'disconnected'}`;
+            statusDiv.textContent = connected ? 'Connected ✓' : 'Disconnected ✗';
+
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('disconnectBtn').disabled = !connected;
+            document.getElementById('getProfilesBtn').disabled = !connected;
+        }
+
+        function connectToNativeApp() {
+            log(`🔌 Attempting to connect to native host: <code>${NATIVE_HOST_NAME}</code>`, 'info');
+
+            try {
+                // Check if browser.runtime is available
+                if (typeof browser === 'undefined' || !browser.runtime) {
+                    log('❌ ERROR: browser.runtime is not available. This page must be loaded as an extension!', 'error');
+                    log('To load as extension: Go to about:debugging → Load Temporary Add-on → Select this HTML file', 'error');
+                    return;
+                }
+
+                // Check if connectNative is available
+                if (!browser.runtime.connectNative) {
+                    log('❌ ERROR: browser.runtime.connectNative is not available. Native messaging not supported?', 'error');
+                    return;
+                }
+
+                port = browser.runtime.connectNative(NATIVE_HOST_NAME);
+                log(`✓ Created port object`, 'info');
+
+                // Message listener
+                port.onMessage.addListener((message) => {
+                    log(`📥 <strong>Received:</strong> <pre>${JSON.stringify(message, null, 2)}</pre>`, 'received');
+
+                    if (message.action === 'profileList') {
+                        displayProfiles(message.profiles);
+                    }
+                });
+
+                // Disconnect listener
+                port.onDisconnect.addListener(() => {
+                    const error = browser.runtime.lastError;
+                    if (error) {
+                        log(`❌ <strong>Disconnected with error:</strong> ${error.message}`, 'error');
+                    } else {
+                        log(`ℹ️ Disconnected (clean)`, 'info');
+                    }
+                    updateStatus(false);
+                    port = null;
+                });
+
+                updateStatus(true);
+                log(`✓ Connected successfully!`, 'info');
+
+            } catch (error) {
+                log(`❌ <strong>Connection error:</strong> ${error.message}`, 'error');
+                log(`<strong>Stack:</strong> <pre>${error.stack}</pre>`, 'error');
+                updateStatus(false);
+            }
+        }
+
+        function disconnectFromNativeApp() {
+            if (port) {
+                log(`🔌 Disconnecting...`, 'info');
+                port.disconnect();
+                port = null;
+                updateStatus(false);
+            }
+        }
+
+        function getProfiles() {
+            if (!port) {
+                log(`❌ Not connected!`, 'error');
+                return;
+            }
+
+            const message = { action: "getProfiles" };
+            log(`📤 <strong>Sending:</strong> <pre>${JSON.stringify(message, null, 2)}</pre>`, 'sent');
+
+            try {
+                port.postMessage(message);
+                log(`✓ Message sent`, 'info');
+            } catch (error) {
+                log(`❌ <strong>Send error:</strong> ${error.message}`, 'error');
+            }
+        }
+
+        function displayProfiles(profiles) {
+            const profilesDiv = document.getElementById('profiles');
+            const countSpan = document.getElementById('profileCount');
+
+            countSpan.textContent = profiles.length;
+
+            if (profiles.length === 0) {
+                profilesDiv.innerHTML = '<div style="color: #858585;">No profiles found.</div>';
+                return;
+            }
+
+            // Count by type
+            const ssoCount = profiles.filter(p => p.is_sso).length;
+            const credCount = profiles.length - ssoCount;
+
+            log(`✓ Loaded ${profiles.length} profiles (${ssoCount} SSO, ${credCount} credentials)`, 'info');
+
+            profilesDiv.innerHTML = profiles.map(profile => {
+                const type = profile.is_sso ? 'sso' : 'creds';
+                const typeLabel = profile.is_sso ? 'SSO' : 'Credentials';
+
+                return `
+                    <div class="profile ${type}">
+                        <div class="profile-name">${escapeHtml(profile.name)}</div>
+                        <div class="profile-type">${typeLabel}</div>
+                        ${profile.sso_session ? `<div class="profile-type">Session: ${escapeHtml(profile.sso_session)}</div>` : ''}
+                        ${profile.sso_account_id ? `<div class="profile-type">Account: ${escapeHtml(profile.sso_account_id)}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function clearLog() {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML = '<div class="log-entry info">Log cleared.</div>';
+        }
+
+        // Initialize
+        log(`🚀 Page loaded. Ready to test native messaging.`, 'info');
+        log(`Native host name: <code>${NATIVE_HOST_NAME}</code>`, 'info');
+        updateStatus(false);
+    </script>
+</body>
+</html>

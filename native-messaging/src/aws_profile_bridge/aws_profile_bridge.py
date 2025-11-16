@@ -17,6 +17,10 @@ This script handles sensitive AWS credentials. It:
 For security documentation, see SECURITY.md in the project root.
 """
 
+# CRITICAL: Import logging configuration FIRST, before any other modules
+# This prevents boto3 and other libraries from writing to stderr
+from . import logging_config  # noqa: F401
+
 from pathlib import Path
 from typing import Dict
 
