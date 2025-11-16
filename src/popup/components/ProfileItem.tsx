@@ -145,6 +145,7 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                     padding: "4px 6px",
                     borderRadius: "6px",
                     transition: "background-color 0.2s",
+                    border: !profile.has_credentials ? "2px solid #d13212" : "2px solid transparent",
                 }}
                 onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = "#f2f3f3";
@@ -180,7 +181,6 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                             {profile.name}
                         </Box>
                         {profile.is_sso && <Badge color="blue">SSO</Badge>}
-                        {!profile.has_credentials && <Badge color="red">No Credentials</Badge>}
                     </div>
                     {!profile.has_credentials && profile.is_sso ? (
                         <Box fontSize="body-s" color="text-status-error">
