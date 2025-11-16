@@ -131,6 +131,9 @@ class ProfileAggregator:
     def _get_profiles_with_boto3(self, skip_sso_enrichment: bool = True) -> List[Dict]:
         """Use boto3 to enumerate profiles (faster and more reliable)."""
         try:
+            # Check if SSO profiles should be skipped BEFORE enumerating
+            skip_sso = self._should_skip_sso_profiles()
+            
             available_profiles = boto3.Session().available_profiles
             log_operation(f"Boto3 found {len(available_profiles)} profiles: {', '.join(available_profiles)}")
             profiles = []
@@ -180,11 +183,10 @@ class ProfileAggregator:
                 has_sso_session = 'sso_session' in profile_config
 
                 if has_sso_start_url or has_sso_session:
-                    # Check if SSO profiles should be skipped
+                    # This is an SSO profile - check if we should skip it
                     if self._should_skip_sso_profiles():
-                        log_result(f"Skipping SSO profile {profile_name} due to .nosso file")
+                        log_result(f"⊗ SKIPPING SSO profile {profile_name} due to .nosso file")
                         return None
-                    # This is an SSO profile
                     sso_markers = []
                     if has_sso_start_url:
                         sso_markers.append(f"sso_start_url={profile_config['sso_start_url']}")

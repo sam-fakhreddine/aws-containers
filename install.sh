@@ -352,7 +352,7 @@ mkdir -p "$NATIVE_MESSAGING_DIR" || {
 # Create manifest with correct path and extension ID
 cat > "$NATIVE_MESSAGING_DIR/aws_profile_bridge.json" <<EOF
 {
-  "name": "com.samfakhreddine.aws_profile_bridge",
+  "name": "aws_profile_bridge",
   "description": "AWS Profile Bridge for reading credentials file",
   "path": "$INSTALLED_PATH",
   "type": "stdio",

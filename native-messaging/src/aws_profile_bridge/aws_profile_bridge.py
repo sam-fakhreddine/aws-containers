@@ -235,6 +235,14 @@ class AWSProfileBridge:
 
     def _initialize_components(self):
         """Initialize all components with proper dependencies (DI pattern)."""
+        # Log startup info
+        log_operation("Initializing AWS Profile Bridge")
+        nosso_file = self.aws_dir / '.nosso'
+        if nosso_file.exists():
+            log_result("⚠️  NOSSO MODE: ~/.aws/.nosso file detected - SSO profiles DISABLED")
+        else:
+            log_result("SSO profiles enabled (no .nosso file found)")
+        
         # Shared cache
         file_cache = FileCache()
 

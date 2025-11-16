@@ -56,11 +56,12 @@ class DebugLogger:
         Initialize debug logger.
 
         Args:
-            enabled: If None, checks DEBUG environment variable
+            enabled: If None, checks DEBUG environment variable (defaults to True for file logging)
             log_file: Optional custom log file path
         """
         if enabled is None:
-            enabled = os.environ.get("DEBUG", "").lower() in ("1", "true", "yes")
+            # Default to enabled for file logging (doesn't interfere with native messaging)
+            enabled = os.environ.get("DEBUG", "1").lower() in ("1", "true", "yes")
 
         self.enabled = enabled
         self.start_time = time.time()
