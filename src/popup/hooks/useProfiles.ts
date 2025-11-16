@@ -18,6 +18,33 @@ import {
     isAWSProfileArray,
 } from "../types";
 
+/**
+ * Sort profiles by credential status, then alphabetically
+ * Priority:
+ * 1. Has credentials + not expired
+ * 2. Has credentials + expired
+ * 3. No credentials
+ * Within each group, sort alphabetically by name
+ */
+function sortProfilesByCredentialStatus(profiles: AWSProfile[]): AWSProfile[] {
+    return profiles.sort((a, b) => {
+        // First, sort by credential availability
+        if (a.has_credentials !== b.has_credentials) {
+            return a.has_credentials ? -1 : 1;
+        }
+
+        // If both have credentials or both don't, sort by expiration status
+        if (a.has_credentials && b.has_credentials) {
+            if (a.expired !== b.expired) {
+                return a.expired ? 1 : -1;
+            }
+        }
+
+        // Finally, sort alphabetically by name
+        return a.name.localeCompare(b.name);
+    });
+}
+
 interface UseProfilesReturn {
     profiles: AWSProfile[];
     loading: boolean;
@@ -126,11 +153,8 @@ export function useProfiles(): UseProfilesReturn {
                 const messageListener = async (response: unknown) => {
                     try {
                         if (isProfileListResponse(response)) {
-                            // Sort profiles alphabetically by name
-                            const sortedProfiles = response.profiles.sort(
-                                (a: AWSProfile, b: AWSProfile) =>
-                                    a.name.localeCompare(b.name)
-                            );
+                            // Sort profiles by credential status, then alphabetically
+                            const sortedProfiles = sortProfilesByCredentialStatus(response.profiles);
                             setProfiles(sortedProfiles);
                             setLoading(false);
 
@@ -206,11 +230,8 @@ export function useProfiles(): UseProfilesReturn {
             const messageListener = async (response: unknown) => {
                 try {
                     if (isProfileListResponse(response)) {
-                        // Sort profiles alphabetically by name
-                        const sortedProfiles = response.profiles.sort(
-                            (a: AWSProfile, b: AWSProfile) =>
-                                a.name.localeCompare(b.name)
-                        );
+                        // Sort profiles by credential status, then alphabetically
+                        const sortedProfiles = sortProfilesByCredentialStatus(response.profiles);
                         setProfiles(sortedProfiles);
                         setLoading(false);
 

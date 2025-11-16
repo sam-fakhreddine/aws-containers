@@ -180,8 +180,16 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                             {profile.name}
                         </Box>
                         {profile.is_sso && <Badge color="blue">SSO</Badge>}
+                        {!profile.has_credentials && <Badge color="red">No Credentials</Badge>}
                     </div>
-                    {profile.expiration && (() => {
+                    {!profile.has_credentials && profile.is_sso ? (
+                        <Box fontSize="body-s" color="text-status-error">
+                            <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+                                <Icon name="status-warning" size="small" />
+                                <span>Run: aws sso login --profile {profile.name}</span>
+                            </div>
+                        </Box>
+                    ) : profile.expiration && (() => {
                         const expirationInfo = formatExpiration(profile.expiration, profile.expired);
                         if (!expirationInfo) return null;
                         return (
@@ -215,7 +223,7 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
 
 /**
  * Custom comparison function for ProfileItem
- * Only re-render if profile name, expiration, or favorite status changed
+ * Only re-render if profile name, expiration, credential status, or favorite status changed
  */
 function areProfileItemPropsEqual(
     prevProps: Readonly<ProfileItemProps>,
@@ -225,6 +233,7 @@ function areProfileItemPropsEqual(
         prevProps.profile.name === nextProps.profile.name &&
         prevProps.profile.expired === nextProps.profile.expired &&
         prevProps.profile.expiration === nextProps.profile.expiration &&
+        prevProps.profile.has_credentials === nextProps.profile.has_credentials &&
         prevProps.isFavorite === nextProps.isFavorite
     );
 }
