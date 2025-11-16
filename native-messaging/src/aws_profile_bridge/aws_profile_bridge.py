@@ -222,10 +222,10 @@ class AWSProfileBridge:
 
     def __init__(self):
         # Setup file paths
-        aws_dir = Path.home() / '.aws'
-        self.credentials_file = aws_dir / 'credentials'
-        self.config_file = aws_dir / 'config'
-        self.sso_cache_dir = aws_dir / 'sso' / 'cache'
+        self.aws_dir = Path.home() / '.aws'
+        self.credentials_file = self.aws_dir / 'credentials'
+        self.config_file = self.aws_dir / 'config'
+        self.sso_cache_dir = self.aws_dir / 'sso' / 'cache'
 
         # Initialize components
         self._initialize_components()
@@ -258,7 +258,8 @@ class AWSProfileBridge:
             credentials_parser,
             config_parser,
             sso_enricher,
-            config_reader
+            config_reader,
+            self.aws_dir
         )
 
         # Metadata provider

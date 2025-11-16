@@ -303,6 +303,29 @@ region = us-east-1
 - Monitors SSO token expiration
 - Works seamlessly alongside credential-based profiles
 
+### Disabling SSO Profile Enumeration
+
+If you want to **temporarily disable SSO profile enumeration** (for example, to speed up loading or if you only use credential-based profiles), create an empty `.nosso` file in your `~/.aws/` directory:
+
+```bash
+# Create the .nosso file to disable SSO profiles
+touch ~/.aws/.nosso
+```
+
+**When `.nosso` exists:**
+- ❌ SSO profiles will not be loaded from `~/.aws/config`
+- ✅ Credential-based profiles continue to work normally
+- ⚡ Faster profile loading (no SSO token validation)
+
+**To re-enable SSO profiles**, simply remove the file:
+
+```bash
+# Remove the .nosso file to re-enable SSO profiles
+rm ~/.aws/.nosso
+```
+
+**Note:** Changes take effect after refreshing the extension popup or restarting Firefox.
+
 ## Troubleshooting
 
 ### Extension Shows "Setup Required"
