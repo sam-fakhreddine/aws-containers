@@ -23,29 +23,101 @@ interface ProfileItemProps {
 }
 
 /**
- * Format expiration time for display
+ * Format expiration time for display with natural language
  */
-function formatExpiration(expiration: string | null, expired: boolean): { text: string; icon: string } | null {
+function formatExpiration(expiration: string | null, expired: boolean): {
+    text: string;
+    fullText: string;
+    icon: string;
+    color: string;
+    severity: "expired" | "expiring-soon" | "expiring-today" | "valid";
+} | null {
     if (!expiration) return null;
-
-    if (expired) {
-        return { text: "Expired", icon: "status-warning" };
-    }
 
     const expDate = new Date(expiration);
     const now = new Date();
-    const diffMinutes = Math.floor(
-        (expDate.getTime() - now.getTime()) / MILLISECONDS_PER_MINUTE
-    );
+    const diffMs = expDate.getTime() - now.getTime();
+    const diffMinutes = Math.floor(diffMs / MILLISECONDS_PER_MINUTE);
+    const diffHours = Math.floor(diffMinutes / MINUTES_PER_HOUR);
+    const diffDays = Math.floor(diffMinutes / MINUTES_PER_DAY);
 
-    if (diffMinutes < MINUTES_PER_HOUR) {
-        return { text: `${diffMinutes}m`, icon: "status-in-progress" };
-    } else if (diffMinutes < MINUTES_PER_DAY) {
-        const hours = Math.floor(diffMinutes / MINUTES_PER_HOUR);
-        return { text: `${hours}h`, icon: "status-in-progress" };
-    } else {
-        return { text: "Valid", icon: "status-positive" };
+    // Format the full date/time for tooltip
+    const fullText = expDate.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+    });
+
+    if (expired) {
+        // Calculate how long ago it expired
+        const absDiffMinutes = Math.abs(diffMinutes);
+        const absDiffHours = Math.abs(diffHours);
+        const absDiffDays = Math.abs(diffDays);
+
+        let text: string;
+        if (absDiffMinutes < 60) {
+            text = `Expired ${absDiffMinutes}m ago`;
+        } else if (absDiffHours < 24) {
+            text = `Expired ${absDiffHours}h ago`;
+        } else if (absDiffDays === 1) {
+            text = "Expired 1 day ago";
+        } else {
+            text = `Expired ${absDiffDays} days ago`;
+        }
+
+        return {
+            text,
+            fullText,
+            icon: "status-negative",
+            color: "text-status-error",
+            severity: "expired",
+        };
     }
+
+    // Expiring very soon (< 1 hour)
+    if (diffMinutes < MINUTES_PER_HOUR) {
+        return {
+            text: diffMinutes <= 1 ? "Expires in <1m" : `Expires in ${diffMinutes}m`,
+            fullText,
+            icon: "status-warning",
+            color: "text-status-warning",
+            severity: "expiring-soon",
+        };
+    }
+
+    // Expiring today (< 24 hours)
+    if (diffHours < 24) {
+        return {
+            text: diffHours === 1 ? "Expires in 1h" : `Expires in ${diffHours}h`,
+            fullText,
+            icon: "status-info",
+            color: "text-status-info",
+            severity: "expiring-today",
+        };
+    }
+
+    // Expiring in the near future (< 7 days)
+    if (diffDays < 7) {
+        return {
+            text: diffDays === 1 ? "Expires in 1 day" : `Expires in ${diffDays} days`,
+            fullText,
+            icon: "status-positive",
+            color: "text-status-success",
+            severity: "valid",
+        };
+    }
+
+    // Valid for a while
+    return {
+        text: `Expires ${expDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`,
+        fullText,
+        icon: "status-positive",
+        color: "text-status-success",
+        severity: "valid",
+    };
 }
 
 /**
@@ -115,11 +187,16 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                         return (
                             <Box
                                 fontSize="body-s"
-                                color={profile.expired ? "text-status-error" : "text-body-secondary"}
+                                color={expirationInfo.color as any}
                             >
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                <div
+                                    style={{ display: "flex", alignItems: "center", gap: "4px" }}
+                                    title={expirationInfo.fullText}
+                                >
                                     <Icon name={expirationInfo.icon as any} size="small" />
-                                    <span>{expirationInfo.text}</span>
+                                    <span style={{ fontWeight: expirationInfo.severity === "expiring-soon" ? "bold" : "normal" }}>
+                                        {expirationInfo.text}
+                                    </span>
                                 </div>
                             </Box>
                         );
