@@ -8,11 +8,34 @@ Tests the Strategy pattern implementation for profile metadata.
 import pytest
 from unittest.mock import Mock
 
-from aws_profile_bridge.profile_metadata import (
+from aws_profile_bridge.core.metadata import (
     KeywordMetadataRule,
     ProfileMetadataProvider,
     create_default_metadata_provider,
 )
+
+
+class TestMetadataRule:
+    """Test MetadataRule abstract base class."""
+
+    def test_metadata_rule_is_abstract(self):
+        """Test that MetadataRule cannot be instantiated directly."""
+        from aws_profile_bridge.core.metadata import MetadataRule
+        from abc import ABC
+
+        assert issubclass(MetadataRule, ABC)
+
+    def test_metadata_rule_abstract_methods(self):
+        """Test that abstract methods must be implemented."""
+        from aws_profile_bridge.core.metadata import MetadataRule
+
+        # Try to create a subclass without implementing abstract methods
+        with pytest.raises(TypeError):
+
+            class IncompleteRule(MetadataRule):
+                pass
+
+            IncompleteRule()
 
 
 class TestKeywordMetadataRule:

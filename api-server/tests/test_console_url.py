@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unit tests for console_url_generator module.
+Unit tests for console_url module.
 
 Uses mocks to avoid network calls.
 """
@@ -9,7 +9,7 @@ import pytest
 import json
 from unittest.mock import Mock, patch, MagicMock
 
-from aws_profile_bridge.console_url_generator import (
+from aws_profile_bridge.core.console_url import (
     ConsoleURLGenerator,
     ProfileConsoleURLGenerator,
 )
@@ -142,6 +142,37 @@ class TestConsoleURLGenerator:
         # Verify timeout was passed (check call args)
         call_args = mock_urlopen.call_args
         assert call_args[1]["timeout"] == 5
+
+    @patch("urllib.request.urlopen")
+    def test_generate_url_returns_none_signin_token(self, mock_urlopen):
+        """Test generate_url handles missing signin token."""
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.read.return_value = json.dumps({}).encode()  # No SigninToken
+        mock_response.__enter__.return_value = mock_response
+        mock_urlopen.return_value = mock_response
+
+        generator = ConsoleURLGenerator()
+
+        credentials = {
+            "aws_access_key_id": "ASIAIOSFODNN7EXAMPLE",
+            "aws_secret_access_key": "SECRET",
+            "aws_session_token": "TOKEN",
+        }
+
+        result = generator.generate_url(credentials)
+
+        assert "error" in result
+
+    def test_generate_url_exception_in_generate(self):
+        """Test exception handling in generate_url."""
+        generator = ConsoleURLGenerator()
+
+        # Pass invalid credentials that will fail validation
+        result = generator.generate_url({"invalid": "data"})
+
+        assert "error" in result
+        assert "aws_access_key_id" in result["error"]
 
 
 class TestProfileConsoleURLGenerator:

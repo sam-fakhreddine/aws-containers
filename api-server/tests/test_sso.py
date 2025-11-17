@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unit tests for sso_manager module.
+Unit tests for sso module.
 
 Uses mocks extensively to avoid file system and network dependencies.
 """
@@ -11,7 +11,7 @@ from unittest.mock import Mock, mock_open, patch, MagicMock
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-from aws_profile_bridge.sso_manager import (
+from aws_profile_bridge.services.sso import (
     SSOTokenCache,
     SSOCredentialsProvider,
     SSOProfileEnricher,

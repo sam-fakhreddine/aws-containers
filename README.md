@@ -96,11 +96,13 @@ This project originated from a collection of custom CLI scripts and Firefox exte
 ## Prerequisites
 
 **For Users (Quick Start):**
+
 - Firefox (latest version recommended)
 - Python 3.12+ (for API server)
 - No other dependencies required!
 
 **For Developers (Building from Source):**
+
 - **Node.js**: Version 22.14.0+ or 24.10.0+
   - Check your version: `node --version`
   - Install via [nvm](https://github.com/nvm-sh/nvm) or [nodejs.org](https://nodejs.org/)
@@ -154,6 +156,7 @@ cat ~/.aws/profile_bridge_config.json
 ```
 
 Then in Firefox:
+
 1. Click extension icon
 2. Click settings icon (⚙️) in top right
 3. Paste the `api_token` value
@@ -165,6 +168,7 @@ Then in Firefox:
 ### Managing the API Server
 
 **Linux (systemd):**
+
 ```bash
 # Check status
 systemctl --user status aws-profile-bridge
@@ -179,6 +183,7 @@ journalctl --user -u aws-profile-bridge -f
 ```
 
 **macOS (launchd):**
+
 ```bash
 # Check status
 launchctl list | grep aws-profile-bridge
@@ -192,6 +197,7 @@ tail -f ~/.aws/logs/aws_profile_bridge_api.log
 ```
 
 **Manual (for development):**
+
 ```bash
 # Start server manually
 python -m aws_profile_bridge api
@@ -340,6 +346,7 @@ touch ~/.aws/.nosso
 ```
 
 **When `.nosso` exists:**
+
 - ❌ SSO profiles will not be loaded from `~/.aws/config`
 - ✅ Credential-based profiles continue to work normally
 - ⚡ Faster profile loading (no SSO token validation)

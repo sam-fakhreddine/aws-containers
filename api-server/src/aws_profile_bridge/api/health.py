@@ -24,7 +24,7 @@ async def version_info():
     """Get detailed version information."""
     import platform
     import fastapi
-    
+
     return {
         "api_version": "2.0.0",
         "api_protocol": "1",

@@ -2,7 +2,7 @@
 """
 Unit tests for bridge module.
 
-Tests the main application orchestration.
+Tests the main application orchestration for API-based architecture.
 """
 
 import pytest
@@ -190,6 +190,7 @@ class TestAWSProfileBridge:
         assert bridge.config_file is not None
         assert bridge.sso_cache_dir is not None
         assert bridge.message_handler is not None
+        assert bridge.aws_dir is not None
 
     def test_init_uses_correct_aws_paths(self):
         """Test __init__ uses correct AWS configuration paths."""
@@ -210,3 +211,108 @@ class TestAWSProfileBridge:
 
         assert result["action"] == "profileList"
         bridge.message_handler.handle_message.assert_called_once_with(message)
+
+
+class TestAWSProfileBridgeHandlerEnrichSSO:
+    """Test SSO enrichment functionality."""
+
+    def test_enrich_sso_profiles_all_profiles(self):
+        """Test enriching all SSO profiles when no specific profiles requested."""
+        mock_aggregator = Mock()
+        mock_aggregator.get_all_profiles.return_value = [
+            {"name": "sso-profile", "is_sso": True},
+            {"name": "cred-profile", "is_sso": False},
+        ]
+
+        mock_metadata = Mock()
+        mock_metadata.enrich_profile.side_effect = lambda p: p
+
+        handler = AWSProfileBridgeHandler(mock_aggregator, Mock(), mock_metadata)
+
+        result = handler._handle_enrich_sso_profiles({})
+
+        assert result["action"] == "profileList"
+        assert len(result["profiles"]) == 2
+        mock_aggregator.get_all_profiles.assert_called_once_with(
+            skip_sso_enrichment=False
+        )
+
+    def test_enrich_sso_profiles_specific_profiles(self):
+        """Test enriching specific SSO profiles."""
+        mock_aggregator = Mock()
+        mock_aggregator.get_all_profiles.return_value = [
+            {"name": "sso-profile", "is_sso": True},
+            {"name": "cred-profile", "is_sso": False},
+        ]
+        mock_aggregator._build_profile_info.return_value = {
+            "name": "sso-profile",
+            "is_sso": True,
+            "has_credentials": True,
+        }
+
+        mock_metadata = Mock()
+        mock_metadata.enrich_profile.side_effect = lambda p: p
+
+        handler = AWSProfileBridgeHandler(mock_aggregator, Mock(), mock_metadata)
+
+        result = handler._handle_enrich_sso_profiles({"profileNames": ["sso-profile"]})
+
+        assert result["action"] == "profileList"
+        assert len(result["profiles"]) == 2
+
+    def test_enrich_sso_profiles_skips_non_sso(self):
+        """Test enriching specific profiles skips non-SSO profiles."""
+        mock_aggregator = Mock()
+        mock_aggregator.get_all_profiles.return_value = [
+            {"name": "sso-profile", "is_sso": True},
+            {"name": "cred-profile", "is_sso": False},
+        ]
+        mock_aggregator._build_profile_info.return_value = {
+            "name": "sso-profile",
+            "is_sso": True,
+            "has_credentials": True,
+        }
+
+        mock_metadata = Mock()
+        mock_metadata.enrich_profile.side_effect = lambda p: p
+
+        handler = AWSProfileBridgeHandler(mock_aggregator, Mock(), mock_metadata)
+
+        # Request enrichment for credential profile (should be skipped)
+        result = handler._handle_enrich_sso_profiles({"profileNames": ["cred-profile"]})
+
+        assert result["action"] == "profileList"
+        # Should not call _build_profile_info for non-SSO profile
+        mock_aggregator._build_profile_info.assert_not_called()
+
+    def test_enrich_sso_profiles_handles_none_result(self):
+        """Test enriching handles None result from build_profile_info."""
+        mock_aggregator = Mock()
+        mock_aggregator.get_all_profiles.return_value = [
+            {"name": "sso-profile", "is_sso": True}
+        ]
+        mock_aggregator._build_profile_info.return_value = None
+
+        mock_metadata = Mock()
+        mock_metadata.enrich_profile.side_effect = lambda p: p
+
+        handler = AWSProfileBridgeHandler(mock_aggregator, Mock(), mock_metadata)
+
+        result = handler._handle_enrich_sso_profiles({"profileNames": ["sso-profile"]})
+
+        assert result["action"] == "profileList"
+        # Should not include the None result
+        assert len(result["profiles"]) == 0
+
+
+class TestAWSProfileBridgeMain:
+    """Test main entry point."""
+
+    @patch("aws_profile_bridge.app.start_server")
+    def test_main_calls_start_server(self, mock_start_server):
+        """Test main function calls start_server."""
+        from aws_profile_bridge.core.bridge import main
+
+        main()
+
+        mock_start_server.assert_called_once()

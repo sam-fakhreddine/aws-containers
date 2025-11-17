@@ -10,7 +10,7 @@ from unittest.mock import Mock, mock_open, patch, MagicMock
 from pathlib import Path
 from datetime import datetime, timezone
 
-from aws_profile_bridge.file_parsers import (
+from aws_profile_bridge.core.parsers import (
     FileCache,
     CredentialsFileParser,
     ConfigFileParser,
