@@ -214,16 +214,17 @@ async def get_profiles() -> ProfileListResponse | ErrorResponse:
     try:
         from aws_profile_bridge import AWSProfileBridge
         
+        # Create bridge and access the handler
         bridge = AWSProfileBridge()
-        profiles = await asyncio.wait_for(
-            asyncio.to_thread(bridge.get_profiles, enrich_sso=False),
+        handler = bridge.host.handler
+        
+        # Call the handler's method
+        result = await asyncio.wait_for(
+            asyncio.to_thread(handler._handle_get_profiles),
             timeout=5.0
         )
         
-        return {
-            "action": "profileList",
-            "profiles": profiles,
-        }
+        return result
         
     except asyncio.TimeoutError:
         logger.error("Profile list request timed out")
@@ -250,16 +251,17 @@ async def get_profiles_enriched() -> ProfileListResponse | ErrorResponse:
     try:
         from aws_profile_bridge import AWSProfileBridge
         
+        # Create bridge and access the handler
         bridge = AWSProfileBridge()
-        profiles = await asyncio.wait_for(
-            asyncio.to_thread(bridge.get_profiles, enrich_sso=True),
+        handler = bridge.host.handler
+        
+        # Call the handler's method with empty message to enrich all profiles
+        result = await asyncio.wait_for(
+            asyncio.to_thread(handler._handle_enrich_sso_profiles, {}),
             timeout=30.0
         )
         
-        return {
-            "action": "profileList",
-            "profiles": profiles,
-        }
+        return result
         
     except asyncio.TimeoutError:
         logger.error("Profile enrichment timed out")
@@ -291,20 +293,25 @@ async def get_console_url(
     try:
         from aws_profile_bridge import AWSProfileBridge
         
+        # Create bridge and access the handler
         bridge = AWSProfileBridge()
+        handler = bridge.host.handler
+        
+        # Call the handler's method
         result = await asyncio.wait_for(
-            asyncio.to_thread(bridge.get_console_url, profile_name),
+            asyncio.to_thread(
+                handler._handle_open_profile, 
+                {"profileName": profile_name}
+            ),
             timeout=15.0
         )
         
-        # result should be dict with url, color, icon
-        return {
-            "action": "consoleUrl",
-            "profileName": profile_name,
-            "url": result["url"],
-            "color": result.get("color", "blue"),
-            "icon": result.get("icon", "briefcase"),
-        }
+        # Return the result directly if it's already formatted correctly
+        if result.get("action") == "consoleUrl":
+            return result
+        
+        # Handle error case
+        return result
         
     except asyncio.TimeoutError:
         logger.error(f"Console URL generation timed out for {profile_name}")
