@@ -48,40 +48,73 @@ This project originated from a collection of custom CLI scripts and Firefox exte
   - Integration profiles → Blue
   - Janus profiles → Purple
 
+## Architecture Overview
+
+```mermaid
+graph TB
+    subgraph Browser["Firefox Browser"]
+        EXT[Extension Popup]
+        BG[Background Script]
+        CONT[Container Manager]
+    end
+    
+    subgraph LocalHost["localhost:10999"]
+        API[FastAPI Server]
+        AUTH[Token Authenticator]
+        BRIDGE[Profile Bridge]
+    end
+    
+    subgraph FileSystem["~/.aws/"]
+        CREDS[credentials]
+        CONFIG[config]
+        SSO[sso/cache/]
+    end
+    
+    subgraph AWS["AWS Services"]
+        FED[Federation API]
+        CONSOLE[AWS Console]
+    end
+    
+    EXT -->|HTTP + Token| API
+    API --> AUTH
+    AUTH --> BRIDGE
+    BRIDGE --> CREDS
+    BRIDGE --> CONFIG
+    BRIDGE --> SSO
+    BRIDGE -->|HTTPS| FED
+    FED -->|Signin Token| BRIDGE
+    BRIDGE -->|Console URL| API
+    API -->|Console URL| EXT
+    EXT --> BG
+    BG --> CONT
+    CONT -->|Open Tab| CONSOLE
+    
+    style EXT fill:#e1f5ff
+    style API fill:#fff4e1
+    style BRIDGE fill:#ffe1f5
+    style FED fill:#e1ffe1
+    style CONSOLE fill:#e1ffe1
+```
+
 ## How It Works
 
-```
-┌──────────────────────────────────────────────────────────┐
-│ 1. User clicks profile in Firefox extension popup       │
-└────────────────────┬─────────────────────────────────────┘
-                     ↓
-┌──────────────────────────────────────────────────────────┐
-│ 2. Extension → API Server (HTTP)                        │
-│    POST http://127.0.0.1:10999/profiles/{name}/console-url │
-│    Sends: Profile name only                             │
-└────────────────────┬─────────────────────────────────────┘
-                     ↓
-┌──────────────────────────────────────────────────────────┐
-│ 3. API Server reads ~/.aws/credentials                  │
-│    Extracts: access key, secret key, session token      │
-└────────────────────┬─────────────────────────────────────┘
-                     ↓
-┌──────────────────────────────────────────────────────────┐
-│ 4. API Server → AWS Federation API (HTTPS)              │
-│    Endpoint: signin.aws.amazon.com/federation            │
-│    Returns: Temporary signin token (12 hour expiry)     │
-└────────────────────┬─────────────────────────────────────┘
-                     ↓
-┌──────────────────────────────────────────────────────────┐
-│ 5. API Server → Extension (HTTP Response)               │
-│    Sends: Federated console URL (no raw credentials)    │
-└────────────────────┬─────────────────────────────────────┘
-                     ↓
-┌──────────────────────────────────────────────────────────┐
-│ 6. Extension creates/finds Firefox container            │
-│    Opens: Console URL in isolated container             │
-│    Result: Authenticated AWS Console session            │
-└──────────────────────────────────────────────────────────┘
+The extension uses a **local HTTP API server** that bridges between the browser and your AWS credentials:
+
+```mermaid
+flowchart LR
+    A[User clicks profile] --> B[Extension sends HTTP request]
+    B --> C[API validates token]
+    C --> D[Read credentials from disk]
+    D --> E[Call AWS Federation API]
+    E --> F[Receive signin token]
+    F --> G[Generate console URL]
+    G --> H[Return URL to extension]
+    H --> I[Open in Firefox container]
+    
+    style A fill:#e1f5ff
+    style C fill:#fff4e1
+    style E fill:#ffe1f5
+    style I fill:#e1ffe1
 ```
 
 **Key Security Points:**
@@ -99,7 +132,7 @@ This project originated from a collection of custom CLI scripts and Firefox exte
 
 - Firefox (latest version recommended)
 - Python 3.12+ (for API server)
-- No other dependencies required!
+- `uv` (Python package manager - auto-installed if missing)
 
 **For Developers (Building from Source):**
 
@@ -108,7 +141,7 @@ This project originated from a collection of custom CLI scripts and Firefox exte
   - Install via [nvm](https://github.com/nvm-sh/nvm) or [nodejs.org](https://nodejs.org/)
 - **Yarn**: Package manager
   - Install: `npm install -g yarn`
-- **Python 3.8+** (only for development mode with `--dev` flag)
+- **Python 3.12+** with `uv`
 
 The version check runs automatically during installation and will provide clear instructions if your Node.js version needs updating.
 
@@ -136,11 +169,13 @@ yarn build
 The installation script:
 
 1. ✅ Checks for Python 3.12+
-2. ✅ Installs Python dependencies (FastAPI, boto3, etc.)
-3. ✅ Sets up systemd (Linux) or launchd (macOS) service
-4. ✅ Starts API server on `http://127.0.0.1:10999`
-5. ✅ Generates secure API token
-6. ✅ Verifies server is running
+2. ✅ Installs `uv` if not present
+3. ✅ Creates virtual environment with `uv`
+4. ✅ Installs Python dependencies (FastAPI, boto3, etc.)
+5. ✅ Sets up systemd (Linux) or launchd (macOS) service
+6. ✅ Starts API server on `http://127.0.0.1:10999`
+7. ✅ Generates secure API token in `~/.aws/profile_bridge_config.json`
+8. ✅ Verifies server is running
 
 **Platforms:** Linux, macOS (Intel & Apple Silicon)
 
@@ -189,8 +224,8 @@ journalctl --user -u aws-profile-bridge -f
 launchctl list | grep aws-profile-bridge
 
 # Start/Stop
-launchctl load ~/Library/LaunchAgents/com.aws.profile-bridge.plist
-launchctl unload ~/Library/LaunchAgents/com.aws.profile-bridge.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.plist
+launchctl bootout gui/$(id -u)/com.aws.profile-bridge
 
 # View logs
 tail -f ~/.aws/logs/aws_profile_bridge_api.log
@@ -200,10 +235,10 @@ tail -f ~/.aws/logs/aws_profile_bridge_api.log
 
 ```bash
 # Start server manually
-python -m aws_profile_bridge api
+uv run python -m aws_profile_bridge api
 
 # Or with hot reload
-ENV=development python -m aws_profile_bridge api
+ENV=development uv run python -m aws_profile_bridge api
 ```
 
 ### Load the Extension in Firefox
@@ -381,10 +416,10 @@ rm ~/.aws/.nosso
    systemctl --user start aws-profile-bridge
 
    # macOS
-   launchctl load ~/Library/LaunchAgents/com.aws.profile-bridge.plist
+   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.plist
 
    # Manual
-   python -m aws_profile_bridge api
+   uv run python -m aws_profile_bridge api
    ```
 
 3. Check API server logs:
@@ -424,13 +459,7 @@ rm ~/.aws/.nosso
    ls -la ~/.aws/credentials
    ```
 
-4. For better SSO profile detection, install boto3:
-
-   ```bash
-   pip3 install boto3 botocore
-   ```
-
-   (The extension works without it, but boto3 provides better profile enumeration)
+4. Verify API token is configured in extension settings
 
 ### Credentials Showing as Expired
 
@@ -491,21 +520,21 @@ rm ~/.aws/.nosso
 
 **Solutions**:
 
-1. Check `aws_console.py` is installed:
+1. Check if credentials are temporary (have session token):
+   - Long-term credentials will open basic console URL
+   - Temporary credentials use AWS Federation API
+
+2. Verify network connectivity to AWS:
 
    ```bash
-   ls -la ~/.local/bin/aws_console.py
+   curl -I https://signin.aws.amazon.com/federation
    ```
 
-2. Test it manually:
+3. Check API server logs for errors:
 
    ```bash
-   export AWS_ACCESS_KEY_ID="..."
-   export AWS_SECRET_ACCESS_KEY="..."
-   python3 ~/.local/bin/aws_console.py -u
+   tail -f ~/.aws/logs/aws_profile_bridge_api.log
    ```
-
-3. Fallback: Extension will use basic console URL
 
 ### API Server Won't Start
 
@@ -519,11 +548,10 @@ rm ~/.aws/.nosso
    python3 --version
    ```
 
-2. Reinstall dependencies:
+2. Reinstall with uv:
 
    ```bash
-   cd api-server
-   pip install -e .
+   ./scripts/install-api-service.sh
    ```
 
 3. Check for port conflicts:
@@ -537,96 +565,49 @@ rm ~/.aws/.nosso
 4. Run server manually to see errors:
 
    ```bash
-   python -m aws_profile_bridge api
+   uv run python -m aws_profile_bridge api
    ```
 
 ## File Locations
 
 - **Extension**: `./dist/`
-- **API Server**: Installed as Python package
+- **API Server**: Installed as Python package in `~/.local/share/aws-profile-bridge/venv`
 - **API Logs**: `~/.aws/logs/aws_profile_bridge_api.log`
+- **API Token**: `~/.aws/profile_bridge_config.json`
 - **Service Config** (Linux): `~/.config/systemd/user/aws-profile-bridge.service`
 - **Service Config** (macOS): `~/Library/LaunchAgents/com.aws.profile-bridge.plist`
 - **AWS Credentials**: `~/.aws/credentials`
 - **AWS Config**: `~/.aws/config`
+- **SSO Cache**: `~/.aws/sso/cache/`
 
-## Advanced Configuration
+## Project Structure
 
-### Customize Colors
-
-Edit the Python bridge script to change color mappings:
-
-```python
-# In ~/.local/bin/aws_profile_bridge.py
-def get_profile_color(self, profile_name):
-    name_lower = profile_name.lower()
-
-    if 'prod' in name_lower:
-        return 'red'  # Change this!
-    # ... etc
+```
+aws-containers/
+├── api-server/                  # Python API server
+│   ├── src/
+│   │   └── aws_profile_bridge/
+│   │       ├── api/            # FastAPI routes
+│   │       ├── auth/           # Token authentication
+│   │       ├── core/           # Business logic
+│   │       ├── services/       # SSO services
+│   │       └── app.py          # FastAPI app
+│   ├── tests/                  # Unit tests
+│   └── pyproject.toml          # Python dependencies
+├── src/                         # Extension source code
+│   ├── popup/                  # Popup UI (React)
+│   ├── services/               # API client
+│   ├── settings/               # Settings page
+│   └── backgroundPage.ts       # Background script
+├── scripts/                     # Build & utility scripts
+│   └── install-api-service.sh  # API server installer
+├── config/                      # Build configuration
+│   └── webpack/                # Webpack configs
+├── docs/                        # Documentation
+└── dist/                        # Built extension (generated)
 ```
 
-### Customize Icons
-
-Available icons: `fingerprint`, `briefcase`, `dollar`, `cart`, `circle`, `gift`, `vacation`, `food`, `fruit`, `pet`, `tree`, `chill`
-
-```python
-def get_profile_icon(self, profile_name):
-    # Customize icon logic
-```
-
-### Add Custom Console URL Generation
-
-Modify the `generate_console_url` method to integrate with other tools:
-
-```python
-def generate_console_url(self, profile_name):
-    # Call your custom script
-    result = subprocess.run(['your-custom-script', profile_name], ...)
-```
-
-## Security & Privacy
-
-### What We Do
-
-- ✅ Read `~/.aws/credentials` (local filesystem only)
-- ✅ Send credentials to AWS Federation API (HTTPS, official AWS service)
-- ✅ Store profile names, favorites, recent list in browser local storage
-- ✅ Use native Firefox containers for isolation
-
-### What We Don't Do
-
-- ❌ Store credentials in browser storage
-- ❌ Send credentials to any server except AWS
-- ❌ Collect analytics or telemetry
-- ❌ Phone home or track usage
-- ❌ Share data with third parties
-
-### Minimal Permissions
-
-```json
-{
-  "permissions": [
-    "contextualIdentities",  // Create/manage Firefox containers
-    "cookies",               // Required for container isolation
-    "tabs",                  // Open tabs in containers
-    "storage",               // Store favorites/recent profiles
-    "<all_urls>"             // Access localhost API server
-  ]
-}
-```
-
-### Data Flow
-
-All credential handling happens locally or with AWS:
-
-1. Extension → API Server (HTTP): Profile name only
-2. API Server → AWS API: Temporary credentials
-3. AWS API → API Server: Signin token (12h expiry)
-4. API Server → Extension (HTTP): Console URL with token
-5. Extension → Firefox: Opens URL in container
-
-**📖 For complete security documentation, see [docs/security/security-root.md](docs/security/security-root.md)**
+For complete details on the repository structure, see [docs/development/REORGANIZATION.md](docs/development/REORGANIZATION.md).
 
 ## Development
 
@@ -634,7 +615,7 @@ All credential handling happens locally or with AWS:
 
 ```bash
 # Install dependencies
-yarn install --frozen-lockfile
+yarn install
 
 # Development build (watch mode)
 yarn dev
@@ -646,43 +627,24 @@ yarn build
 yarn test
 ```
 
+### API Server Development
+
+```bash
+# Navigate to API server
+cd api-server
+
+# Run tests
+uv run pytest
+
+# Run with hot reload
+ENV=development uv run python -m aws_profile_bridge api
+```
+
 ### Modifying the Extension
 
 1. Edit source files in `src/`
 2. Run `yarn build` to rebuild
 3. Click "Reload" in `about:debugging` to test changes
-
-### Project Structure
-
-```
-aws-console-containers/
-├── config/                      # Build & linting configuration
-│   ├── webpack/                 # Webpack configs
-│   ├── .eslintrc.js
-│   ├── .prettierrc.js
-│   └── babel.config.js
-├── scripts/                     # Build & utility scripts
-│   ├── build/                   # Build scripts
-│   └── test/                    # Test scripts
-├── src/                         # Extension source code
-│   ├── popup/
-│   │   ├── awsProfiles.tsx     # Main popup UI
-│   │   └── index.tsx           # Entry point
-│   ├── opener/
-│   │   ├── parser.ts           # Protocol handler
-│   │   └── containers.ts       # Container management
-│   └── backgroundPage.ts       # Background script
-├── api-server/                  # Python API server
-│   ├── src/                    # Source code
-│   ├── tests/                  # Unit tests
-│   └── setup.py
-├── docs/                        # Documentation
-│   └── assets/                 # Images & assets
-├── dist/                        # Built extension (generated)
-└── install.sh                   # Installation script
-```
-
-For complete details on the repository structure, see [docs/development/REORGANIZATION.md](docs/development/REORGANIZATION.md).
 
 ## Features Overview
 
@@ -698,40 +660,68 @@ For complete details on the repository structure, see [docs/development/REORGANI
 | Favorites | ✅ | Star profiles for quick access |
 | Recent Profiles | ✅ | Tracks last 10 opened |
 | Region Selection | ✅ | 10 major AWS regions |
-| Native Messaging | ✅ | Python bridge for filesystem access |
+| HTTP API | ✅ | FastAPI server with token auth |
+| Rate Limiting | ✅ | Prevents brute force attacks |
 
 ## Compatibility
 
 - **Firefox**: 60+ (tested on latest)
 - **Operating Systems**:
-  - ✅ **macOS** - Fully supported
+  - ✅ **macOS** - Fully supported (Intel & Apple Silicon)
   - ✅ **Linux** - Fully supported
-  - ⚠️ **Windows** - Not currently supported (requires PowerShell installer and BAT wrapper)
-- **AWS CLI**: Optional (for advanced URL generation)
-- **Python**: 3.6+
+  - ⚠️ **Windows** - Not currently supported
+- **Python**: 3.12+
+- **Node.js**: 22.14.0+ or 24.10.0+ (for building)
 - **Python Dependencies**:
-  - boto3 (optional, recommended for enhanced SSO profile enumeration)
-  - botocore (optional, recommended for enhanced SSO profile enumeration)
-
-### Optional boto3 Installation
-
-For better SSO profile detection and enumeration, install boto3:
-
-```bash
-pip3 install -r api-server/requirements.txt
-```
-
-**Note**: The extension works without boto3 by falling back to manual AWS config parsing, but boto3 provides more reliable profile enumeration.
+  - FastAPI (HTTP server)
+  - uvicorn (ASGI server)
+  - boto3 (AWS SDK)
+  - pydantic (data validation)
 
 ### Windows Support
 
 Windows support is **not currently implemented** but is technically feasible. Required changes:
 
 - PowerShell installation script (`install.ps1`)
-- Python wrapper batch file (`aws_profile_bridge.bat`)
-- Different manifest paths (`%APPDATA%\Mozilla\NativeMessagingHosts\`)
+- Windows service configuration
+- Path handling for Windows filesystem
 
 If you need Windows support, please open an issue or contribute a PR.
+
+## Security & Privacy
+
+### What We Do
+
+- ✅ Read `~/.aws/credentials` and `~/.aws/config` (local filesystem only)
+- ✅ Send temporary credentials to AWS Federation API (HTTPS, official AWS service)
+- ✅ Store profile names, favorites, recent list in browser local storage
+- ✅ Use native Firefox containers for isolation
+- ✅ Token-based authentication for API server
+
+### What We Don't Do
+
+- ❌ Store credentials in browser storage
+- ❌ Send credentials to any server except AWS
+- ❌ Collect analytics or telemetry
+- ❌ Phone home or track usage
+- ❌ Share data with third parties
+- ❌ Log credentials
+
+### Minimal Permissions
+
+```json
+{
+  "permissions": [
+    "contextualIdentities",  // Create/manage Firefox containers
+    "cookies",               // Required for container isolation
+    "tabs",                  // Open tabs in containers
+    "storage",               // Store favorites/recent profiles
+    "<all_urls>"             // Access localhost API server
+  ]
+}
+```
+
+**📖 For complete security documentation, see [docs/security/security-root.md](docs/security/security-root.md)**
 
 ## Contributing
 
@@ -746,6 +736,64 @@ MIT License - see [LICENSE](LICENSE) file for details.
 For issues:
 
 1. Check the Troubleshooting section above
-2. Verify native messaging is properly installed
-3. Check Firefox console for errors: `about:debugging` → "Inspect"
-4. Open an issue on [GitHub](https://github.com/sam-fakhreddine/aws-console-containers/issues)
+2. Verify API server is running: `curl http://localhost:10999/health`
+3. Check API server logs: `tail -f ~/.aws/logs/aws_profile_bridge_api.log`
+4. Check Firefox console for errors: `about:debugging` → "Inspect"
+5. Open an issue on [GitHub](https://github.com/sam-fakhreddine/aws-console-containers/issues)
+
+## Sequence Diagram
+
+Complete flow from user click to AWS Console:
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Popup as Extension Popup
+    participant BG as Background Script
+    participant API as API Server<br/>(localhost:10999)
+    participant Auth as Token Authenticator
+    participant Bridge as Profile Bridge
+    participant FS as ~/.aws/*
+    participant AWS as AWS Federation API
+    participant Container as Firefox Container
+    participant Console as AWS Console
+
+    User->>Popup: Click profile
+    Popup->>Popup: Get stored API token
+    Popup->>API: POST /profiles/{name}/console-url<br/>Header: X-API-Token
+    
+    API->>Auth: Validate token
+    alt Invalid token
+        Auth-->>API: 401 Unauthorized
+        API-->>Popup: Error: Invalid token
+        Popup-->>User: Show error
+    else Valid token
+        Auth-->>API: Token valid
+        API->>Bridge: Generate console URL
+        
+        Bridge->>FS: Read ~/.aws/credentials
+        FS-->>Bridge: Profile credentials
+        
+        alt SSO Profile
+            Bridge->>FS: Read ~/.aws/sso/cache/
+            FS-->>Bridge: SSO token
+            Bridge->>Bridge: Get temporary credentials
+        end
+        
+        alt Has session token
+            Bridge->>AWS: POST /federation<br/>Action=getSigninToken
+            AWS-->>Bridge: Signin token (12h expiry)
+            Bridge->>Bridge: Build federation URL
+        else Long-term credentials
+            Bridge->>Bridge: Use basic console URL
+        end
+        
+        Bridge-->>API: Console URL + metadata
+        API-->>Popup: {url, color, icon}
+        
+        Popup->>BG: Open profile in container
+        BG->>Container: Create/find container
+        Container->>Console: Open URL in isolated tab
+        Console-->>User: Authenticated AWS Console
+    end
+```
