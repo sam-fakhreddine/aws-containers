@@ -7,7 +7,7 @@ import sys
 
 # CRITICAL: Import logging configuration FIRST, before any other modules
 # This prevents boto3 and other libraries from writing to stderr
-from . import logging_config  # noqa: F401
+from .config import logging  # noqa: F401
 
 
 def main() -> int:
@@ -16,8 +16,8 @@ def main() -> int:
     # Python 3.12 match statement for clean command routing
     match sys.argv[1:]:
         case ["api"] | ["server"] | ["api-server"]:
-            from .api_server import main as api_main
-            api_main()
+            from .app import main as app_main
+            app_main()
             return 0
             
         case ["--version"] | ["-v"]:
@@ -30,7 +30,7 @@ def main() -> int:
             
         case _:
             # Original native messaging functionality
-            from .aws_profile_bridge import main as bridge_main
+            from .core.bridge import main as bridge_main
             bridge_main()
             return 0
 

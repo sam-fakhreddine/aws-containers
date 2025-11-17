@@ -25,10 +25,10 @@ async def get_profiles(x_api_token: str | None = Header(None, alias="X-API-Token
     authenticator.authenticate(x_api_token)
     
     try:
-        from aws_profile_bridge import AWSProfileBridge
+        from ..core.bridge import AWSProfileBridge
         
         bridge = AWSProfileBridge()
-        handler = bridge.host.handler
+        handler = bridge.message_handler
         
         result = await asyncio.wait_for(
             asyncio.to_thread(handler._handle_get_profiles),
@@ -52,10 +52,10 @@ async def get_profiles_enriched(x_api_token: str | None = Header(None, alias="X-
     authenticator.authenticate(x_api_token)
     
     try:
-        from aws_profile_bridge import AWSProfileBridge
+        from ..core.bridge import AWSProfileBridge
         
         bridge = AWSProfileBridge()
-        handler = bridge.host.handler
+        handler = bridge.message_handler
         
         result = await asyncio.wait_for(
             asyncio.to_thread(handler._handle_enrich_sso_profiles, {}),
@@ -81,10 +81,10 @@ async def get_console_url(
     authenticator.authenticate(x_api_token)
     
     try:
-        from aws_profile_bridge import AWSProfileBridge
+        from ..core.bridge import AWSProfileBridge
         
         bridge = AWSProfileBridge()
-        handler = bridge.host.handler
+        handler = bridge.message_handler
         
         result = await asyncio.wait_for(
             asyncio.to_thread(

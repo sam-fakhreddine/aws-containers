@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AWS Profile Bridge - Native Messaging Host for Firefox Extension
+AWS Profile Bridge - Core Business Logic
 
 Refactored to follow SOLID, DRY, and KISS principles.
 
@@ -17,14 +17,10 @@ This script handles sensitive AWS credentials. It:
 For security documentation, see SECURITY.md in the project root.
 """
 
-# CRITICAL: Import logging configuration FIRST, before any other modules
-# This prevents boto3 and other libraries from writing to stderr
-from . import logging_config  # noqa: F401
-
 from pathlib import Path
 from typing import Dict
 
-from .debug_logger import (
+from ..utils.logger import (
     get_logger,
     section,
     log_operation,
@@ -32,25 +28,19 @@ from .debug_logger import (
     log_error,
     timer,
 )
-from .native_messaging import (
-    NativeMessagingHost,
-    NativeMessagingReader,
-    NativeMessagingWriter,
-    MessageHandler,
-)
-from .file_parsers import (
+from .parsers import (
     CredentialsFileParser,
     ConfigFileParser,
     ProfileConfigReader,
     FileCache,
 )
-from .sso_manager import SSOTokenCache, SSOCredentialsProvider, SSOProfileEnricher
-from .credential_provider import CredentialProvider, ProfileAggregator
-from .profile_metadata import create_default_metadata_provider
-from .console_url_generator import ConsoleURLGenerator, ProfileConsoleURLGenerator
+from ..services.sso import SSOTokenCache, SSOCredentialsProvider, SSOProfileEnricher
+from .credentials import CredentialProvider, ProfileAggregator
+from .metadata import create_default_metadata_provider
+from .console_url import ConsoleURLGenerator, ProfileConsoleURLGenerator
 
 
-class AWSProfileBridgeHandler(MessageHandler):
+class AWSProfileBridgeHandler:
     """
     Handles messages from browser extension.
 
@@ -279,24 +269,19 @@ class AWSProfileBridge:
         )
 
         # Message handler
-        message_handler = AWSProfileBridgeHandler(
+        self.message_handler = AWSProfileBridgeHandler(
             profile_aggregator, console_url_generator, metadata_provider
         )
 
-        # Native messaging host
-        self.host = NativeMessagingHost(
-            NativeMessagingReader(), NativeMessagingWriter(), message_handler
-        )
-
-    def run(self):
-        """Run the native messaging host."""
-        self.host.run()
+    def handle_message(self, message: Dict) -> Dict:
+        """Handle a message (used by API server)."""
+        return self.message_handler.handle_message(message)
 
 
 def main():
-    """Application entry point."""
-    bridge = AWSProfileBridge()
-    bridge.run()
+    """Application entry point - starts API server."""
+    from ..app import start_server
+    start_server()
 
 
 if __name__ == "__main__":

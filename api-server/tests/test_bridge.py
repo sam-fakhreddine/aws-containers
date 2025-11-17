@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unit tests for aws_profile_bridge module.
+Unit tests for bridge module.
 
 Tests the main application orchestration.
 """
@@ -8,7 +8,7 @@ Tests the main application orchestration.
 import pytest
 from unittest.mock import Mock, patch
 
-from aws_profile_bridge.aws_profile_bridge import (
+from aws_profile_bridge.core.bridge import (
     AWSProfileBridgeHandler,
     AWSProfileBridge,
 )
@@ -189,7 +189,7 @@ class TestAWSProfileBridge:
         assert bridge.credentials_file is not None
         assert bridge.config_file is not None
         assert bridge.sso_cache_dir is not None
-        assert bridge.host is not None
+        assert bridge.message_handler is not None
 
     def test_init_uses_correct_aws_paths(self):
         """Test __init__ uses correct AWS configuration paths."""
@@ -199,26 +199,14 @@ class TestAWSProfileBridge:
         assert str(bridge.config_file).endswith(".aws/config")
         assert str(bridge.sso_cache_dir).endswith(".aws/sso/cache")
 
-    def test_run_delegates_to_host(self):
-        """Test run method delegates to native messaging host."""
+    def test_handle_message_delegates_to_handler(self):
+        """Test handle_message delegates to message handler."""
         bridge = AWSProfileBridge()
+        bridge.message_handler = Mock()
+        bridge.message_handler.handle_message.return_value = {"action": "profileList"}
 
-        # Mock the host
-        bridge.host = Mock()
+        message = {"action": "getProfiles"}
+        result = bridge.handle_message(message)
 
-        bridge.run()
-
-        bridge.host.run.assert_called_once()
-
-    @patch("aws_profile_bridge.aws_profile_bridge.NativeMessagingHost")
-    def test_dependency_injection_pattern(self, mock_host_class):
-        """Test that bridge uses dependency injection pattern."""
-        # This tests that all components are created and injected properly
-        bridge = AWSProfileBridge()
-
-        # Verify that NativeMessagingHost was created with dependencies
-        mock_host_class.assert_called_once()
-
-        # Verify it received reader, writer, and handler
-        call_args = mock_host_class.call_args[0]
-        assert len(call_args) == 3  # reader, writer, handler
+        assert result["action"] == "profileList"
+        bridge.message_handler.handle_message.assert_called_once_with(message)

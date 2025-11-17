@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 from abc import ABC, abstractmethod
 
-from .debug_logger import timer, log_operation, log_result, log_error
+from ..utils.logger import timer, log_operation, log_result, log_error
 
 
 class FileCache:

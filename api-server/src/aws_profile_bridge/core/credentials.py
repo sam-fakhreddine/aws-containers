@@ -15,14 +15,14 @@ try:
 except ImportError:
     BOTO3_AVAILABLE = False
 
-from .debug_logger import timer, log_operation, log_result, log_error
-from .file_parsers import (
+from ..utils.logger import timer, log_operation, log_result, log_error
+from .parsers import (
     CredentialsFileParser,
     ConfigFileParser,
     ProfileConfigReader,
     FileCache
 )
-from .sso_manager import SSOCredentialsProvider, SSOProfileEnricher
+from ..services.sso import SSOCredentialsProvider, SSOProfileEnricher
 
 
 class CredentialProvider:
@@ -53,12 +53,29 @@ class CredentialProvider:
         Returns:
             Dict with aws_access_key_id, aws_secret_access_key, optionally aws_session_token
         """
-        # Try credentials file first
+        # Use boto3 if available (handles SSO automatically)
+        if BOTO3_AVAILABLE:
+            try:
+                session = boto3.Session(profile_name=profile_name)
+                credentials = session.get_credentials()
+                
+                if credentials:
+                    result = {
+                        'aws_access_key_id': credentials.access_key,
+                        'aws_secret_access_key': credentials.secret_key,
+                    }
+                    if credentials.token:
+                        result['aws_session_token'] = credentials.token
+                    return result
+            except Exception:
+                pass
+        
+        # Fallback: Try credentials file
         credentials = self.config_reader.get_credentials(profile_name)
         if credentials:
             return credentials
 
-        # Try SSO profile
+        # Fallback: Try SSO profile manually
         profile_config = self.config_reader.get_config(profile_name)
         if profile_config and profile_config.get('sso_start_url'):
             return self.sso_credentials_provider.get_credentials(profile_config)
@@ -196,6 +213,7 @@ class ProfileAggregator:
                     log_result(f"✓ CLASSIFIED AS SSO - Found markers: {', '.join(sso_markers)}")
 
                     profile_data['is_sso'] = True
+                    profile_data['has_credentials'] = True  # boto3 will resolve on-demand
                     if 'sso_start_url' in profile_config:
                         profile_data['sso_start_url'] = profile_config['sso_start_url']
                     if 'sso_session' in profile_config:

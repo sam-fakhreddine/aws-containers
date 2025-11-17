@@ -38,7 +38,7 @@ This will:
 ### Manual Installation
 
 ```bash
-cd native-messaging
+cd api-server
 
 # Install dependencies
 pip install -e .
@@ -222,7 +222,7 @@ logger.info(f"[{request_id}] → {request.method} {request.url.path}")
 ### Running Tests
 
 ```bash
-cd native-messaging
+cd api-server
 
 # Run API server tests
 pytest tests/test_api_server.py -v

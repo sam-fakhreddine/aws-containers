@@ -16,7 +16,7 @@ from .auth.token_manager import TokenManager
 from .auth.rate_limiter import RateLimiter
 from .auth.authenticator import Authenticator
 from .middleware.logging import log_requests
-from .routes import health, profiles
+from .api import health, profiles
 
 
 def setup_logging() -> logging.Logger:
@@ -112,14 +112,14 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-def main() -> None:
+def start_server() -> None:
     """Run the API server."""
     import os
     
     match os.getenv("ENV", "production").lower():
         case "development" | "dev":
             uvicorn.run(
-                "aws_profile_bridge.api_server:app",
+                "aws_profile_bridge.app:app",
                 host=settings.HOST,
                 port=settings.PORT,
                 reload=True,
@@ -136,6 +136,11 @@ def main() -> None:
         case _:
             logger.error(f"Unknown environment: {os.getenv('ENV')}")
             sys.exit(1)
+
+
+def main() -> None:
+    """Entry point for running the server."""
+    start_server()
 
 
 if __name__ == "__main__":

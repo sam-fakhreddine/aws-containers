@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import Optional, Dict
 import urllib.request as request
 
-from .debug_logger import timer, log_operation, log_result, log_error
+from ..utils.logger import timer, log_operation, log_result, log_error
 
 # Constants
 DEFAULT_CACHE_TTL_SECONDS = 30  # In-memory cache TTL for SSO tokens
