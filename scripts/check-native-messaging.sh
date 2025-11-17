@@ -16,7 +16,7 @@ NC='\033[0m'
 if [[ "$(uname)" == "Darwin" ]]; then
     MANIFEST_DIR="$HOME/Library/Application Support/Mozilla/NativeMessagingHosts"
 else
-    MANIFEST_DIR="$HOME/.mozilla/native-messaging-hosts"
+    MANIFEST_DIR="$HOME/.mozilla/api-server-hosts"
 fi
 
 MANIFEST_FILE="$MANIFEST_DIR/aws_profile_bridge.json"

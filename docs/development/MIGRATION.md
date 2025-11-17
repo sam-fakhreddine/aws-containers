@@ -63,7 +63,7 @@ git branch -D claude/create-custom-version-011CUziwk8XDKS7mdCZxmaqv clean-main
 1. Update remote URLs in documentation if needed
 2. Configure GitHub repo settings:
    - Add description: "Firefox extension for managing AWS profiles in isolated containers"
-   - Add topics: `firefox`, `aws`, `containers`, `firefox-extension`, `native-messaging`
+   - Add topics: `firefox`, `aws`, `containers`, `firefox-extension`, `api-server`
    - Set up branch protection for `main` (optional)
 
 3. Verify everything works:

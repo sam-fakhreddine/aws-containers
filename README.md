@@ -56,23 +56,24 @@ This project originated from a collection of custom CLI scripts and Firefox exte
 └────────────────────┬─────────────────────────────────────┘
                      ↓
 ┌──────────────────────────────────────────────────────────┐
-│ 2. Extension → Python Bridge (Native Messaging)         │
+│ 2. Extension → API Server (HTTP)                        │
+│    POST http://127.0.0.1:10999/profiles/{name}/console-url │
 │    Sends: Profile name only                             │
 └────────────────────┬─────────────────────────────────────┘
                      ↓
 ┌──────────────────────────────────────────────────────────┐
-│ 3. Python Bridge reads ~/.aws/credentials               │
+│ 3. API Server reads ~/.aws/credentials                  │
 │    Extracts: access key, secret key, session token      │
 └────────────────────┬─────────────────────────────────────┘
                      ↓
 ┌──────────────────────────────────────────────────────────┐
-│ 4. Python Bridge → AWS Federation API (HTTPS)           │
+│ 4. API Server → AWS Federation API (HTTPS)              │
 │    Endpoint: signin.aws.amazon.com/federation            │
 │    Returns: Temporary signin token (12 hour expiry)     │
 └────────────────────┬─────────────────────────────────────┘
                      ↓
 ┌──────────────────────────────────────────────────────────┐
-│ 5. Python Bridge → Extension                            │
+│ 5. API Server → Extension (HTTP Response)               │
 │    Sends: Federated console URL (no raw credentials)    │
 └────────────────────┬─────────────────────────────────────┘
                      ↓
@@ -86,6 +87,8 @@ This project originated from a collection of custom CLI scripts and Firefox exte
 **Key Security Points:**
 
 - Credentials never leave your local machine except to AWS's official API
+- API server binds to localhost (127.0.0.1) only
+- Token-based authentication between extension and API server
 - Extension uses native Firefox containers API (no custom protocols)
 - No credentials stored in browser storage
 - See [docs/security/security-root.md](docs/security/security-root.md) for full details
@@ -93,10 +96,13 @@ This project originated from a collection of custom CLI scripts and Firefox exte
 ## Prerequisites
 
 **For Users (Quick Start):**
+
 - Firefox (latest version recommended)
+- Python 3.12+ (for API server)
 - No other dependencies required!
 
 **For Developers (Building from Source):**
+
 - **Node.js**: Version 22.14.0+ or 24.10.0+
   - Check your version: `node --version`
   - Install via [nvm](https://github.com/nvm-sh/nvm) or [nodejs.org](https://nodejs.org/)
@@ -108,70 +114,97 @@ The version check runs automatically during installation and will provide clear 
 
 ## Installation
 
-### Quick Start (No Python Required) ⚡
+### Quick Start ⚡
 
-The extension comes with a **self-contained native messaging host** that includes Python and all dependencies. **No need to install Python!**
+The extension uses an **HTTP API server** that runs as a system service.
 
 ```bash
 # Clone the repository
 git clone https://github.com/sam-fakhreddine/aws-containers.git
 cd aws-containers
 
-# Install everything (uses pre-built executable if available)
-./install.sh
+# Install and start the API server
+./scripts/install-api-service.sh
+
+# Build the extension
+yarn install
+yarn build
 ```
 
-### Alternative: Download Pre-Built Package
+### What Gets Installed
 
-For releases, pre-built executables are available:
+The installation script:
 
-1. Download from [Releases](https://github.com/sam-fakhreddine/aws-console-containers/releases)
-2. Extract and run `./install.sh`
+1. ✅ Checks for Python 3.12+
+2. ✅ Installs Python dependencies (FastAPI, boto3, etc.)
+3. ✅ Sets up systemd (Linux) or launchd (macOS) service
+4. ✅ Starts API server on `http://127.0.0.1:10999`
+5. ✅ Generates secure API token
+6. ✅ Verifies server is running
 
-**Platforms:** Linux, macOS Intel, macOS Apple Silicon
+**Platforms:** Linux, macOS (Intel & Apple Silicon)
 
-**Note:** macOS binaries are unsigned (code signing optional for now). See [docs/getting-started/install-root.md](docs/getting-started/install-root.md) for Gatekeeper bypass instructions.
+**Note:** Windows is not currently supported.
 
-No Python, no dependencies, just works! ✨
+### Configure Extension Token
 
-### For Developers: Build from Source
-
-If you want to build the standalone executable yourself:
+After installation, configure the extension with the API token:
 
 ```bash
-# Build the self-contained native messaging host
-./scripts/build/build-native-host.sh
-
-# Install everything
-./install.sh
+# Get your API token
+cat ~/.aws/profile_bridge_config.json
 ```
 
-This creates a ~15-20MB standalone binary that includes:
+Then in Firefox:
 
-- ✓ Python runtime
-- ✓ boto3 & botocore
-- ✓ All dependencies
+1. Click extension icon
+2. Click settings icon (⚙️) in top right
+3. Paste the `api_token` value
+4. Click "Save Token"
+5. Click "Test Connection"
 
-### Development Mode: Use System Python
+**See [docs/TOKEN_AUTHENTICATION.md](docs/TOKEN_AUTHENTICATION.md) for details.**
 
-For development and testing, you can use system Python with a virtual environment instead of the packaged executable:
+### Managing the API Server
+
+**Linux (systemd):**
 
 ```bash
-# Install using system Python with uv virtual environment
-./install.sh --dev
+# Check status
+systemctl --user status aws-profile-bridge
+
+# Start/Stop/Restart
+systemctl --user start aws-profile-bridge
+systemctl --user stop aws-profile-bridge
+systemctl --user restart aws-profile-bridge
+
+# View logs
+journalctl --user -u aws-profile-bridge -f
 ```
 
-This mode:
+**macOS (launchd):**
 
-- ✓ Uses your system Python installation
-- ✓ Creates an isolated virtual environment with `uv`
-- ✓ Faster iteration during development
-- ✓ Auto-installs `uv` if not present
-- ✓ No need to rebuild on code changes
+```bash
+# Check status
+launchctl list | grep aws-profile-bridge
 
-The virtual environment is created in `native-messaging/.venv` and dependencies are installed automatically.
+# Start/Stop
+launchctl load ~/Library/LaunchAgents/com.aws.profile-bridge.plist
+launchctl unload ~/Library/LaunchAgents/com.aws.profile-bridge.plist
 
-**Note:** This requires Python 3.8+ to be installed on your system.
+# View logs
+tail -f ~/.aws/logs/aws_profile_bridge_api.log
+```
+
+**Manual (for development):**
+
+```bash
+# Start server manually
+python -m aws_profile_bridge api
+
+# Or with hot reload
+ENV=development python -m aws_profile_bridge api
+```
 
 ### Load the Extension in Firefox
 
@@ -313,6 +346,7 @@ touch ~/.aws/.nosso
 ```
 
 **When `.nosso` exists:**
+
 - ❌ SSO profiles will not be loaded from `~/.aws/config`
 - ✅ Credential-based profiles continue to work normally
 - ⚡ Faster profile loading (no SSO token validation)
@@ -328,39 +362,47 @@ rm ~/.aws/.nosso
 
 ## Troubleshooting
 
-### Extension Shows "Setup Required"
+### Extension Shows "API Server Not Running"
 
-**Problem**: Native messaging host not connecting
+**Problem**: Cannot connect to API server
 
 **Solutions**:
 
-1. Restart Firefox completely
-2. Check the Python script is installed:
+1. Check if API server is running:
 
    ```bash
-   ls -la ~/.local/bin/aws_profile_bridge.py
+   curl http://localhost:10999/health
    ```
 
-3. Check the script is executable:
+2. Start the API server:
 
    ```bash
-   chmod +x ~/.local/bin/aws_profile_bridge.py
-   ```
-
-4. Verify native messaging manifest:
-
-   ```bash
-   # macOS
-   cat ~/Library/Application\ Support/Mozilla/NativeMessagingHosts/aws_profile_bridge.json
-
    # Linux
-   cat ~/.mozilla/native-messaging-hosts/aws_profile_bridge.json
+   systemctl --user start aws-profile-bridge
+
+   # macOS
+   launchctl load ~/Library/LaunchAgents/com.aws.profile-bridge.plist
+
+   # Manual
+   python -m aws_profile_bridge api
    ```
 
-5. Test the Python script manually:
+3. Check API server logs:
 
    ```bash
-   echo '{"action":"getProfiles"}' | python3 ~/.local/bin/aws_profile_bridge.py
+   tail -f ~/.aws/logs/aws_profile_bridge_api.log
+   ```
+
+4. Verify Python version (requires 3.12+):
+
+   ```bash
+   python3 --version
+   ```
+
+5. Check if port 10999 is available:
+
+   ```bash
+   lsof -i :10999
    ```
 
 ### No Profiles Showing
@@ -465,49 +507,48 @@ rm ~/.aws/.nosso
 
 3. Fallback: Extension will use basic console URL
 
-### macOS: "Python.framework is damaged" Error
+### API Server Won't Start
 
-**Problem**: macOS shows "Python.framework is damaged and can't be opened" when clicking the extension icon
+**Problem**: API server fails to start
 
-**This is a macOS Gatekeeper security issue with the PyInstaller-bundled Python framework.**
+**Solutions**:
 
-**Quick Fix**:
+1. Check Python version (must be 3.12+):
 
-```bash
-./scripts/fix-macos-security.sh
-```
+   ```bash
+   python3 --version
+   ```
 
-Then **restart Firefox completely**.
+2. Reinstall dependencies:
 
-**Manual Fix**:
+   ```bash
+   cd api-server
+   pip install -e .
+   ```
 
-```bash
-# Remove quarantine and sign the executable
-xattr -dr com.apple.quarantine ~/.local/bin/aws_profile_bridge
-codesign --force --deep --sign - ~/.local/bin/aws_profile_bridge
+3. Check for port conflicts:
 
-# Restart Firefox
-```
+   ```bash
+   lsof -i :10999
+   # Kill conflicting process if needed
+   kill -9 <PID>
+   ```
 
-**For detailed explanation and additional solutions, see:**
-- **[docs/MACOS_SECURITY_FIX.md](docs/MACOS_SECURITY_FIX.md)** - Complete guide with root cause, fixes, and troubleshooting
+4. Run server manually to see errors:
 
-**Prevention**: The build script now automatically applies these fixes. If you rebuild:
-
-```bash
-./scripts/build/build-native-host.sh
-./install.sh
-```
-
-The fixes will be applied automatically.
+   ```bash
+   python -m aws_profile_bridge api
+   ```
 
 ## File Locations
 
-- **Extension**: `/home/user/aws-console-containers/dist/`
-- **Python Bridge**: `~/.local/bin/aws_profile_bridge.py`
-- **Native Messaging Manifest** (macOS): `~/Library/Application Support/Mozilla/NativeMessagingHosts/aws_profile_bridge.json`
-- **Native Messaging Manifest** (Linux): `~/.mozilla/native-messaging-hosts/aws_profile_bridge.json`
+- **Extension**: `./dist/`
+- **API Server**: Installed as Python package
+- **API Logs**: `~/.aws/logs/aws_profile_bridge_api.log`
+- **Service Config** (Linux): `~/.config/systemd/user/aws-profile-bridge.service`
+- **Service Config** (macOS): `~/Library/LaunchAgents/com.aws.profile-bridge.plist`
 - **AWS Credentials**: `~/.aws/credentials`
+- **AWS Config**: `~/.aws/config`
 
 ## Advanced Configuration
 
@@ -570,7 +611,7 @@ def generate_console_url(self, profile_name):
     "cookies",               // Required for container isolation
     "tabs",                  // Open tabs in containers
     "storage",               // Store favorites/recent profiles
-    "nativeMessaging"        // Read credentials via Python bridge
+    "<all_urls>"             // Access localhost API server
   ]
 }
 ```
@@ -579,10 +620,10 @@ def generate_console_url(self, profile_name):
 
 All credential handling happens locally or with AWS:
 
-1. Extension → Python bridge: Profile name only
-2. Python bridge → AWS API: Temporary credentials
-3. AWS API → Python bridge: Signin token (12h expiry)
-4. Python bridge → Extension: Console URL with token
+1. Extension → API Server (HTTP): Profile name only
+2. API Server → AWS API: Temporary credentials
+3. AWS API → API Server: Signin token (12h expiry)
+4. API Server → Extension (HTTP): Console URL with token
 5. Extension → Firefox: Opens URL in container
 
 **📖 For complete security documentation, see [docs/security/security-root.md](docs/security/security-root.md)**
@@ -631,7 +672,7 @@ aws-console-containers/
 │   │   ├── parser.ts           # Protocol handler
 │   │   └── containers.ts       # Container management
 │   └── backgroundPage.ts       # Background script
-├── native-messaging/            # Python native messaging host
+├── api-server/                  # Python API server
 │   ├── src/                    # Source code
 │   ├── tests/                  # Unit tests
 │   └── setup.py
@@ -677,7 +718,7 @@ For complete details on the repository structure, see [docs/development/REORGANI
 For better SSO profile detection and enumeration, install boto3:
 
 ```bash
-pip3 install -r native-messaging/requirements.txt
+pip3 install -r api-server/requirements.txt
 ```
 
 **Note**: The extension works without boto3 by falling back to manual AWS config parsing, but boto3 provides more reliable profile enumeration.

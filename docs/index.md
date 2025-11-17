@@ -49,7 +49,7 @@ This project evolved from custom CLI scripts and Firefox extensions, inspired by
 - [Testing](development/testing.md) - Running tests
 
 ### API Reference
-- [Native Messaging API](api/native-messaging.md) - Native messaging protocol
+- [API Server](api/extension-api.md) - HTTP API server documentation
 - [Extension API](api/extension-api.md) - Extension interfaces
 
 ## Platform Support
@@ -116,6 +116,5 @@ development/testing
 :maxdepth: 2
 :caption: API Reference
 
-api/native-messaging
 api/extension-api
 ```

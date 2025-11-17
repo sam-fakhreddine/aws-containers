@@ -1,9 +1,0 @@
-{
-  "name": "aws_profile_bridge",
-  "description": "AWS Profile Bridge for reading credentials file",
-  "path": "/home/user/.local/bin/aws_profile_bridge.py",
-  "type": "stdio",
-  "allowed_extensions": [
-    "aws-profile-containers@yourname.local"
-  ]
-}

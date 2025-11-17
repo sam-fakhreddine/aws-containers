@@ -26,7 +26,7 @@ Common issues and solutions for AWS Profile Containers.
 3. **Check manifest exists:**
    ```bash
    # Linux
-   cat ~/.mozilla/native-messaging-hosts/aws_profile_bridge.json
+   cat ~/.mozilla/api-server-hosts/aws_profile_bridge.json
 
    # macOS
    cat ~/Library/Application\ Support/Mozilla/NativeMessagingHosts/aws_profile_bridge.json
@@ -86,7 +86,7 @@ chmod +x ~/.local/bin/aws_profile_bridge.py
 
 1. **Install Python dependencies:**
    ```bash
-   pip3 install -r native-messaging/requirements.txt
+   pip3 install -r api-server/requirements.txt
    ```
 
 2. **Or use standalone executable (recommended):**
@@ -397,7 +397,7 @@ For detailed troubleshooting:
 3. **Test native messaging:**
    ```bash
    cd /path/to/aws-containers
-   ./test-native-messaging.sh
+   ./test-api-server.sh
    ```
 
 ### Collect Debug Information
@@ -424,7 +424,7 @@ When reporting issues, include:
 
 5. **Native messaging test results:**
    ```bash
-   ./test-native-messaging.sh
+   ./test-api-server.sh
    ```
 
 ## Getting Help

@@ -14,8 +14,9 @@ import Box from "@cloudscape-design/components/box";
 import Alert from "@cloudscape-design/components/alert";
 import Modal from "@cloudscape-design/components/modal";
 import Link from "@cloudscape-design/components/link";
-import { POPUP_WIDTH_THRESHOLD, NATIVE_MESSAGING_HOST_NAME } from "./constants";
-import { AWSProfile, isConsoleUrlResponse, isErrorResponse } from "./types";
+import { POPUP_WIDTH_THRESHOLD } from "./constants";
+import { AWSProfile } from "./types";
+import * as apiClient from "../services/apiClient";
 import { prepareContainer } from "../utils/containerManager";
 
 // Custom hooks
@@ -89,7 +90,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
         profiles,
         loading: profilesLoading,
         error: profilesError,
-        nativeMessagingAvailable,
+        apiAvailable,
         loadProfiles,
         refreshProfiles,
         enrichSSOProfiles,
@@ -218,55 +219,41 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             // Track in recent profiles
             await addRecentProfile(profile.name);
 
-            // Connect to native messaging host
-            const port = browser.runtime.connectNative(NATIVE_MESSAGING_HOST_NAME);
+            // Get console URL from API
+            const response = await apiClient.getConsoleUrl(profile.name);
 
-            port.onMessage.addListener(async (response: unknown) => {
-                try {
-                    if (isConsoleUrlResponse(response)) {
-                        // Add region to the console URL
-                        let consoleUrl = response.url;
-                        if (consoleUrl.includes("console.aws.amazon.com")) {
-                            const urlObj = new URL(consoleUrl);
-                            urlObj.searchParams.set("region", selectedRegion);
-                            consoleUrl = urlObj.toString();
-                        }
+            // Add region to the console URL
+            let consoleUrl = response.url;
+            if (consoleUrl.includes("console.aws.amazon.com")) {
+                const urlObj = new URL(consoleUrl);
+                urlObj.searchParams.set("region", selectedRegion);
+                consoleUrl = urlObj.toString();
+            }
 
-                        // Create or get the container
-                        const container = await prepareContainer(
-                            response.profileName,
-                            response.color,
-                            response.icon
-                        );
+            // Create or get the container
+            const container = await prepareContainer(
+                response.profileName,
+                response.color,
+                response.icon
+            );
 
-                        // Open tab in the container
-                        await browser.tabs.create({
-                            url: consoleUrl,
-                            cookieStoreId: container.cookieStoreId,
-                        });
-
-                        // Close popup if in popup mode (not sidebar)
-                        if (window.innerWidth < POPUP_WIDTH_THRESHOLD) {
-                            window.close();
-                        }
-                    } else if (isErrorResponse(response)) {
-                        setOpenProfileError(response.message);
-                    } else {
-                        setOpenProfileError("Received invalid response");
-                    }
-                } catch (err) {
-                    console.error("Error handling open profile response:", err);
-                    setOpenProfileError(`Failed to open profile: ${err}`);
-                }
+            // Open tab in the container
+            await browser.tabs.create({
+                url: consoleUrl,
+                cookieStoreId: container.cookieStoreId,
             });
 
-            port.postMessage({
-                action: "openProfile",
-                profileName: profile.name,
-            });
+            // Close popup if in popup mode (not sidebar)
+            if (window.innerWidth < POPUP_WIDTH_THRESHOLD) {
+                window.close();
+            }
         } catch (err) {
             console.error("Failed to open profile:", err);
-            setOpenProfileError(`Failed to open profile: ${err}`);
+            if (err instanceof apiClient.ApiClientError) {
+                setOpenProfileError(err.message);
+            } else {
+                setOpenProfileError(`Failed to open profile: ${err}`);
+            }
         }
     }, [addRecentProfile, selectedRegion]);
 
@@ -298,13 +285,17 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     }, []);
 
     // Installation instructions view
-    if (!nativeMessagingAvailable && !profilesLoading) {
+    if (!apiAvailable && !profilesLoading) {
+        const isAuthError = profilesError?.includes("401") || profilesError?.includes("Unauthorized");
+        
         return (
             <Container header={<Header variant="h2">Setup Required</Header>} variant="default">
                 <SpaceBetween size="l">
-                    <Alert type="warning" header="AWS Profile Bridge Not Found">
-                        The native messaging host is required to read AWS credentials from
-                        your system.
+                    <Alert type="warning" header={isAuthError ? "Authentication Required" : "API Server Not Running"}>
+                        {isAuthError 
+                            ? "Invalid or missing API token. Please configure your token in settings."
+                            : "The AWS Profile Bridge API server is required to read AWS credentials from your system."
+                        }
                     </Alert>
 
                     <Box variant="p">
@@ -314,7 +305,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                     <Box>
                         <ol>
                             <li>Open a terminal in the extension directory</li>
-                            <li>Run the installation script:</li>
+                            <li>Run the API service installation script:</li>
                         </ol>
                         <Box
                             margin={{ top: "s", bottom: "s" }}
@@ -331,22 +322,29 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                                     fontFamily: "monospace",
                                 }}
                             >
-                                ./install.sh
+                                ./scripts/install-api-service.sh
                             </pre>
                         </Box>
                         <Box variant="small" color="text-body-secondary">
-                            This will install the native messaging bridge and set up
-                            permissions.
+                            This will install and start the API server as a system service.
                         </Box>
                     </Box>
 
                     <Box variant="p">
-                        After installation, restart Firefox and click Retry Connection below.
+                        After installation, click Retry Connection below.
                     </Box>
 
-                    <Button variant="primary" onClick={() => loadProfiles(true)}>
-                        Retry Connection
-                    </Button>
+                    <SpaceBetween direction="horizontal" size="xs">
+                        <Button variant="primary" onClick={() => loadProfiles(true)}>
+                            Retry Connection
+                        </Button>
+                        <Button 
+                            iconName="settings"
+                            onClick={() => browser.runtime.openOptionsPage()}
+                        >
+                            Open Settings
+                        </Button>
+                    </SpaceBetween>
 
                     <Box variant="small" color="text-body-secondary">
                         Need help? Check the{" "}
@@ -382,6 +380,13 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                 }
                 variant="default"
             >
+                <Box padding={{ bottom: "xs" }} float="right">
+                    <Button 
+                        variant="icon" 
+                        iconName="settings"
+                        onClick={() => browser.runtime.openOptionsPage()}
+                    />
+                </Box>
                 <Box padding={{ bottom: "s" }}>
                     <Button
                         variant="primary"

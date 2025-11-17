@@ -72,11 +72,11 @@ echo ""
 
 # Build executable
 echo "Step 3: Building standalone executable..."
-cd native-messaging
+cd api-server
 pyinstaller --clean aws_profile_bridge.spec
 cd ..
 
-if [ -f "native-messaging/dist/aws_profile_bridge" ]; then
+if [ -f "api-server/dist/aws_profile_bridge" ]; then
     echo -e "${GREEN}✓${NC} Executable built successfully"
     echo ""
 
@@ -84,7 +84,7 @@ if [ -f "native-messaging/dist/aws_profile_bridge" ]; then
     mkdir -p bin/$PLATFORM
 
     # Copy executable to bin directory
-    cp native-messaging/dist/aws_profile_bridge bin/$PLATFORM/
+    cp api-server/dist/aws_profile_bridge bin/$PLATFORM/
     chmod +x bin/$PLATFORM/aws_profile_bridge
 
     echo -e "${GREEN}✓${NC} Executable copied to: bin/$PLATFORM/aws_profile_bridge"

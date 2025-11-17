@@ -211,7 +211,7 @@ The **only** external service contacted is:
 
 All sensitive operations are in these files:
 
-1. **Native Bridge** (`native-messaging/aws_profile_bridge.py`)
+1. **Native Bridge** (`api-server/aws_profile_bridge.py`)
    - Lines 176-194: Read credentials from file
    - Lines 126-174: Generate console URL (calls AWS API)
 

@@ -35,7 +35,7 @@ echo "2. Checking native messaging manifest..."
 if [[ "$(uname)" == "Darwin" ]]; then
     MANIFEST="$HOME/Library/Application Support/Mozilla/NativeMessagingHosts/aws_profile_bridge.json"
 else
-    MANIFEST="$HOME/.mozilla/native-messaging-hosts/aws_profile_bridge.json"
+    MANIFEST="$HOME/.mozilla/api-server-hosts/aws_profile_bridge.json"
 fi
 if [ -f "$MANIFEST" ]; then
     echo -e "${GREEN}✓${NC} Manifest exists: $MANIFEST"
@@ -64,7 +64,7 @@ echo "3. Checking Python environment..."
 # Detect project root
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
-VENV_DIR="$PROJECT_ROOT/native-messaging/.venv"
+VENV_DIR="$PROJECT_ROOT/api-server/.venv"
 if [ -d "$VENV_DIR" ]; then
     echo -e "${GREEN}✓${NC} Virtual environment exists"
 

@@ -266,7 +266,7 @@ After:  Error reading credentials file
 
 ### Python Error Handling
 
-**Location**: `native-messaging/src/aws_profile_bridge/native_messaging.py`
+**Location**: `api-server/src/aws_profile_bridge/native_messaging.py`
 
 **Logging (not user-visible)**:
 ```python
@@ -410,7 +410,7 @@ api_url = f"https://portal.sso.{sso_region}.amazonaws.com/federation/credentials
 
 ### Extension ID Restriction
 
-**Configuration**: `~/.mozilla/native-messaging-hosts/aws_profile_bridge.json`
+**Configuration**: `~/.mozilla/api-server-hosts/aws_profile_bridge.json`
 
 ```json
 {

@@ -22,13 +22,13 @@ This will:
 3. Build a new standalone executable from the refactored code
 4. Place it in `bin/<platform>/aws_profile_bridge`
 
-The PyInstaller spec file (`native-messaging/aws_profile_bridge.spec`) has been updated to work with the new package structure.
+The PyInstaller spec file (`api-server/aws_profile_bridge.spec`) has been updated to work with the new package structure.
 
 ### Why Rebuild is Needed
 
 The new code structure is:
 ```
-native-messaging/
+api-server/
 ├── src/aws_profile_bridge/
 │   ├── aws_profile_bridge.py       # Main coordinator
 │   ├── native_messaging.py         # Protocol handling
@@ -47,7 +47,7 @@ The old monolithic `aws_profile_bridge.py` no longer exists. All functionality h
 Before rebuilding the binary, you can run the comprehensive test suite:
 
 ```bash
-cd native-messaging
+cd api-server
 pytest
 ```
 

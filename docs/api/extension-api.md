@@ -175,5 +175,5 @@ interface Container {
 ## Further Reading
 
 - [Architecture](../development/architecture.md)
-- [Native Messaging API](native-messaging.md)
+- [Native Messaging API](api-server.md)
 - [Contributing](../development/contributing.md)

@@ -156,7 +156,7 @@ A local executable that:
 ### Locations
 
 - **Executable:** `~/.local/bin/aws_profile_bridge`
-- **Manifest (Linux):** `~/.mozilla/native-messaging-hosts/aws_profile_bridge.json`
+- **Manifest (Linux):** `~/.mozilla/api-server-hosts/aws_profile_bridge.json`
 - **Manifest (macOS):** `~/Library/Application Support/Mozilla/NativeMessagingHosts/aws_profile_bridge.json`
 
 ## Credential Lifetime
@@ -178,7 +178,7 @@ A local executable that:
 All credential handling is visible:
 
 **Native Bridge:**
-- Source: `native-messaging/src/aws_profile_bridge/`
+- Source: `api-server/src/aws_profile_bridge/`
 - Key files:
   - `file_parsers.py` - Reads AWS files
   - `credential_provider.py` - Orchestrates credential retrieval
@@ -197,7 +197,7 @@ Check what's installed:
 
 ```bash
 # Native messaging manifest
-cat ~/.mozilla/native-messaging-hosts/aws_profile_bridge.json
+cat ~/.mozilla/api-server-hosts/aws_profile_bridge.json
 
 # Executable
 ls -la ~/.local/bin/aws_profile_bridge

@@ -107,7 +107,7 @@ ErrorState        // Error display with retry
 
 ### Backend (Python)
 
-#### Native Messaging Host (`native-messaging/src/aws_profile_bridge/`)
+#### Native Messaging Host (`api-server/src/aws_profile_bridge/`)
 
 **Purpose**: Bridge between extension and AWS credentials
 
@@ -454,7 +454,7 @@ port.onMessage.addListener((response: unknown) => {
 port.postMessage({ action: "getProfiles" });
 ```
 
-**Python Side** (`native-messaging/src/aws_profile_bridge/native_messaging.py`):
+**Python Side** (`api-server/src/aws_profile_bridge/native_messaging.py`):
 ```python
 message = read_message(sys.stdin)
 if message['action'] == 'getProfiles':
