@@ -1,0 +1,28 @@
+[Unit]
+Description=AWS Profile Bridge HTTP API (Python 3.12+)
+After=network.target
+Documentation=https://github.com/sam-fakhreddine/aws-containers
+
+[Service]
+Type=simple
+# Will be replaced with actual Python 3.12+ path during installation
+ExecStart=/usr/bin/python3.12 -m aws_profile_bridge api
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/home/%u/.aws/logs/aws_profile_bridge_api.log
+StandardError=append:/home/%u/.aws/logs/aws_profile_bridge_api.log
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/%u/.aws/logs
+
+# Resource limits
+LimitNOFILE=1024
+CPUQuota=50%
+MemoryMax=512M
+
+[Install]
+WantedBy=default.target

@@ -29,7 +29,7 @@ setup(
     version="2.0.0",
     description="AWS Profile Bridge - Native Messaging Host for Browser Extensions",
     author="AWS Containers Team",
-    python_requires=">=3.8",
+    python_requires=">=3.12",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     install_requires=runtime_requirements,
@@ -38,17 +38,15 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "aws-profile-bridge=aws_profile_bridge:main",
+            "aws-profile-bridge=aws_profile_bridge.__main__:main",
+            "aws-profile-bridge-api=aws_profile_bridge.api_server:main",
         ],
     },
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ],
 )
