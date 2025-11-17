@@ -17,8 +17,8 @@ export const MILLISECONDS_PER_MINUTE = 60000;
 export const MINUTES_PER_HOUR = 60;
 export const MINUTES_PER_DAY = 1440; // 24 * 60
 
-// Native messaging
-export const NATIVE_MESSAGING_HOST_NAME = "aws_profile_bridge";
+// API Configuration
+export const API_BASE_URL = "http://127.0.0.1:10999";
 
 // Storage keys
 export const STORAGE_KEYS = {

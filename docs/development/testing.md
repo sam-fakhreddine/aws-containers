@@ -47,7 +47,7 @@ test('renders profile list', () => {
 ### Running Tests
 
 ```bash
-cd native-messaging
+cd api-server
 
 # Run all tests
 pytest
@@ -117,7 +117,7 @@ def test_parses_credentials_file():
 
 ```bash
 # Test native host communication
-./test-native-messaging.sh
+./test-api-server.sh
 ```
 
 Expected output: JSON list of profiles

@@ -27,7 +27,7 @@ The root contains 23 configuration files and 4 executable scripts:
 **Build/Deployment Scripts (4 files):**
 - `install.sh` - Installation script
 - `build-native-host.sh` - Builds Python native messaging host
-- `test-native-messaging.sh` - Tests native messaging
+- `test-api-server.sh` - Tests native messaging
 - `migrate-to-new-repo.sh` - Migration script (legacy)
 
 **Documentation Files (8 files):**
@@ -64,7 +64,7 @@ aws-containers/
 ├── docs/
 │   ├── api/
 │   │   ├── extension-api.md
-│   │   └── native-messaging.md
+│   │   └── api-server.md
 │   ├── development/
 │   │   ├── architecture.md
 │   │   ├── building.md
@@ -88,7 +88,7 @@ aws-containers/
 │   ├── index.md
 │   ├── .readthedocs.yaml
 │   └── requirements.txt
-├── native-messaging/
+├── api-server/
 │   ├── src/
 │   │   └── aws_profile_bridge/
 │   │       ├── __init__.py
@@ -232,7 +232,7 @@ entry: {
 - `.husky/pre-commit` - Runs linter before commits
 - `.husky/commit-msg` - Validates commit message format
 
-### Python Configuration (native-messaging/)
+### Python Configuration (api-server/)
 - `setup.py` - Python package configuration
 - `requirements.txt` - Python dependencies
 - `pytest.ini` - Test runner configuration
@@ -323,7 +323,7 @@ Extension = Popup UI + Content Script + Background Page + Native Messaging
 
 ### Structure
 ```
-native-messaging/
+api-server/
 ├── src/aws_profile_bridge/
 │   ├── aws_profile_bridge.py (Main application - ~150 lines)
 │   ├── native_messaging.py (Protocol handling - ~100 lines)
@@ -529,7 +529,7 @@ src/
 **Current:**
 ```
 ├── build-native-host.sh
-├── test-native-messaging.sh
+├── test-api-server.sh
 ├── migrate-to-new-repo.sh (legacy)
 └── install.sh
 ```
@@ -538,7 +538,7 @@ src/
 ```
 scripts/
 ├── build-native-host.sh
-├── test-native-messaging.sh
+├── test-api-server.sh
 ├── install.sh
 └── (legacy scripts in archive/)
 ```

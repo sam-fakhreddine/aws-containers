@@ -100,11 +100,11 @@ This script:
 
 ```bash
 # Install dependencies
-pip install -r native-messaging/requirements.txt
+pip install -r api-server/requirements.txt
 pip install pyinstaller
 
 # Build
-cd native-messaging
+cd api-server
 pyinstaller --onefile \
   --name aws_profile_bridge \
   --add-data "src:src" \
@@ -136,7 +136,7 @@ This:
 
 ```bash
 # Test native messaging
-./test-native-messaging.sh
+./test-api-server.sh
 
 # Should output profile list
 ```

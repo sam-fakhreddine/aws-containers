@@ -118,7 +118,7 @@ Technical architecture overview of AWS Profile Containers.
 **Implementation:** Python (source) or Standalone executable (PyInstaller)
 
 **Location:**
-- **Source:** `native-messaging/src/aws_profile_bridge/`
+- **Source:** `api-server/src/aws_profile_bridge/`
 - **Installed:** `~/.local/bin/aws_profile_bridge`
 
 ### Modules
@@ -371,7 +371,7 @@ Local Storage              Local Filesystem
 
 **Tool:** PyInstaller
 
-**Input:** Python source in `native-messaging/src/`
+**Input:** Python source in `api-server/src/`
 
 **Output:** Standalone executable
 - Linux: `bin/linux/aws_profile_bridge`

@@ -1,197 +1,185 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# AWS Profile Bridge API Service Installer - Python 3.12+
-# This script installs the API server as a system service
+# AWS Profile Bridge API Service Installer
+# v3.1.0 - Powered by uv
 
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+NC='\033[0m'
 
-echo "🚀 AWS Profile Bridge API Service Installer v2.0.0"
-echo ""
+APP_NAME="aws-profile-bridge"
+SERVICE_NAME="aws-profile-bridge"
+INSTALL_DIR="$HOME/.local/share/$APP_NAME"
+VENV_DIR="$INSTALL_DIR/venv"
+LOG_DIR="$HOME/.aws/logs"
 
-# Function to print colored output
-print_error() {
-    echo -e "${RED}❌ $1${NC}"
-}
+echo -e "${PURPLE}⚡ AWS Profile Bridge API Service Installer (uv edition)${NC}"
 
-print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
-}
+# --- Helper Functions ---
 
-print_warning() {
-    echo -e "${YELLOW}⚠ $1${NC}"
-}
+print_status() { echo -e "${BLUE}➜ $1${NC}"; }
+print_success() { echo -e "${GREEN}✓ $1${NC}"; }
+print_error() { echo -e "${RED}❌ $1${NC}"; }
 
-# Check Python version - MUST be 3.12+
-echo "Checking Python version..."
-PYTHON_CMD=""
-
-# Try various Python commands
-for cmd in python3.12 python3.13 python3.14 python3 python; do
-    if command -v "$cmd" &> /dev/null; then
-        VERSION=$("$cmd" --version 2>&1 | grep -oP '\d+\.\d+' | head -1)
-        MAJOR=$(echo "$VERSION" | cut -d. -f1)
-        MINOR=$(echo "$VERSION" | cut -d. -f2)
-        
-        if [ "$MAJOR" -eq 3 ] && [ "$MINOR" -ge 12 ]; then
-            PYTHON_CMD="$cmd"
-            print_success "Found Python $VERSION at $(which "$cmd")"
-            break
-        fi
+cleanup() {
+    if [ $? -ne 0 ]; then
+        print_error "Installation failed."
     fi
-done
+}
 
-if [ -z "$PYTHON_CMD" ]; then
-    print_error "Python 3.12+ is required but not found"
-    echo ""
-    echo "Please install Python 3.12 or later:"
-    echo "  macOS:  brew install python@3.12"
-    echo "  Ubuntu: sudo add-apt-repository ppa:deadsnakes/ppa"
-    echo "          sudo apt update && sudo apt install python3.12"
-    echo "  Fedora: sudo dnf install python3.12"
-    exit 1
+trap cleanup EXIT
+
+# --- Pre-flight: uv Detection ---
+
+print_status "Checking for uv..."
+if ! command -v uv &>/dev/null; then
+    print_warning "uv not found. Installing uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    # Add to current shell path explicitly for this run
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        export PATH="$HOME/.cargo/bin:$PATH"
+    else
+        export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+    fi
+else
+    print_success "Found uv $(uv --version)"
 fi
 
-PYTHON_PATH=$(which "$PYTHON_CMD")
-echo "Using Python: $PYTHON_PATH"
-echo ""
+# --- Installation ---
 
-# Get script directory
+# 1. Environment Setup
+print_status "Setting up directories..."
+mkdir -p "$INSTALL_DIR"
+mkdir -p "$LOG_DIR"
+
+# 2. Virtual Environment (Managed by uv)
+print_status "Creating virtual environment (Python 3.12)..."
+uv venv "$VENV_DIR" --python 3.12 --seed
+
+# 3. Dependency Installation (Fast)
+print_status "Syncing dependencies..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Create log directory
-echo "Creating log directory..."
-mkdir -p ~/.aws/logs
-print_success "Log directory created"
+uv pip install \
+    --python "$VENV_DIR" \
+    -e "$PROJECT_ROOT/api-server" \
+    fastapi \
+    'uvicorn[standard]' \
+    pydantic \
+    boto3
 
-# Install Python dependencies
-echo "Installing Python dependencies..."
-cd "$PROJECT_ROOT/native-messaging"
+print_success "Dependencies installed"
 
-if ! "$PYTHON_CMD" -m pip install --user -q fastapi 'uvicorn[standard]' pydantic boto3; then
-    print_error "Failed to install Python dependencies"
-    exit 1
-fi
-
-# Install the package
-if ! "$PYTHON_CMD" -m pip install --user -q -e .; then
-    print_error "Failed to install aws-profile-bridge package"
-    exit 1
-fi
-
-print_success "Python dependencies installed"
-cd "$PROJECT_ROOT"
-
-# Detect OS and install service
-echo ""
-echo "Installing system service..."
+# 4. Service Configuration
+APP_PYTHON="$VENV_DIR/bin/python"
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    # Linux systemd installation
-    print_warning "Installing systemd service (Linux)"
+    # --- Linux Systemd ---
+    SYSTEMD_DIR="$HOME/.config/systemd/user"
+    SERVICE_FILE="$SYSTEMD_DIR/$SERVICE_NAME.service"
     
-    mkdir -p ~/.config/systemd/user
-    
-    # Generate service file with correct Python path
-    sed "s|/usr/bin/python3.12|$PYTHON_PATH|g" \
-        "$PROJECT_ROOT/scripts/services/aws-profile-bridge.service" \
-        > ~/.config/systemd/user/aws-profile-bridge.service
-    
-    # Reload systemd
+    print_status "Configuring systemd service..."
+    mkdir -p "$SYSTEMD_DIR"
+    systemctl --user stop "$SERVICE_NAME" 2>/dev/null || true
+
+    cat <<EOF > "$SERVICE_FILE"
+[Unit]
+Description=AWS Profile Bridge API
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$APP_PYTHON -m aws_profile_bridge api
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:$LOG_DIR/aws_profile_bridge_api.log
+StandardError=append:$LOG_DIR/aws_profile_bridge_api.log
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target
+EOF
+
     systemctl --user daemon-reload
-    
-    # Enable service
-    systemctl --user enable aws-profile-bridge.service
-    
-    # Start service
-    systemctl --user start aws-profile-bridge.service
-    
-    print_success "Systemd service installed and started"
-    echo ""
-    echo "Service commands:"
-    echo "  Status:  systemctl --user status aws-profile-bridge"
-    echo "  Stop:    systemctl --user stop aws-profile-bridge"
-    echo "  Start:   systemctl --user start aws-profile-bridge"
-    echo "  Restart: systemctl --user restart aws-profile-bridge"
-    echo "  Logs:    journalctl --user -u aws-profile-bridge -f"
-    
+    systemctl --user enable "$SERVICE_NAME"
+    systemctl --user start "$SERVICE_NAME"
+    print_success "Systemd service active"
+
 elif [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS launchd installation
-    print_warning "Installing launchd service (macOS)"
+    # --- macOS Launchd ---
+    LAUNCH_DIR="$HOME/Library/LaunchAgents"
+    PLIST_NAME="com.aws.profile-bridge"
+    PLIST_FILE="$LAUNCH_DIR/$PLIST_NAME.plist"
+    USER_ID=$(id -u)
     
-    USERNAME=$(whoami)
+    print_status "Configuring launchd service..."
+    launchctl bootout "gui/$USER_ID/$PLIST_NAME" 2>/dev/null || true
     
-    # Generate plist with correct paths
-    sed "s|/usr/local/bin/python3.12|$PYTHON_PATH|g" \
-        "$PROJECT_ROOT/scripts/services/com.aws.profile-bridge.plist" | \
-    sed "s|USERNAME|$USERNAME|g" \
-        > ~/Library/LaunchAgents/com.aws.profile-bridge.plist
-    
-    # Load service
-    launchctl load ~/Library/LaunchAgents/com.aws.profile-bridge.plist
-    
-    print_success "Launchd service installed and started"
-    echo ""
-    echo "Service commands:"
-    echo "  Status:  launchctl list | grep aws-profile-bridge"
-    echo "  Stop:    launchctl unload ~/Library/LaunchAgents/com.aws.profile-bridge.plist"
-    echo "  Start:   launchctl load ~/Library/LaunchAgents/com.aws.profile-bridge.plist"
-    echo "  Logs:    tail -f ~/.aws/logs/aws_profile_bridge_api.log"
-    
+    cat <<EOF > "$PLIST_FILE"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>$PLIST_NAME</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$APP_PYTHON</string>
+        <string>-m</string>
+        <string>aws_profile_bridge</string>
+        <string>api</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>$LOG_DIR/aws_profile_bridge_api.log</string>
+    <key>StandardErrorPath</key>
+    <string>$LOG_DIR/aws_profile_bridge_api.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>
+EOF
+
+    launchctl bootstrap "gui/$USER_ID" "$PLIST_FILE"
+    print_success "Launchd service active"
+
 else
     print_error "Unsupported OS: $OSTYPE"
-    echo ""
-    echo "Manual setup required:"
-    echo "1. Install Python 3.12+ dependencies"
-    echo "2. Run: $PYTHON_CMD -m aws_profile_bridge api"
     exit 1
 fi
 
-# Wait for service to start
-echo ""
-echo "Waiting for API server to start..."
-sleep 3
+# --- Verification ---
 
-# Verify API is responding
-MAX_RETRIES=10
-RETRY_COUNT=0
+print_status "Waiting for API verification..."
+HEALTH_URL="http://localhost:10999/health"
 
-while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if curl -s -f http://localhost:10999/health > /dev/null 2>&1; then
-        print_success "API server is running!"
-        
-        # Get version info
-        VERSION_INFO=$(curl -s http://localhost:10999/version)
+for _ in $(seq 1 10); do
+    if curl -sf "$HEALTH_URL" >/dev/null 2>&1; then
+        print_success "API is online!"
         echo ""
-        echo "Server Information:"
-        echo "$VERSION_INFO" | python3 -m json.tool
-        
-        echo ""
-        print_success "Installation complete!"
-        echo ""
-        echo "Next steps:"
-        echo "1. API server is running on http://localhost:10999"
-        echo "2. Test endpoints:"
-        echo "   curl http://localhost:10999/health"
-        echo "   curl -X POST http://localhost:10999/profiles"
-        echo ""
-        echo "Logs: tail -f ~/.aws/logs/aws_profile_bridge_api.log"
+        echo -e "  ${BLUE}Endpoint:${NC} http://localhost:10999"
+        echo -e "  ${BLUE}Logs:${NC}     tail -f $LOG_DIR/aws_profile_bridge_api.log"
+        trap - EXIT
         exit 0
     fi
-    
-    RETRY_COUNT=$((RETRY_COUNT + 1))
     sleep 1
 done
 
-print_error "API server failed to start within 10 seconds"
-echo ""
-echo "Troubleshooting:"
-echo "1. Check logs: tail -f ~/.aws/logs/aws_profile_bridge_api.log"
-echo "2. Check service status (see commands above)"
-echo "3. Try manual start: $PYTHON_CMD -m aws_profile_bridge api"
+print_error "Service started but API is not responding."
+echo "Check logs at: $LOG_DIR/aws_profile_bridge_api.log"
 exit 1

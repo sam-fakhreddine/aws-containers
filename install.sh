@@ -158,6 +158,8 @@ mkdir -p "$INSTALL_DIR"
 if [ "$DEV_MODE" = true ]; then
     # Development mode: Use system Python with uv environment
     echo "Setting up development environment with uv..."
+    echo "  • Using system Python with uv virtual environment"
+    echo "  • Virtual environment: $PROJECT_ROOT/api-server/.venv"
 
     # Check if uv is installed
     if ! command -v uv &> /dev/null; then
@@ -184,15 +186,15 @@ if [ "$DEV_MODE" = true ]; then
 
     echo -e "${GREEN}✓${NC} uv is available"
 
-    # Create uv virtual environment in native-messaging directory
-    VENV_DIR="$PROJECT_ROOT/native-messaging/.venv"
+    # Create uv virtual environment in api-server directory
+    VENV_DIR="$PROJECT_ROOT/api-server/.venv"
 
     if [ -d "$VENV_DIR" ]; then
         echo "Virtual environment already exists, removing it..."
         rm -rf "$VENV_DIR"
     fi
 
-    cd native-messaging
+    cd api-server
 
     # Clear Python bytecode cache to ensure fresh code
     echo "Clearing Python bytecode cache..."
@@ -217,7 +219,7 @@ if [ "$DEV_MODE" = true ]; then
 
     echo -e "${GREEN}✓${NC} Virtual environment created at: $VENV_DIR"
 
-    # Create wrapper script that activates venv and runs the bridge
+    # Create wrapper script that activates venv and runs the API server
     WRAPPER_SCRIPT="$INSTALL_DIR/aws_profile_bridge"
     cat > "$WRAPPER_SCRIPT" <<'WRAPPER_EOF'
 #!/bin/bash
@@ -231,16 +233,16 @@ if [ "$DEV_MODE" = true ]; then
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Find the project root (where native-messaging directory is)
+# Find the project root (where api-server directory is)
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Check if we're in the right place
-if [ ! -d "$PROJECT_ROOT/native-messaging/.venv" ]; then
+if [ ! -d "$PROJECT_ROOT/api-server/.venv" ]; then
     # Try alternative path
     PROJECT_ROOT="__PROJECT_ROOT__"
 fi
 
-VENV_DIR="$PROJECT_ROOT/native-messaging/.venv"
+VENV_DIR="$PROJECT_ROOT/api-server/.venv"
 
 if [ ! -d "$VENV_DIR" ]; then
     echo "Error: Virtual environment not found at $VENV_DIR" >&2
@@ -315,7 +317,7 @@ else
                 fi
             fi
         fi
-    elif [ -d "native-messaging/src/aws_profile_bridge" ]; then
+    elif [ -d "api-server/src/aws_profile_bridge" ]; then
         echo -e "${YELLOW}!${NC} Pre-built executable not found, using Python script"
         echo "  (Run ./scripts/build/build-native-host.sh to create standalone executable)"
         echo "  (Or use --dev flag for development mode with uv)"
@@ -337,7 +339,7 @@ else
 # AWS Profile Bridge wrapper script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="__PROJECT_ROOT__"
-cd "$PROJECT_ROOT/native-messaging"
+cd "$PROJECT_ROOT/api-server"
 exec python3 -m aws_profile_bridge "$@"
 WRAPPER_EOF
 
@@ -459,7 +461,7 @@ if [ "$DEV_MODE" = true ]; then
 
     echo -e "${GREEN}Development Mode Summary:${NC}"
     echo "  • Using system Python with uv virtual environment"
-    echo "  • Virtual environment: $PROJECT_ROOT/native-messaging/.venv"
+    echo "  • Virtual environment: $PROJECT_ROOT/api-server/.venv"
     echo "  • Wrapper script: $INSTALLED_PATH"
     echo "  • Debug logging: ENABLED"
     echo ""

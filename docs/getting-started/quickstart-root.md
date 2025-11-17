@@ -53,7 +53,7 @@ sso-janus customer-name
 ls -la ~/.local/bin/aws_profile_bridge.py
 
 # 2. Test the bridge
-./test-native-messaging.sh
+./test-api-server.sh
 
 # 3. Restart Firefox completely
 ```
@@ -111,7 +111,7 @@ yarn build
 ## Need Help?
 
 1. Check [README-AWS-PROFILES.md](./README-AWS-PROFILES.md) for detailed docs
-2. Run `./test-native-messaging.sh` to diagnose issues
+2. Run `./test-api-server.sh` to diagnose issues
 3. Check Firefox console: `about:debugging` → "Inspect"
 
 ## Tips

@@ -17,13 +17,13 @@ NC='\033[0m'
 cd "$(dirname "$0")/.."
 
 echo "Step 1: Clearing Python bytecode cache..."
-find native-messaging/src -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-find native-messaging/src -type f -name "*.pyc" -delete 2>/dev/null || true
+find api-server/src -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+find api-server/src -type f -name "*.pyc" -delete 2>/dev/null || true
 echo -e "${GREEN}✓${NC} Cache cleared"
 echo ""
 
 echo "Step 2: Reinstalling package in editable mode..."
-cd native-messaging
+cd api-server
 uv pip install -e . --force-reinstall --no-deps
 cd ..
 echo -e "${GREEN}✓${NC} Package reinstalled"

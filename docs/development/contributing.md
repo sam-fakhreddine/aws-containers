@@ -13,7 +13,7 @@ Thank you for your interest in contributing to AWS Profile Containers!
 3. Install dependencies:
    ```bash
    npm install
-   pip install -r native-messaging/requirements.txt
+   pip install -r api-server/requirements.txt
    ```
 
 ## Development Workflow
@@ -33,10 +33,10 @@ Thank you for your interest in contributing to AWS Profile Containers!
 
 ### Native Host Development
 
-1. Make changes to Python source in `native-messaging/src/`
+1. Make changes to Python source in `api-server/src/`
 2. Test changes:
    ```bash
-   python -m pytest native-messaging/tests/
+   python -m pytest api-server/tests/
    ```
 3. Build standalone executable (optional):
    ```bash
@@ -65,7 +65,7 @@ Thank you for your interest in contributing to AWS Profile Containers!
 - Write docstrings
 - Run tests:
   ```bash
-  pytest native-messaging/tests/
+  pytest api-server/tests/
   ```
 
 ## Testing
@@ -84,7 +84,7 @@ npm test -- --watch
 
 ```bash
 # Run all tests
-cd native-messaging
+cd api-server
 pytest
 
 # With coverage

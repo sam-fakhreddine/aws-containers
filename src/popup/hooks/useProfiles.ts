@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import browser from "webextension-polyfill";
-import { AWSProfile, isErrorResponse, isProfileListResponse } from "../types";
+import { AWSProfile } from "../types";
 import { sortByCredentialStatus, logProfileSummary } from "../utils/profiles";
-import { NATIVE_MESSAGING_HOST_NAME } from "../constants";
+import * as apiClient from "../../services/apiClient";
 
 const CACHE_KEY = "aws-profiles";
 const CACHE_EXPIRATION_MS = 60000; // 1 minute
@@ -38,39 +38,22 @@ function useProfiles() {
     [saveToCache],
   );
 
-  const callNativeHost = useCallback(
-    async (message: object) => {
+  const callApi = useCallback(
+    async (action: "getProfiles" | "enrichSSOProfiles") => {
       setLoading(true);
       setError(null);
       try {
-        const response: unknown = await new Promise((resolve, reject) => {
-          const port = browser.runtime.connectNative(NATIVE_MESSAGING_HOST_NAME);
-          const listener = (resp: unknown) => {
-            if (browser.runtime.lastError) {
-              reject(new Error(browser.runtime.lastError.message));
-            } else {
-              resolve(resp);
-            }
-            port.disconnect();
-          };
-          port.onMessage.addListener(listener);
-          port.onDisconnect.addListener(() => {
-            if (browser.runtime.lastError) {
-                reject(new Error(browser.runtime.lastError.message ?? 'Port disconnected unexpectedly. Is the native host running?'));
-            }
-          });
-          port.postMessage(message);
-        });
+        const response = action === "enrichSSOProfiles" 
+          ? await apiClient.getProfilesEnriched()
+          : await apiClient.getProfiles();
 
-        if (isProfileListResponse(response)) {
-          await processProfiles(response.profiles);
-        } else if (isErrorResponse(response)) {
-          setError(response.message);
-        } else {
-          setError("Invalid response from native messaging host");
-        }
+        await processProfiles(response.profiles);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to connect to native messaging host");
+        if (e instanceof apiClient.ApiClientError) {
+          setError(e.message);
+        } else {
+          setError(e instanceof Error ? e.message : "Failed to connect to API server");
+        }
       } finally {
         setLoading(false);
       }
@@ -80,14 +63,14 @@ function useProfiles() {
 
   const loadProfiles = useCallback(
     (force = false) => {
-      callNativeHost({ action: "getProfiles" });
+      callApi("getProfiles");
     },
-    [callNativeHost],
+    [callApi],
   );
 
   const enrichSSOProfiles = useCallback(() => {
-    callNativeHost({ action: "enrichSSOProfiles" });
-  }, [callNativeHost]);
+    callApi("enrichSSOProfiles");
+  }, [callApi]);
 
   useEffect(() => {
     const restoreFromCache = async () => {
@@ -115,7 +98,7 @@ function useProfiles() {
     profiles, 
     loading, 
     error, 
-    nativeMessagingAvailable: !error || error !== "Failed to connect to native messaging host",
+    apiAvailable: !error || !error.includes("Cannot connect to API server"),
     loadProfiles,
     refreshProfiles: () => loadProfiles(true), 
     enrichSSOProfiles 

@@ -148,7 +148,7 @@ git clone https://github.com/sam-fakhreddine/aws-containers.git
 cd aws-containers
 
 # Install Python dependencies (optional, for better SSO support)
-pip install -r native-messaging/requirements.txt
+pip install -r api-server/requirements.txt
 
 # Install Node dependencies
 npm install
@@ -216,7 +216,7 @@ If you see "Setup Required":
   ```
 - Check the manifest:
   ```bash
-  cat ~/.mozilla/native-messaging-hosts/aws_profile_bridge.json
+  cat ~/.mozilla/api-server-hosts/aws_profile_bridge.json
   ```
 - Restart Firefox
 - Check the browser console for errors (F12)
@@ -227,7 +227,7 @@ If you see "Setup Required":
 
 ### Linux
 
-- Native messaging host directory: `~/.mozilla/native-messaging-hosts/`
+- Native messaging host directory: `~/.mozilla/api-server-hosts/`
 - Executable location: `~/.local/bin/`
 
 ### macOS
@@ -280,7 +280,7 @@ Windows support is planned for future releases.
    ```
 3. Check manifest exists and has correct path:
    ```bash
-   cat ~/.mozilla/native-messaging-hosts/aws_profile_bridge.json
+   cat ~/.mozilla/api-server-hosts/aws_profile_bridge.json
    ```
 4. Rebuild and reinstall:
    ```bash
@@ -315,7 +315,7 @@ chmod +x ~/.local/bin/aws_profile_bridge
 
 **Solution:** Install Python dependencies:
 ```bash
-pip install -r native-messaging/requirements.txt
+pip install -r api-server/requirements.txt
 ```
 
 **Or** use standalone executable (recommended):
@@ -365,7 +365,7 @@ To remove the extension:
 2. Remove native messaging host:
    ```bash
    rm ~/.local/bin/aws_profile_bridge*
-   rm ~/.mozilla/native-messaging-hosts/aws_profile_bridge.json
+   rm ~/.mozilla/api-server-hosts/aws_profile_bridge.json
    # Or for macOS:
    # rm ~/Library/Application\ Support/Mozilla/NativeMessagingHosts/aws_profile_bridge.json
    ```

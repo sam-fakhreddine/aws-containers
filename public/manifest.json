@@ -7,6 +7,10 @@
         "default_icon": "aws-console-containers.png",
         "default_popup": "popup.html"
     },
+    "options_ui": {
+        "page": "settings.html",
+        "open_in_tab": true
+    },
     "sidebar_action": {
         "default_icon": "aws-console-containers.png",
         "default_title": "AWS Profile Containers",
@@ -37,7 +41,7 @@
         "cookies",
         "tabs",
         "storage",
-        "nativeMessaging"
+        "<all_urls>"
     ],
     "browser_specific_settings": {
         "gecko": {

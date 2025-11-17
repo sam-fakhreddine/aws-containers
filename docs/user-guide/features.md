@@ -257,7 +257,7 @@ Secure communication between extension and local filesystem.
 - Standalone executable (no Python needed on user systems)
 - Local-only operation
 - Communicates only with this extension
-- See [Native Messaging API](../api/native-messaging.md) for details
+- See [Native Messaging API](../api/api-server.md) for details
 
 ### Automated Builds
 

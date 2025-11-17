@@ -1,3 +1,6 @@
+# Archive
+.archive/
+
 # JavaScript/TypeScript
 dist/
 node_modules/
@@ -20,7 +23,6 @@ venv/
 venv-build/
 env/
 ENV/
-build/
 develop-eggs/
 dist/
 downloads/
@@ -58,8 +60,8 @@ coverage/
 
 # Build artifacts
 bin/linux/aws_profile_bridge
-native-messaging/build/
-native-messaging/dist/
+api-server/build/
+api-server/dist/
 bundle-report.html
 
 # Logs

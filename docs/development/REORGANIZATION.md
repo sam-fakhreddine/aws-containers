@@ -39,7 +39,7 @@ Build and utility scripts moved from root to `scripts/` with proper subdirectori
 
 - `build-native-host.sh` → `scripts/build/build-native-host.sh`
 - `update-version.js` → `scripts/build/update-version.js`
-- `test-native-messaging.sh` → `scripts/test/test-native-messaging.sh`
+- `test-api-server.sh` → `scripts/test/test-api-server.sh`
 - `migrate-to-new-repo.sh` → `scripts/migrate-to-new-repo.sh`
 
 **Kept in root**:
@@ -86,7 +86,7 @@ aws-containers/
 │   ├── getting-started/
 │   ├── security/
 │   └── user-guide/
-├── native-messaging/           # Python native messaging host (unchanged)
+├── api-server/           # Python native messaging host (unchanged)
 │   ├── src/
 │   ├── tests/
 │   ├── setup.py
@@ -96,7 +96,7 @@ aws-containers/
 │   │   ├── build-native-host.sh
 │   │   └── update-version.js
 │   ├── test/
-│   │   └── test-native-messaging.sh
+│   │   └── test-api-server.sh
 │   └── migrate-to-new-repo.sh
 ├── src/                        # Extension source code (unchanged)
 │   ├── __mocks__/

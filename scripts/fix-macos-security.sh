@@ -31,7 +31,7 @@ INSTALLED_PATH="$HOME/.local/bin/aws_profile_bridge"
 BIN_PATHS=(
     "bin/darwin-arm64/aws_profile_bridge"
     "bin/darwin-x86_64/aws_profile_bridge"
-    "native-messaging/dist/aws_profile_bridge"
+    "api-server/dist/aws_profile_bridge"
 )
 
 # Collect all files that need fixing

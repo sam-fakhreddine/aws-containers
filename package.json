@@ -30,7 +30,7 @@
     "credentials",
     "profiles",
     "isolation",
-    "native-messaging"
+    "api"
   ],
   "author": "Sam Fakhreddine",
   "license": "MIT",

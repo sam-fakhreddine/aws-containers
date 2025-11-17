@@ -108,7 +108,7 @@ Change the `path` to point to the Python script:
 {
   "name": "aws_profile_bridge",
   "description": "AWS Profile Bridge for reading credentials file",
-  "path": "/absolute/path/to/aws-containers/native-messaging/src/aws_profile_bridge/aws_profile_bridge.py",
+  "path": "/absolute/path/to/aws-containers/api-server/src/aws_profile_bridge/aws_profile_bridge.py",
   "type": "stdio",
   "allowed_extensions": [
     "aws-profile-containers@yourname.local"
@@ -119,13 +119,13 @@ Change the `path` to point to the Python script:
 ### Step 2: Make Script Executable
 
 ```bash
-chmod +x native-messaging/src/aws_profile_bridge/aws_profile_bridge.py
+chmod +x api-server/src/aws_profile_bridge/aws_profile_bridge.py
 ```
 
 ### Step 3: Install Python Dependencies
 
 ```bash
-cd native-messaging
+cd api-server
 pip3 install -r requirements.txt
 ```
 

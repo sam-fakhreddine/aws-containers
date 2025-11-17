@@ -20,6 +20,7 @@ module.exports = {
         opener: path.join(projectRoot, "src/opener/index.ts"),
         backgroundPage: path.join(projectRoot, "src/backgroundPage.ts"),
         popup: path.join(projectRoot, "src/popup/index.tsx"),
+        settings: path.join(projectRoot, "src/settings/index.tsx"),
     },
     output: {
         path: path.join(projectRoot, "dist/js"),
