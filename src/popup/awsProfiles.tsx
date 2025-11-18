@@ -125,7 +125,12 @@ export const AWSProfilesPopup: FunctionComponent = () => {
      * Notify background page that popup mounted
      */
     useEffect(() => {
-        browser.runtime.sendMessage({ popupMounted: true });
+        browser.runtime.sendMessage({ popupMounted: true }).catch((err) => {
+            // Ignore errors if background page isn't ready
+            if (process.env.NODE_ENV === 'development') {
+                console.error('Error sending popupMounted message:', err);
+            }
+        });
         loadProfiles();
     }, [loadProfiles]);
 

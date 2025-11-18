@@ -3,13 +3,14 @@
  * Handles container listing, creation, and deletion
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { type ContextualIdentities } from "webextension-polyfill";
 import {
     getManagedContainers,
     clearAllContainers,
     prepareContainer,
 } from "../../utils/containerManager";
+import { useIsMounted } from "./useIsMounted";
 
 interface UseContainersReturn {
     containers: ContextualIdentities.ContextualIdentity[];
@@ -29,31 +30,47 @@ export function useContainers(): UseContainersReturn {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const isMounted = useIsMounted();
+    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    /**
+     * Refresh the list of managed containers (debounced)
+     */
+    const refreshContainers = useCallback(async (): Promise<void> => {
+        // Clear existing debounce timer
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        // Debounce container queries to avoid excessive API calls
+        debounceTimerRef.current = setTimeout(async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const containerList = await getManagedContainers();
+                if (isMounted()) {
+                    setContainers(containerList);
+                }
+            } catch (err) {
+                console.error("Failed to refresh containers:", err);
+                if (isMounted()) {
+                    setError("Failed to load containers");
+                    setContainers([]);
+                }
+            } finally {
+                if (isMounted()) {
+                    setLoading(false);
+                }
+            }
+        }, 300);
+    }, [isMounted]);
+
     /**
      * Load containers on mount
      */
     useEffect(() => {
         refreshContainers();
-    }, []);
-
-    /**
-     * Refresh the list of managed containers
-     */
-    const refreshContainers = useCallback(async (): Promise<void> => {
-        try {
-            setLoading(true);
-            setError(null);
-            const containerList = await getManagedContainers();
-            setContainers(containerList);
-        } catch (err) {
-            console.error("Failed to refresh containers:", err);
-            setError("Failed to load containers");
-            // Continue with empty list on error
-            setContainers([]);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    }, [refreshContainers]);
 
     /**
      * Clear all managed containers

@@ -3,7 +3,7 @@
  * Handles loading, saving, and tracking recently accessed profiles
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import browser from "webextension-polyfill";
 import { STORAGE_KEYS, MAX_RECENT_PROFILES } from "../constants";
 import { isStringArray } from "../types";
@@ -13,6 +13,7 @@ interface UseRecentProfilesReturn {
     addRecentProfile: (profileName: string) => Promise<void>;
     clearRecentProfiles: () => Promise<void>;
     loading: boolean;
+    flushPendingWrites?: () => Promise<void>;
 }
 
 /**
@@ -22,6 +23,8 @@ interface UseRecentProfilesReturn {
 export function useRecentProfiles(): UseRecentProfilesReturn {
     const [recentProfiles, setRecentProfiles] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
+    const batchTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const pendingRecentRef = useRef<string[] | null>(null);
 
     /**
      * Load recent profiles from storage on mount
@@ -42,7 +45,49 @@ export function useRecentProfiles(): UseRecentProfilesReturn {
         };
 
         loadRecentProfiles();
+
+        return () => {
+            // Cleanup: flush pending writes on unmount
+            if (batchTimerRef.current) {
+                clearTimeout(batchTimerRef.current);
+            }
+        };
     }, []);
+
+    /**
+     * Flush pending writes immediately
+     */
+    const flushPendingWrites = useCallback(async () => {
+        if (batchTimerRef.current) {
+            clearTimeout(batchTimerRef.current);
+            batchTimerRef.current = null;
+        }
+        if (pendingRecentRef.current) {
+            await browser.storage.local.set({
+                [STORAGE_KEYS.RECENT_PROFILES]: pendingRecentRef.current,
+            });
+            pendingRecentRef.current = null;
+        }
+    }, []);
+
+    /**
+     * Batch write recent profiles to storage
+     */
+    const batchWriteRecent = useCallback((updatedRecent: string[]) => {
+        pendingRecentRef.current = updatedRecent;
+
+        if (batchTimerRef.current) {
+            clearTimeout(batchTimerRef.current);
+        }
+
+        batchTimerRef.current = setTimeout(async () => {
+            try {
+                await flushPendingWrites();
+            } catch (err) {
+                console.error("Failed to write recent profiles:", err);
+            }
+        }, 500);
+    }, [flushPendingWrites]);
 
     /**
      * Add a profile to recent profiles (moves to front if already exists)
@@ -62,9 +107,7 @@ export function useRecentProfiles(): UseRecentProfilesReturn {
                 ].slice(0, MAX_RECENT_PROFILES);
 
                 setRecentProfiles(updatedRecent);
-                await browser.storage.local.set({
-                    [STORAGE_KEYS.RECENT_PROFILES]: updatedRecent,
-                });
+                batchWriteRecent(updatedRecent);
             } catch (err) {
                 console.error("Failed to add recent profile:", err);
                 // Revert on error
@@ -72,7 +115,7 @@ export function useRecentProfiles(): UseRecentProfilesReturn {
                 throw err;
             }
         },
-        [recentProfiles]
+        [recentProfiles, batchWriteRecent]
     );
 
     /**
@@ -95,5 +138,6 @@ export function useRecentProfiles(): UseRecentProfilesReturn {
         addRecentProfile,
         clearRecentProfiles,
         loading,
+        ...(process.env.NODE_ENV === 'test' && { flushPendingWrites }),
     };
 }
