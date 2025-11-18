@@ -33,8 +33,20 @@ export function useContainers(): UseContainersReturn {
      * Load containers on mount
      */
     useEffect(() => {
-        refreshContainers();
-    }, []);
+        let mounted = true;
+
+        const loadContainers = async () => {
+            if (mounted) {
+                await refreshContainers();
+            }
+        };
+
+        loadContainers();
+
+        return () => {
+            mounted = false;
+        };
+    }, [refreshContainers]);
 
     /**
      * Refresh the list of managed containers

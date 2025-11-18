@@ -87,6 +87,8 @@ function useProfiles() {
   }, [callApi]);
 
   useEffect(() => {
+    let mounted = true;
+
     const restoreFromCache = async () => {
       const result = await browser.storage.local.get(CACHE_KEY);
       const cachedData = result?.[CACHE_KEY] as CachedData | undefined;
@@ -94,18 +96,24 @@ function useProfiles() {
         if (isDebugMode) {
             logProfileSummary(cachedData.profiles);
         }
-        setProfiles(cachedData.profiles);
-        setLoading(false);
+        if (mounted) {
+          setProfiles(cachedData.profiles);
+          setLoading(false);
+        }
         return true;
       }
       return false;
     };
 
     restoreFromCache().then((cached) => {
-      if (!cached) {
+      if (!cached && mounted) {
         loadProfiles(true);
       }
     });
+
+    return () => {
+      mounted = false;
+    };
   }, [loadProfiles]);
 
   return { 

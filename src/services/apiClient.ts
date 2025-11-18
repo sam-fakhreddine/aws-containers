@@ -81,13 +81,13 @@ async function fetchWithTimeout(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    const token = await getApiToken();
-    const headers = new Headers(options.headers);
-    if (token) {
-        headers.set("X-API-Token", token);
-    }
-
     try {
+        const token = await getApiToken();
+        const headers = new Headers(options.headers);
+        if (token) {
+            headers.set("X-API-Token", token);
+        }
+
         const response = await fetch(url, {
             ...options,
             headers,

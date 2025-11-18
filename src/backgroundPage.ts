@@ -5,17 +5,22 @@
 
 import browser from "webextension-polyfill";
 
-// Listen for messages sent from other parts of the extension
-browser.runtime.onMessage.addListener((request: unknown) => {
-    // Safely handle null/undefined requests
+// Track active listeners to prevent duplicates
+let messageListenerRegistered = false;
+
+function handleMessage(request: unknown) {
     if (!request || typeof request !== "object") {
         return;
     }
 
     const message = request as { popupMounted?: boolean };
-    // Handle popup mounted notification
-    // NOTE: this request is sent in `popup/component.tsx`
     if (message.popupMounted) {
         console.log("backgroundPage notified that Popup.tsx has mounted.");
     }
-});
+}
+
+// Register listener only once
+if (!messageListenerRegistered) {
+    browser.runtime.onMessage.addListener(handleMessage);
+    messageListenerRegistered = true;
+}
