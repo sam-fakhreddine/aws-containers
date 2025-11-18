@@ -1,4 +1,4 @@
-# AWS Citadel - Technical Specification
+# Saray - Technical Specification
 
 **Version:** 1.0.0
 **Date:** 2025-11-18
@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-AWS Citadel is a standalone desktop application that provides a secure, isolated environment for accessing the AWS Management Console. Built on LibreWolf (privacy-hardened Firefox) and leveraging the proven AWS Containers extension, Citadel creates a dedicated workspace with container-based profile isolation while restricting access exclusively to AWS services.
+Saray is a standalone desktop application that provides a secure, isolated environment for accessing the AWS Management Console. Built on LibreWolf (privacy-hardened Firefox) and leveraging the proven AWS Containers extension, Saray creates a dedicated workspace with container-based profile isolation while restricting access exclusively to AWS services.
 
 ## Project Overview
 
@@ -34,7 +34,7 @@ Transform the AWS Containers browser extension into a standalone desktop applica
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      AWS Citadel App                        │
+│                      Saray App                        │
 ├─────────────────────────────────────────────────────────────┤
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │           LibreWolf Browser Runtime                   │  │
@@ -75,7 +75,7 @@ Transform the AWS Containers browser extension into a standalone desktop applica
 
 #### 1. LibreWolf Browser Core
 - **Base**: LibreWolf 133.x+ (latest stable)
-- **Profile**: Custom isolated profile with Citadel-specific settings
+- **Profile**: Custom isolated profile with Saray-specific settings
 - **Modifications**:
   - `userChrome.css` for UI customization
   - `user.js` for preference overrides
@@ -126,7 +126,7 @@ Transform the AWS Containers browser extension into a standalone desktop applica
 
 #### Profile Loading Flow
 ```
-User launches Citadel
+User launches Saray
     ↓
 Launcher script executes
     ↓
@@ -216,7 +216,7 @@ If NO:
     "DontCheckDefaultBrowser": true,
     "DisableSetDesktopBackground": true,
     "ExtensionSettings": {
-      "aws-citadel@citadel.app": {
+      "aws-saray@saray.app": {
         "installation_mode": "force_installed",
         "install_url": "file:///path/to/extension.xpi"
       }
@@ -285,7 +285,7 @@ user_pref("browser.rights.3.shown", true);
 ```json
 {
   "manifest_version": 3,
-  "name": "AWS Citadel",
+  "name": "Saray",
   "version": "2.0.0",
   "description": "Secure AWS Console access with container-based profile isolation",
 
@@ -528,7 +528,7 @@ export async function openExternalUrl(url: string): Promise<void> {
 #### Linux/macOS Launcher
 ```bash
 #!/bin/bash
-# aws-citadel launcher script
+# aws-saray launcher script
 
 set -e
 
@@ -555,7 +555,7 @@ fi
 # Check if API server is running
 if ! curl -s http://localhost:10999/health > /dev/null 2>&1; then
     echo "Warning: API server not running on localhost:10999"
-    echo "Please start the AWS Profile API server before launching AWS Citadel"
+    echo "Please start the AWS Profile API server before launching Saray"
     exit 1
 fi
 
@@ -563,32 +563,32 @@ fi
 exec "$LIBREWOLF_BIN" \
     --profile "$PROFILE_DIR" \
     --new-instance \
-    --name "AWS Citadel" \
-    --class "aws-citadel" \
+    --name "Saray" \
+    --class "aws-saray" \
     "https://console.aws.amazon.com" \
     "$@"
 ```
 
 #### Windows Launcher (PowerShell)
 ```powershell
-# aws-citadel.ps1
+# aws-saray.ps1
 
 $ErrorActionPreference = "Stop"
 
 # Determine script directory
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$CitadelHome = $ScriptDir
+$SarayHome = $ScriptDir
 
 # Paths
-$LibreWolfBin = Join-Path $CitadelHome "librewolf\librewolf.exe"
-$ProfileDir = Join-Path $CitadelHome "profile"
-$PoliciesPath = Join-Path $CitadelHome "policies.json"
+$LibreWolfBin = Join-Path $SarayHome "librewolf\librewolf.exe"
+$ProfileDir = Join-Path $SarayHome "profile"
+$PoliciesPath = Join-Path $SarayHome "policies.json"
 
 # Create profile directory if it doesn't exist
 if (-not (Test-Path $ProfileDir)) {
     Write-Host "First run: Creating profile..."
     New-Item -ItemType Directory -Path $ProfileDir | Out-Null
-    Copy-Item -Path (Join-Path $CitadelHome "profile-template\*") `
+    Copy-Item -Path (Join-Path $SarayHome "profile-template\*") `
               -Destination $ProfileDir -Recurse
 }
 
@@ -597,7 +597,7 @@ try {
     $null = Invoke-WebRequest -Uri "http://localhost:10999/health" -TimeoutSec 2
 } catch {
     Write-Host "Warning: API server not running on localhost:10999"
-    Write-Host "Please start the AWS Profile API server before launching AWS Citadel"
+    Write-Host "Please start the AWS Profile API server before launching Saray"
     exit 1
 }
 
@@ -634,7 +634,7 @@ try {
 3. **No URL Bar**: Prevents manual navigation to phishing sites
 4. **External Link Protection**: Non-AWS links open in system browser
 5. **Privacy Hardening**: LibreWolf's built-in privacy features
-6. **No Additional Extensions**: Only AWS Citadel extension allowed
+6. **No Additional Extensions**: Only Saray extension allowed
 7. **Isolated Profile**: Separate from user's main browser profile
 
 ### Security Best Practices
@@ -790,6 +790,6 @@ try {
 
 ## Conclusion
 
-AWS Citadel transforms the proven AWS Containers extension into a secure, standalone desktop application. By leveraging LibreWolf's privacy features and Firefox's container technology, Citadel provides an isolated, secure environment for AWS Console access while maintaining the usability and features users expect.
+Saray transforms the proven AWS Containers extension into a secure, standalone desktop application. By leveraging LibreWolf's privacy features and Firefox's container technology, Saray provides an isolated, secure environment for AWS Console access while maintaining the usability and features users expect.
 
 The architecture maximizes code reuse (90%+ of extension logic unchanged) while adding critical security features like URL filtering and external link handling. The result is a professional-grade application that addresses the need for secure, isolated AWS Console access.

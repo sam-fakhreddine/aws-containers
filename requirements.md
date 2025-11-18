@@ -1,4 +1,4 @@
-# AWS Citadel - Requirements Document
+# Saray - Requirements Document
 
 **Version:** 1.0.0
 **Date:** 2025-11-18
@@ -6,7 +6,7 @@
 
 ## Document Purpose
 
-This document outlines the functional and non-functional requirements for AWS Citadel, a standalone desktop application for secure AWS Console access.
+This document outlines the functional and non-functional requirements for Saray, a standalone desktop application for secure AWS Console access.
 
 ## Stakeholders
 
@@ -404,7 +404,7 @@ This document outlines the functional and non-functional requirements for AWS Ci
 
 ### Epic 1: Application Setup
 
-**US-1.1**: As a DevOps engineer, I want to download and install AWS Citadel quickly so I can start using it without complex setup.
+**US-1.1**: As a DevOps engineer, I want to download and install Saray quickly so I can start using it without complex setup.
 
 **US-1.2**: As a user, I want the application to check for the API server on startup so I know immediately if something is wrong.
 
@@ -676,7 +676,7 @@ This document outlines the functional and non-functional requirements for AWS Ci
 
 ## Glossary
 
-- **AWS Citadel**: The standalone desktop application (this project)
+- **Saray**: The standalone desktop application (this project)
 - **AWS Containers**: The original browser extension being forked
 - **LibreWolf**: Privacy-hardened Firefox fork used as application base
 - **Container**: Firefox Contextual Identity for session isolation

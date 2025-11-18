@@ -1,4 +1,4 @@
-# AWS Citadel - Implementation Tasks
+# Saray - Implementation Tasks
 
 **Version:** 1.0.0
 **Date:** 2025-11-18
@@ -6,7 +6,7 @@
 
 ## Task Organization
 
-This document breaks down the AWS Citadel project into actionable tasks organized by phase and priority. Each task includes estimated effort, dependencies, and acceptance criteria.
+This document breaks down the Saray project into actionable tasks organized by phase and priority. Each task includes estimated effort, dependencies, and acceptance criteria.
 
 ### Effort Estimation Legend
 - **XS**: 1-2 hours
@@ -30,15 +30,15 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 **Effort**: S
 **Dependencies**: None
 
-**Description**: Create new AWS Citadel repository and set up basic structure.
+**Description**: Create new Saray repository and set up basic structure.
 
 **Steps**:
-1. Create new GitHub repository: `aws-citadel`
+1. Create new GitHub repository: `aws-saray`
 2. Initialize with README, LICENSE (choose MIT or Apache 2.0), .gitignore
 3. Set up branch protection rules
 4. Create initial directory structure:
    ```
-   aws-citadel/
+   aws-saray/
    ├── extension/          # Forked AWS Containers code
    ├── browser/            # LibreWolf configuration
    ├── native-messaging/   # Native messaging host
@@ -61,13 +61,13 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 **Effort**: M
 **Dependencies**: TASK-0.1
 
-**Description**: Copy AWS Containers extension code and set up as AWS Citadel extension.
+**Description**: Copy AWS Containers extension code and set up as Saray extension.
 
 **Steps**:
 1. Copy extension source code to `extension/` directory
 2. Update `manifest.json`:
-   - Change name to "AWS Citadel"
-   - Change ID to "aws-citadel@citadel.app"
+   - Change name to "Saray"
+   - Change ID to "aws-saray@saray.app"
    - Update version to 2.0.0
    - Add `webNavigation` permission
    - Add `nativeMessaging` permission
@@ -508,7 +508,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 2. Add policies:
    - WebsiteFilter with AWS domain whitelist
    - Disable telemetry, Pocket, studies
-   - Force-install AWS Citadel extension
+   - Force-install Saray extension
    - Block camera, microphone, location
    - Disable password manager
    - Configure cookie behavior
@@ -570,7 +570,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 **Description**: Create Bash launcher script for Linux.
 
 **Steps**:
-1. Create `launcher/aws-citadel.sh`
+1. Create `launcher/aws-saray.sh`
 2. Implement:
    - Determine script directory
    - Set environment variables
@@ -587,7 +587,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 6. Test on Ubuntu and Fedora
 
 **Files to Create**:
-- `launcher/aws-citadel.sh`
+- `launcher/aws-saray.sh`
 
 **Acceptance Criteria**:
 - ✅ Script launches LibreWolf correctly
@@ -607,7 +607,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 **Description**: Create Bash launcher script for macOS.
 
 **Steps**:
-1. Copy Linux launcher to `launcher/aws-citadel-mac.sh`
+1. Copy Linux launcher to `launcher/aws-saray-mac.sh`
 2. Update paths for macOS:
    - Application Support directory
    - LibreWolf.app location
@@ -616,7 +616,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 5. Handle macOS-specific permissions (notarization, etc.)
 
 **Files to Create**:
-- `launcher/aws-citadel-mac.sh`
+- `launcher/aws-saray-mac.sh`
 
 **Acceptance Criteria**:
 - ✅ Script launches LibreWolf correctly on macOS
@@ -634,7 +634,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 **Description**: Create PowerShell launcher script for Windows.
 
 **Steps**:
-1. Create `launcher/aws-citadel.ps1`
+1. Create `launcher/aws-saray.ps1`
 2. Implement same functionality as Linux script:
    - Determine script directory
    - Create profile on first run
@@ -645,8 +645,8 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 5. Handle Windows paths correctly
 
 **Files to Create**:
-- `launcher/aws-citadel.ps1`
-- `launcher/aws-citadel.bat` (wrapper for PowerShell script)
+- `launcher/aws-saray.ps1`
+- `launcher/aws-saray.bat` (wrapper for PowerShell script)
 
 **Acceptance Criteria**:
 - ✅ Script launches LibreWolf correctly on Windows
@@ -724,7 +724,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 **Effort**: XL
 **Dependencies**: TASK-5.1, TASK-4.1, TASK-3.4, TASK-1.7, TASK-2.3
 
-**Description**: Package AWS Citadel for Linux distributions.
+**Description**: Package Saray for Linux distributions.
 
 **Steps**:
 1. **AppImage**:
@@ -748,9 +748,9 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 - `packaging/appimage/build.sh`
 - `packaging/debian/control`
 - `packaging/debian/postinst`
-- `packaging/rpm/aws-citadel.spec`
-- `packaging/aws-citadel.desktop`
-- `packaging/icons/aws-citadel.png`
+- `packaging/rpm/aws-saray.spec`
+- `packaging/aws-saray.desktop`
+- `packaging/icons/aws-saray.png`
 
 **Acceptance Criteria**:
 - ✅ AppImage works on multiple distros
@@ -766,16 +766,16 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 **Effort**: L
 **Dependencies**: TASK-5.1, TASK-4.2, TASK-3.4, TASK-1.7, TASK-2.3
 
-**Description**: Package AWS Citadel for macOS.
+**Description**: Package Saray for macOS.
 
 **Steps**:
 1. Create .app bundle structure:
    ```
-   AWS Citadel.app/
+   Saray.app/
    ├── Contents/
    │   ├── Info.plist
    │   ├── MacOS/
-   │   │   └── aws-citadel (launcher script)
+   │   │   └── aws-saray (launcher script)
    │   └── Resources/
    │       ├── librewolf/
    │       ├── extension/
@@ -810,7 +810,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 **Effort**: L
 **Dependencies**: TASK-5.1, TASK-4.3, TASK-3.4, TASK-1.7, TASK-2.3
 
-**Description**: Package AWS Citadel for Windows.
+**Description**: Package Saray for Windows.
 
 **Steps**:
 1. **Installer (.exe)**:
@@ -830,7 +830,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 **Files to Create**:
 - `packaging/windows/installer.iss` (Inno Setup script)
 - `packaging/windows/build-installer.bat`
-- `packaging/windows/aws-citadel.ico`
+- `packaging/windows/aws-saray.ico`
 
 **Acceptance Criteria**:
 - ✅ Installer creates Start Menu shortcut
@@ -1126,7 +1126,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 1. Create `docs/user-guide/README.md` with table of contents
 2. Write sections:
    - Getting started
-   - Installing AWS Citadel
+   - Installing Saray
    - Configuring API server
    - Managing profiles
    - Using favorites
@@ -1341,7 +1341,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 **Effort**: M
 **Dependencies**: All previous tasks
 
-**Description**: Create first official release of AWS Citadel.
+**Description**: Create first official release of Saray.
 
 **Steps**:
 1. Complete all P0 and P1 tasks
@@ -1392,9 +1392,9 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 5. Set up auto-update for each channel
 
 **Files to Create**:
-- `packaging/flatpak/com.citadel.aws.yml`
-- `packaging/homebrew/aws-citadel.rb`
-- `packaging/winget/aws-citadel.yaml`
+- `packaging/flatpak/com.saray.aws.yml`
+- `packaging/homebrew/aws-saray.rb`
+- `packaging/winget/aws-saray.yaml`
 
 **Acceptance Criteria**:
 - ✅ Flatpak package submitted
