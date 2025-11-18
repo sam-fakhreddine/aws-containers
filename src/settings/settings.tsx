@@ -15,7 +15,7 @@ import SpaceBetween from "@cloudscape-design/components/space-between";
 import * as apiClient from "../services/apiClient";
 
 // Constants
-import { API_TOKEN_MIN_LENGTH } from "../popup/constants";
+import { API_TOKEN_MIN_LENGTH, API_TOKEN_MAX_LENGTH } from "../popup/constants";
 
 export const Settings: React.FC = () => {
     const [token, setToken] = useState("");
@@ -44,9 +44,17 @@ export const Settings: React.FC = () => {
         }
 
         if (trimmedToken.length < API_TOKEN_MIN_LENGTH) {
-            setMessage({ 
-                type: "error", 
-                text: `Token must be at least ${API_TOKEN_MIN_LENGTH} characters long` 
+            setMessage({
+                type: "error",
+                text: `Token must be at least ${API_TOKEN_MIN_LENGTH} characters long`
+            });
+            return;
+        }
+
+        if (trimmedToken.length > API_TOKEN_MAX_LENGTH) {
+            setMessage({
+                type: "error",
+                text: `Token must not exceed ${API_TOKEN_MAX_LENGTH} characters`
             });
             return;
         }

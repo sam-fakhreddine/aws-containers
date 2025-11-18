@@ -38,4 +38,5 @@ export const STORAGE_KEYS = {
 
 // Token validation
 export const API_TOKEN_MIN_LENGTH = 32;
-export const API_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,}$/;
+export const API_TOKEN_MAX_LENGTH = 64;
+export const API_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,64}$/;
