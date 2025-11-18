@@ -10,15 +10,16 @@ This directory contains automated CI/CD workflows for the AWS Profile Containers
 
 This is the main release workflow that runs on every push to main. It:
 1. **Tests & Lints** - Validates code quality
-2. **Builds Native Hosts** - Creates executables for Linux, macOS Intel, and macOS ARM64
-3. **Semantic Release** - Automatically:
+2. **E2E Tests** - Runs Playwright tests to ensure quality
+3. **Builds Native Hosts** - Creates executables for Linux, macOS Intel, and macOS ARM64
+4. **Semantic Release** - Automatically:
    - Analyzes commits using [Conventional Commits](https://www.conventionalcommits.org/)
    - Determines version bump (patch/minor/major)
    - Generates changelog
    - Creates GitHub release
    - Updates package.json and CHANGELOG.md
-4. **Builds Firefox Extension** - Creates production-ready .xpi file
-5. **Uploads Assets** - Attaches all binaries to the GitHub release
+5. **Builds Firefox Extension** - Creates production-ready .xpi file
+6. **Uploads Assets** - Attaches all binaries to the GitHub release
 
 **Semantic Versioning:**
 - `fix:` commits → patch release (0.0.x)
@@ -30,9 +31,12 @@ This is the main release workflow that runs on every push to main. It:
 **Purpose:** Continuous integration for PRs
 
 Ensures code quality before merging:
-1. Runs linter (ESLint)
-2. Runs test suite (Jest)
-3. Builds extension to verify no build errors
+1. **Lint & Test** - Runs linter (ESLint) and unit tests (Jest)
+2. **E2E Tests** - Runs Playwright tests in Firefox
+   - Builds extension for testing
+   - Uploads test reports and screenshots on failure
+   - Firefox-only (extension uses Firefox containers)
+3. **Build Extension** - Builds production extension to verify no errors
 4. Uploads dev build as artifact for testing
 
 ### 🔒 [security.yml](./security.yml)
@@ -52,6 +56,17 @@ Reviews dependency changes in PRs:
 - Flags known vulnerabilities
 - Posts summary comment in PR
 - Fails if moderate+ severity issues found
+
+### 🎭 [e2e.yml](./e2e.yml)
+**Trigger:** Daily at 3 AM UTC, manual dispatch
+**Purpose:** Comprehensive E2E testing
+
+Provides extensive end-to-end testing across platforms:
+- **Test Matrix** - Runs on Ubuntu and macOS with Firefox
+- **Scheduled Runs** - Daily automated testing
+- **Failure Reporting** - Auto-creates GitHub issues on scheduled failures
+- **Artifacts** - Uploads test reports, screenshots, and videos
+- **Firefox-only** - Tests Firefox exclusively (extension uses Firefox containers)
 
 ### 🎯 [build-release.yml](./build-release.yml) (Manual)
 **Trigger:** Manual workflow dispatch only
@@ -87,6 +102,13 @@ Same as automated release workflow but requires manual trigger. Useful for:
 - **Job summaries** - Rich output in GitHub UI
 - **Artifact uploads** - Easy access to builds
 - **Auto-versioning** - No manual version management
+
+### ✅ Testing
+- **E2E Tests** - Playwright tests for browser automation
+- **Firefox-focused** - Tests run on Firefox (extension's target platform)
+- **Cross-platform** - Tests on Ubuntu and macOS
+- **Test artifacts** - Screenshots, videos, and HTML reports
+- **Scheduled testing** - Daily automated E2E runs
 
 ## Making a Release
 
@@ -168,11 +190,41 @@ View releases: [Releases page](../../releases)
 - Update vulnerable packages
 - Add suppressions only if false positives
 
+### E2E Test Failures
+- Download test artifacts from Actions tab
+- View HTML report in `playwright-report/index.html`
+- Check screenshots for visual issues
+- Watch videos to see test execution
+- Run locally with `npm run test:e2e:debug`
+
 ## Configuration Files
 
 - **`.releaserc.json`** - Semantic-release configuration
 - **`package.json`** - Project metadata and version
 - **`CHANGELOG.md`** - Auto-generated changelog
+- **`playwright.config.ts`** - Playwright E2E test configuration
+
+## Running Tests Locally
+
+### Unit Tests
+```bash
+npm test                    # Run Jest tests
+npm run test:perf          # Run performance tests
+```
+
+### E2E Tests
+```bash
+npm run test:e2e           # Run all Playwright tests
+npm run test:e2e:ui        # Interactive UI mode
+npm run test:e2e:headed    # Run with visible browser
+npm run test:e2e:debug     # Debug mode
+npm run test:e2e:report    # View last test report
+```
+
+### All Tests
+```bash
+npm run test:all           # Run both unit and E2E tests
+```
 
 ## Further Reading
 
@@ -180,3 +232,5 @@ View releases: [Releases page](../../releases)
 - [Semantic Release](https://semantic-release.gitbook.io/)
 - [Conventional Commits](https://www.conventionalcommits.org/)
 - [CodeQL](https://codeql.github.com/)
+- [Playwright Documentation](https://playwright.dev/)
+- [Playwright Best Practices](https://playwright.dev/docs/best-practices)
