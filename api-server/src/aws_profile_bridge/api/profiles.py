@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, Header
 
 from ..auth.authenticator import Authenticator
+from ..utils.validators import validate_profile_name
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,7 @@ async def get_console_url(
 ):
     """Generate AWS Console URL for specified profile."""
     authenticator.authenticate(x_api_token)
+    profile_name = validate_profile_name(profile_name)
 
     try:
         from ..core.bridge import AWSProfileBridge

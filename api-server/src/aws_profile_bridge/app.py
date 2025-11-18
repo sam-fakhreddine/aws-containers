@@ -16,6 +16,7 @@ from .auth.token_manager import TokenManager
 from .auth.rate_limiter import RateLimiter
 from .auth.authenticator import Authenticator
 from .middleware.logging import log_requests
+from .middleware.extension_validator import validate_extension_origin
 from .api import health, profiles
 
 
@@ -99,6 +100,9 @@ def create_app() -> FastAPI:
 
     # Logging middleware
     app.middleware("http")(log_requests)
+    
+    # Extension origin validation
+    app.middleware("http")(validate_extension_origin)
 
     # Register routes
     app.include_router(health.router)

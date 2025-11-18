@@ -32,16 +32,28 @@ class TokenManager:
                 logger.warning(f"Failed to load config: {e}")
 
         token = secrets.token_urlsafe(32)
+        self._save_token(token)
+        self._token = token
+        return token
+
+    def rotate(self) -> str:
+        """Generate and save new token."""
+        token = secrets.token_urlsafe(32)
+        self._save_token(token)
+        self._token = token
+        logger.info("Rotated API token")
+        return token
+
+    def _save_token(self, token: str) -> None:
+        """Save token to config file."""
         try:
             with open(self.config_file, "w") as f:
                 json.dump({"api_token": token}, f, indent=2)
             self.config_file.chmod(0o600)
-            logger.info(f"Generated new API token and saved to {self.config_file}")
+            logger.info(f"Saved API token to {self.config_file}")
         except Exception as e:
             logger.error(f"Failed to save token: {e}")
-
-        self._token = token
-        return token
+            raise
 
     def validate(self, token: str | None) -> bool:
         """Validate provided token against stored token."""

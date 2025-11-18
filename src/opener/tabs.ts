@@ -5,6 +5,21 @@
 import browser, { type ContextualIdentities, type Tabs } from "webextension-polyfill";
 
 /**
+ * Requests tabs permission if not already granted
+ * @returns Promise<boolean> - true if permission granted
+ */
+export async function requestTabsPermission(): Promise<boolean> {
+    try {
+        return await browser.permissions.request({
+            permissions: ["tabs"]
+        });
+    } catch (e) {
+        console.error("Failed to request tabs permission:", e);
+        return false;
+    }
+}
+
+/**
  * Creates a new tab in a specified container and closes the current tab
  * @param container - The contextual identity (container) to open the tab in
  * @param params - Parameters for the new tab
@@ -15,6 +30,15 @@ export async function newTab(
     params: { url: string },
 ): Promise<void> {
     try {
+        // Request tabs permission if needed
+        const hasPermission = await browser.permissions.contains({ permissions: ["tabs"] });
+        if (!hasPermission) {
+            const granted = await requestTabsPermission();
+            if (!granted) {
+                throw new Error("Tabs permission required to open AWS Console");
+            }
+        }
+
         const currentTab = await browser.tabs.getCurrent();
 
         const createTabParams = {
@@ -36,6 +60,14 @@ export async function newTab(
  * Closes the current tab
  */
 export async function closeCurrentTab(): Promise<void> {
+    const hasPermission = await browser.permissions.contains({ permissions: ["tabs"] });
+    if (!hasPermission) {
+        const granted = await requestTabsPermission();
+        if (!granted) {
+            throw new Error("Tabs permission required");
+        }
+    }
+    
     const currentTab = await browser.tabs.getCurrent();
     if (currentTab.id) {
         await browser.tabs.remove(currentTab.id);
@@ -47,6 +79,14 @@ export async function closeCurrentTab(): Promise<void> {
  * @returns The active tab
  */
 export async function getActiveTab(): Promise<Tabs.Tab> {
+    const hasPermission = await browser.permissions.contains({ permissions: ["tabs"] });
+    if (!hasPermission) {
+        const granted = await requestTabsPermission();
+        if (!granted) {
+            throw new Error("Tabs permission required");
+        }
+    }
+    
     const tabs = await browser.tabs.query({
         active: true,
         windowId: browser.windows.WINDOW_ID_CURRENT,

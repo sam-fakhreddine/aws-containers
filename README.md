@@ -713,13 +713,25 @@ If you need Windows support, please open an issue or contribute a PR.
 {
   "permissions": [
     "contextualIdentities",  // Create/manage Firefox containers
-    "cookies",               // Required for container isolation
-    "tabs",                  // Open tabs in containers
-    "storage",               // Store favorites/recent profiles
-    "<all_urls>"             // Access localhost API server
+    "storage"                // Store favorites/recent profiles
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:10999/*",    // Local API server only
+    "http://localhost:10999/*",     // Local API server only  
+    "https://*.amazonaws.com/*",    // AWS Console domains only
+    "https://*.aws.amazon.com/*"    // AWS Console domains only
+  ],
+  "optional_permissions": [
+    "tabs"                   // Requested when opening AWS Console
   ]
 }
 ```
+
+**Security Improvements:**
+- ✅ **Host-specific permissions**: Only AWS domains and localhost
+- ✅ **Runtime permission requests**: Tabs permission requested when needed
+- ✅ **Removed cookies permission**: Not actually required for container isolation
+- ✅ **Principle of least privilege**: Minimal default permissions
 
 **📖 For complete security documentation, see [docs/security/security-root.md](docs/security/security-root.md)**
 

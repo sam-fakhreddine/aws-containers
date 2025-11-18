@@ -21,6 +21,10 @@ def main() -> int:
             app_main()
             return 0
 
+        case ["rotate-token"]:
+            rotate_token()
+            return 0
+
         case ["--version"] | ["-v"]:
             print("AWS Profile Bridge v2.0.0 (Python 3.12+)")
             return 0
@@ -37,6 +41,20 @@ def main() -> int:
             return 0
 
 
+def rotate_token() -> None:
+    """Rotate API token."""
+    from pathlib import Path
+    from .auth.token_manager import TokenManager
+    from .config import settings
+    
+    token_manager = TokenManager(settings.CONFIG_FILE)
+    token_manager.load_or_create()
+    new_token = token_manager.rotate()
+    print(f"New API token generated: {new_token}")
+    print(f"Token saved to: {settings.CONFIG_FILE}")
+    print("\nUpdate your extension settings with the new token.")
+
+
 def print_help() -> None:
     """Print help message."""
     help_text = """
@@ -47,6 +65,7 @@ Usage:
 
 Commands:
     api, server       Start HTTP API server
+    rotate-token      Generate new API token
     --version, -v     Show version
     --help, -h        Show this help
 
@@ -55,6 +74,7 @@ Native Messaging Mode (default):
     
 Examples:
     python -m aws_profile_bridge api
+    python -m aws_profile_bridge rotate-token
     python -m aws_profile_bridge --version
     """
     print(help_text)

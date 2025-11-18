@@ -92,12 +92,18 @@ export async function getProfiles(): Promise<ProfileListResponse> {
         if (!response.ok) {
             if (response.status === 429) {
                 throw new ApiClientError(
-                    "Too many failed authentication attempts. Please wait a minute and try again.",
+                    "Too many failed attempts. Please wait and try again.",
                     429
                 );
             }
+            if (response.status === 401) {
+                throw new ApiClientError(
+                    "Invalid API token. Check your settings.",
+                    401
+                );
+            }
             throw new ApiClientError(
-                `API request failed: ${response.statusText}`,
+                "Request failed. Check API server logs.",
                 response.status
             );
         }
@@ -105,7 +111,7 @@ export async function getProfiles(): Promise<ProfileListResponse> {
         const data = await response.json();
 
         if (data.action === "error") {
-            throw new ApiClientError(data.message);
+            throw new ApiClientError("Failed to get profiles");
         }
 
         return data as ProfileListResponse;
@@ -115,12 +121,10 @@ export async function getProfiles(): Promise<ProfileListResponse> {
         }
         if (error instanceof TypeError && error.message.includes("fetch")) {
             throw new ApiClientError(
-                "Cannot connect to API server. Is it running? Run: ./scripts/install-api-service.sh"
+                "Cannot connect to API server. Check if service is running."
             );
         }
-        throw new ApiClientError(
-            error instanceof Error ? error.message : "Unknown error occurred"
-        );
+        throw new ApiClientError("Request failed");
     }
 }
 
@@ -136,12 +140,18 @@ export async function getProfilesEnriched(): Promise<ProfileListResponse> {
         if (!response.ok) {
             if (response.status === 429) {
                 throw new ApiClientError(
-                    "Too many failed authentication attempts. Please wait a minute and try again.",
+                    "Too many failed attempts. Please wait and try again.",
                     429
                 );
             }
+            if (response.status === 401) {
+                throw new ApiClientError(
+                    "Invalid API token. Check your settings.",
+                    401
+                );
+            }
             throw new ApiClientError(
-                `API request failed: ${response.statusText}`,
+                "Request failed. Check API server logs.",
                 response.status
             );
         }
@@ -149,7 +159,7 @@ export async function getProfilesEnriched(): Promise<ProfileListResponse> {
         const data = await response.json();
 
         if (data.action === "error") {
-            throw new ApiClientError(data.message);
+            throw new ApiClientError("Failed to enrich profiles");
         }
 
         return data as ProfileListResponse;
@@ -159,12 +169,10 @@ export async function getProfilesEnriched(): Promise<ProfileListResponse> {
         }
         if (error instanceof TypeError && error.message.includes("fetch")) {
             throw new ApiClientError(
-                "Cannot connect to API server. Is it running? Run: ./scripts/install-api-service.sh"
+                "Cannot connect to API server. Check if service is running."
             );
         }
-        throw new ApiClientError(
-            error instanceof Error ? error.message : "Unknown error occurred"
-        );
+        throw new ApiClientError("Request failed");
     }
 }
 
@@ -185,12 +193,24 @@ export async function getConsoleUrl(
         if (!response.ok) {
             if (response.status === 429) {
                 throw new ApiClientError(
-                    "Too many failed authentication attempts. Please wait a minute and try again.",
+                    "Too many failed attempts. Please wait and try again.",
                     429
                 );
             }
+            if (response.status === 401) {
+                throw new ApiClientError(
+                    "Invalid API token. Check your settings.",
+                    401
+                );
+            }
+            if (response.status === 400) {
+                throw new ApiClientError(
+                    "Invalid profile name",
+                    400
+                );
+            }
             throw new ApiClientError(
-                `API request failed: ${response.statusText}`,
+                "Request failed. Check API server logs.",
                 response.status
             );
         }
@@ -198,7 +218,7 @@ export async function getConsoleUrl(
         const data = await response.json();
 
         if (data.action === "error") {
-            throw new ApiClientError(data.message);
+            throw new ApiClientError("Failed to generate console URL");
         }
 
         return data as ConsoleUrlResponse;
@@ -208,12 +228,10 @@ export async function getConsoleUrl(
         }
         if (error instanceof TypeError && error.message.includes("fetch")) {
             throw new ApiClientError(
-                "Cannot connect to API server. Is it running? Run: ./scripts/install-api-service.sh"
+                "Cannot connect to API server. Check if service is running."
             );
         }
-        throw new ApiClientError(
-            error instanceof Error ? error.message : "Unknown error occurred"
-        );
+        throw new ApiClientError("Request failed");
     }
 }
 
@@ -223,7 +241,7 @@ export async function getApiVersion(): Promise<Record<string, string>> {
 
         if (!response.ok) {
             throw new ApiClientError(
-                `API request failed: ${response.statusText}`,
+                "Failed to get API version",
                 response.status
             );
         }
@@ -233,8 +251,6 @@ export async function getApiVersion(): Promise<Record<string, string>> {
         if (error instanceof ApiClientError) {
             throw error;
         }
-        throw new ApiClientError(
-            error instanceof Error ? error.message : "Unknown error occurred"
-        );
+        throw new ApiClientError("Request failed");
     }
 }
