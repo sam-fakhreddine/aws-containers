@@ -5,7 +5,11 @@
 
 // Internal imports
 import { ProfileListResponse, ConsoleUrlResponse } from "../popup/types";
-import { STORAGE_KEYS, API_TOKEN_PATTERN } from "../popup/constants";
+import {
+    STORAGE_KEYS,
+    API_TOKEN_PATTERN,
+    API_TOKEN_PATTERN_LEGACY,
+} from "../popup/constants";
 import { API_BASE_URL, REQUEST_TIMEOUT_MS, HEALTH_CHECK_TIMEOUT_MS } from "./config";
 import { browser } from "./browserUtils";
 
@@ -22,12 +26,99 @@ export class ApiClientError extends Error {
 let cachedToken: string | null = null;
 
 /**
- * Validates API token format
+ * Calculate CRC32 checksum for a string
+ * @param data - String to calculate checksum for
+ * @returns CRC32 value as unsigned 32-bit integer
+ */
+function crc32(data: string): number {
+    const table = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+        let c = i;
+        for (let j = 0; j < 8; j++) {
+            c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+        }
+        table[i] = c;
+    }
+
+    let crc = 0xffffffff;
+    for (let i = 0; i < data.length; i++) {
+        crc = table[(crc ^ data.charCodeAt(i)) & 0xff] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+}
+
+/**
+ * Encode number to Base62 string
+ * @param num - Number to encode
+ * @returns Base62 encoded string
+ */
+function encodeBase62(num: number): string {
+    const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    if (num === 0) return alphabet[0];
+
+    let result = "";
+    while (num > 0) {
+        result = alphabet[num % 62] + result;
+        num = Math.floor(num / 62);
+    }
+    return result;
+}
+
+/**
+ * Calculate checksum for token random part
+ * @param randomPart - Random part of token
+ * @returns 6-character Base62 checksum
+ */
+function calculateChecksum(randomPart: string): string {
+    const crc = crc32(randomPart);
+    const checksum = encodeBase62(crc);
+    // Pad to 6 characters
+    return checksum.padStart(6, "0");
+}
+
+/**
+ * Validates API token format and checksum
  * @param token - Token to validate
- * @returns True if token format is valid
+ * @returns Object with validation result and whether it's legacy format
  */
 export function validateTokenFormat(token: string): boolean {
-    return API_TOKEN_PATTERN.test(token);
+    if (!token) return false;
+
+    // Check new format with checksum
+    if (API_TOKEN_PATTERN.test(token)) {
+        const parts = token.split("_");
+        if (parts.length !== 3) return false;
+
+        const randomPart = parts[1];
+        const claimedChecksum = parts[2];
+        const calculatedChecksum = calculateChecksum(randomPart);
+
+        if (claimedChecksum !== calculatedChecksum) {
+            console.warn("Token checksum validation failed");
+            return false;
+        }
+
+        return true;
+    }
+
+    // Check legacy format for backward compatibility
+    if (API_TOKEN_PATTERN_LEGACY.test(token)) {
+        console.warn("Legacy token format detected. Please rotate to new format for better security.");
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Check if token is in legacy format
+ * @param token - Token to check
+ * @returns True if token is in legacy format
+ */
+export function isLegacyToken(token: string): boolean {
+    return (
+        API_TOKEN_PATTERN_LEGACY.test(token) && !API_TOKEN_PATTERN.test(token)
+    );
 }
 
 /**
@@ -50,9 +141,11 @@ export async function getApiToken(): Promise<string | null> {
  */
 export async function setApiToken(token: string): Promise<void> {
     if (!validateTokenFormat(token)) {
-        throw new ApiClientError("Invalid token format. Token must be at least 32 characters and contain only alphanumeric characters, hyphens, and underscores.");
+        throw new ApiClientError(
+            "Invalid token format. Expected format: awspc_{random}_{checksum} or legacy format (32-64 chars)"
+        );
     }
-    
+
     await browser.storage.local.set({ [STORAGE_KEYS.API_TOKEN]: token });
     cachedToken = token;
 }
