@@ -7,12 +7,12 @@ All parsers share common INI-style parsing logic.
 """
 
 import re
-from pathlib import Path
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
-from ..utils.logger import timer, log_operation, log_result, log_error
+from ..utils.logger import log_operation, log_result, timer
 
 
 class FileCache:

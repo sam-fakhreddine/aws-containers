@@ -8,6 +8,10 @@ import sys
 # CRITICAL: Import logging configuration FIRST, before any other modules
 # This prevents boto3 and other libraries from writing to stderr
 from .config import logging  # noqa: F401
+from .app import main as app_main
+from .auth.token_manager import TokenManager
+from .config import settings
+from .core.bridge import main as bridge_main
 
 
 def main() -> int:
@@ -16,8 +20,6 @@ def main() -> int:
     # Python 3.12 match statement for clean command routing
     match sys.argv[1:]:
         case ["api"] | ["server"] | ["api-server"]:
-            from .app import main as app_main
-
             app_main()
             return 0
 
@@ -35,18 +37,12 @@ def main() -> int:
 
         case _:
             # Original native messaging functionality
-            from .core.bridge import main as bridge_main
-
             bridge_main()
             return 0
 
 
 def rotate_token() -> None:
     """Rotate API token."""
-    from pathlib import Path
-    from .auth.token_manager import TokenManager
-    from .config import settings
-    
     token_manager = TokenManager(settings.CONFIG_FILE)
     token_manager.load_or_create()
     new_token = token_manager.rotate()

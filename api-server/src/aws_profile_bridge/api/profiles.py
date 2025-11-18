@@ -2,9 +2,11 @@
 
 import asyncio
 import logging
+
 from fastapi import APIRouter, Header
 
 from ..auth.authenticator import Authenticator
+from ..core.bridge import AWSProfileBridge
 from ..utils.validators import validate_profile_name
 
 logger = logging.getLogger(__name__)
@@ -26,8 +28,6 @@ async def get_profiles(x_api_token: str | None = Header(None, alias="X-API-Token
     authenticator.authenticate(x_api_token)
 
     try:
-        from ..core.bridge import AWSProfileBridge
-
         bridge = AWSProfileBridge()
         handler = bridge.message_handler
 
@@ -54,8 +54,6 @@ async def get_profiles_enriched(
     authenticator.authenticate(x_api_token)
 
     try:
-        from ..core.bridge import AWSProfileBridge
-
         bridge = AWSProfileBridge()
         handler = bridge.message_handler
 
@@ -85,8 +83,6 @@ async def get_console_url(
     profile_name = validate_profile_name(profile_name)
 
     try:
-        from ..core.bridge import AWSProfileBridge
-
         bridge = AWSProfileBridge()
         handler = bridge.message_handler
 
