@@ -17,10 +17,7 @@ export const MILLISECONDS_PER_MINUTE = 60000;
 export const MINUTES_PER_HOUR = 60;
 export const MINUTES_PER_DAY = 1440; // 24 * 60
 
-// API Configuration
-export const API_BASE_URL = "http://127.0.0.1:10999";
-export const REQUEST_TIMEOUT_MS = 30000;
-export const HEALTH_CHECK_TIMEOUT_MS = 5000;
+
 
 // UI Timing
 export const SEARCH_DEBOUNCE_MS = 300;
