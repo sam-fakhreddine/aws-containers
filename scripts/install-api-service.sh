@@ -58,8 +58,11 @@ print_status "Setting up directories..."
 mkdir -p "$LOG_DIR"
 
 # 2. Virtual Environment (Managed by uv)
+if [ -d "$VENV_DIR" ]; then
+    print_status "Removing existing virtual environment..."
+    rm -rf "$VENV_DIR"
+fi
 print_status "Creating virtual environment (Python 3.12)..."
-rm -rf "$VENV_DIR"
 uv venv "$VENV_DIR" --python 3.12 --seed
 
 # 3. Dependency Installation (Fast)
@@ -124,8 +127,16 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     
     # Unload existing service if present
     launchctl bootout "gui/$USER_ID/$PLIST_NAME" 2>/dev/null || true
+    
+    # Wait for service to fully stop
+    for i in $(seq 1 5); do
+        if ! launchctl list | grep -q "$PLIST_NAME"; then
+            break
+        fi
+        sleep 1
+    done
+    
     rm -f "$PLIST_FILE"
-    sleep 1
     
     cat <<EOF > "$PLIST_FILE"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -163,13 +174,11 @@ EOF
     # Load the service
     if launchctl bootstrap "gui/$USER_ID" "$PLIST_FILE" 2>/dev/null; then
         print_success "Launchd service active"
+    elif launchctl load "$PLIST_FILE" 2>/dev/null; then
+        print_success "Launchd service active (via load)"
     else
-        # If bootstrap fails, try load instead
-        launchctl load "$PLIST_FILE" 2>/dev/null || {
-            print_error "Failed to load service. Trying manual start..."
-            "$APP_PYTHON" -m aws_profile_bridge api > "$LOG_DIR/aws_profile_bridge_api.log" 2>&1 &
-            print_success "Started API server manually (PID: $!)"
-        }
+        print_error "Failed to load service via launchctl"
+        exit 1
     fi
 
 else
