@@ -17,8 +17,8 @@ class TokenManager:
     RANDOM_BYTES = 32
     BASE62_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
-    # Legacy pattern for backward compatibility
-    LEGACY_PATTERN = re.compile(r"^[A-Za-z0-9_-]{32,64}$")
+    # Legacy pattern for backward compatibility (base64url-like, no multiple underscores)
+    LEGACY_PATTERN = re.compile(r"^(?!.*__)[A-Za-z0-9_-]{32,64}$")
     # New pattern with prefix and checksum
     NEW_PATTERN = re.compile(r"^awspc_[A-Za-z0-9]{43}_[A-Za-z0-9]{6}$")
 
@@ -91,6 +91,16 @@ class TokenManager:
                 return False
 
             return True
+
+        # Reject tokens that start with awspc_ but don't match new format
+        if token.startswith(f"{TokenManager.TOKEN_PREFIX}_"):
+            return False
+
+        # Reject tokens that look like new format but have wrong prefix
+        if "_" in token:
+            parts = token.split("_")
+            if len(parts) == 3:
+                return False
 
         # Check legacy format for backward compatibility
         if TokenManager.LEGACY_PATTERN.match(token):

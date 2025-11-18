@@ -9,6 +9,7 @@ All parsers share common INI-style parsing logic.
 import re
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -176,6 +177,7 @@ class CredentialsFileParser(INIFileParser):
         return profile_data
 
     @staticmethod
+    @lru_cache(maxsize=128)
     def _parse_expiration(comment: str) -> Optional[Dict]:
         """Parse expiration timestamp from comment."""
         # Format: # Expires 2024-11-10 15:30:00 UTC

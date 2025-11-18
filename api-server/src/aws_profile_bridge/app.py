@@ -121,6 +121,8 @@ def start_server() -> None:
                 port=settings.PORT,
                 reload=True,
                 log_level="debug",
+                timeout_keep_alive=5,
+                limit_concurrency=10,
             )
         case "production" | "prod":
             uvicorn.run(
@@ -129,6 +131,8 @@ def start_server() -> None:
                 port=settings.PORT,
                 log_level="warning",
                 access_log=False,
+                timeout_keep_alive=5,
+                limit_concurrency=10,
             )
         case _:
             logger.error(f"Unknown environment: {os.getenv('ENV')}")

@@ -15,12 +15,8 @@ class TestTokenGeneration:
         token = TokenManager.generate_token()
 
         assert token.startswith("awspc_")
-        assert len(token) == 55  # awspc_ (6) + random (43) + _ (1) + checksum (6) = 56? No: 5+1+43+1+6=56, wait: awspc=5, _=1, 43, _=1, 6 = 56. But we said 55. Let me recount: "awspc_" = 6 chars, random = 43, "_" = 1, checksum = 6. Total = 6+43+1+6 = 56. Hmm, the proposal says 55. Let me check: awspc (5) + _ (1) + 43 + _ (1) + 6 = 56.Actually wait, let me think more carefully. "awspc" is 5 characters. Then underscore is 1. Then 43 random chars. Then underscore is 1. Then 6 checksum chars. That's 5+1+43+1+6 = 56 total. But the proposal document says 55. Let me re-read...
-
-        Actually in the proposal: **Total Length**: 6 + 43 + 6 = **55 characters**
-
-        So they're counting "awspc_" as 6 (which it is), then 43, then 6. But that doesn't account for the second underscore! So it should be 56, not 55. Let me fix this in the test.
-        """
+        assert len(token) == 56  # awspc_ (6) + random (43) + _ (1) + checksum (6)
+        
         parts = token.split("_")
         assert len(parts) == 3
         assert parts[0] == "awspc"

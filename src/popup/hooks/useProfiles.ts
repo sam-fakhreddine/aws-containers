@@ -17,7 +17,7 @@ import { useIsMounted } from "./useIsMounted";
 import { AWSProfile } from "../types";
 
 const CACHE_KEY = "aws-profiles";
-const CACHE_EXPIRATION_MS = 60000; // 1 minute
+const CACHE_EXPIRATION_MS = 1800000; // 30 minutes
 const isDebugMode = process.env.NODE_ENV === "development";
 
 interface CachedData {
@@ -72,15 +72,6 @@ function useProfiles() {
           : await apiClient.getProfiles();
 
         await processProfiles(response.profiles);
-        
-        // Auto-enrich SSO profiles in background after initial load
-        if (action === "getProfiles") {
-          setTimeout(() => {
-            apiClient.getProfilesEnriched()
-              .then(enriched => processProfiles(enriched.profiles))
-              .catch(() => {}); // Silently fail SSO enrichment
-          }, 100);
-        }
       } catch (e) {
         if (e instanceof apiClient.ApiClientError) {
           setError(e.message);
