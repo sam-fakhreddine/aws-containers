@@ -4,95 +4,116 @@ Common issues and solutions for AWS Profile Containers.
 
 ## Installation Issues
 
-### "Setup Required" Error
+### "API Server Not Running" Error
 
-**Problem:** Extension shows "Setup Required" when opened
+**Problem:** Extension shows "API Server Not Running" when opened
 
-**Cause:** Native messaging host not properly installed or not connecting
+**Cause:** FastAPI server not running or not accessible
 
 **Solutions:**
 
-1. **Restart Firefox completely**
+1. **Check if API server is running:**
    ```bash
-   # Close all Firefox windows, then reopen
+   curl http://localhost:10999/health
    ```
+   Should return: `{"status":"healthy","version":"2.0.0",...}`
 
-2. **Verify native messaging host is installed:**
-   ```bash
-   ls -la ~/.local/bin/aws_profile_bridge*
-   ```
-   Should show either `aws_profile_bridge` (executable) or `aws_profile_bridge.py` (Python script)
-
-3. **Check manifest exists:**
+2. **Start the API server:**
    ```bash
    # Linux
-   cat ~/.mozilla/api-server-hosts/aws_profile_bridge.json
+   systemctl --user start aws-profile-bridge
 
    # macOS
-   cat ~/Library/Application\ Support/Mozilla/NativeMessagingHosts/aws_profile_bridge.json
+   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.plist
    ```
 
-4. **Verify manifest points to correct path:**
-   The manifest should contain the correct path to the executable/script
-
-5. **Check executable permissions:**
+3. **Check API server status:**
    ```bash
-   chmod +x ~/.local/bin/aws_profile_bridge
+   # Linux
+   systemctl --user status aws-profile-bridge
+
+   # macOS
+   launchctl list | grep aws-profile-bridge
    ```
+
+4. **View API server logs:**
+   ```bash
+   tail -f ~/.aws/logs/aws_profile_bridge_api.log
+   ```
+
+5. **Verify API token is configured:**
+   - Click extension icon
+   - Click ⚙️ (settings) in top right
+   - Ensure token is saved
+   - Click "Test Connection"
 
 6. **Reinstall:**
    ```bash
    cd /path/to/aws-containers
-   ./install.sh
+   ./scripts/install-api-service.sh
    ```
 
-### Permission Denied
+### Port Already in Use
 
-**Problem:** Native messaging host can't execute
+**Problem:** API server can't start because port 10999 is in use
 
 **Solution:**
 ```bash
-chmod +x ~/.local/bin/aws_profile_bridge
-# Or for Python script:
-chmod +x ~/.local/bin/aws_profile_bridge.py
+# Find process using port 10999
+lsof -i :10999
+
+# Kill the process
+kill -9 <PID>
+
+# Restart API server
+systemctl --user restart aws-profile-bridge  # Linux
+launchctl bootout gui/$(id -u)/com.aws.profile-bridge && \
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.plist  # macOS
 ```
 
-### Python Not Found
+### Python Version Too Old
 
-**Problem:** Install script says Python not found (when using Python script)
+**Problem:** Install script says Python 3.12+ required
 
 **Solutions:**
 
-1. **Use standalone executable (recommended):**
-   ```bash
-   ./build-native-host.sh
-   ./install.sh
-   ```
-
-2. **Or install Python 3.8+:**
+1. **Install Python 3.12+:**
    ```bash
    # Ubuntu/Debian
-   sudo apt install python3
+   sudo apt install python3.12
 
    # macOS
-   brew install python3
+   brew install python@3.12
    ```
 
-### boto3 Import Error
+2. **Or use pyenv:**
+   ```bash
+   pyenv install 3.12
+   pyenv global 3.12
+   ```
 
-**Problem:** Error importing boto3 in Python script
+### Invalid API Token
+
+**Problem:** Extension shows "Invalid API token" error
 
 **Solutions:**
 
-1. **Install Python dependencies:**
+1. **Get your API token:**
    ```bash
-   pip3 install -r api-server/requirements.txt
+   cat ~/.aws/profile_bridge_config.json
    ```
 
-2. **Or use standalone executable (recommended):**
+2. **Configure in extension:**
+   - Click extension icon
+   - Click ⚙️ (settings)
+   - Paste the `api_token` value
+   - Click "Save Token"
+   - Click "Test Connection"
+
+3. **Regenerate token if needed:**
    ```bash
-   ./build-native-host.sh
-   ./install.sh
+   # Reinstall to generate new token
+   ./scripts/install-api-service.sh
    ```
 
 ## Profile Issues
@@ -143,7 +164,17 @@ chmod +x ~/.local/bin/aws_profile_bridge.py
    grep -A 3 "\[profile-name\]" ~/.aws/credentials
    ```
 
-3. **Check network connectivity:**
+3. **Check API server is running:**
+   ```bash
+   curl http://localhost:10999/health
+   ```
+
+4. **Check API server logs:**
+   ```bash
+   tail -f ~/.aws/logs/aws_profile_bridge_api.log
+   ```
+
+5. **Check network connectivity:**
    Extension needs to call AWS Federation API
 
 4. **Try different profile:**
@@ -267,7 +298,12 @@ chmod +x ~/.local/bin/aws_profile_bridge.py
    curl -I https://signin.aws.amazon.com
    ```
 
-3. **Check native messaging host logs:**
+3. **Check API server logs:**
+   ```bash
+   tail -f ~/.aws/logs/aws_profile_bridge_api.log
+   ```
+
+4. **Check browser console:**
    Look for errors in browser console (F12)
 
 ### Console Opens with Error
@@ -394,10 +430,16 @@ For detailed troubleshooting:
    - Click "Inspect" next to extension
    - View background page console
 
-3. **Test native messaging:**
+3. **API server logs:**
    ```bash
-   cd /path/to/aws-containers
-   ./test-api-server.sh
+   tail -f ~/.aws/logs/aws_profile_bridge_api.log
+   ```
+
+4. **Test API server:**
+   ```bash
+   curl http://localhost:10999/health
+   curl -H "X-API-Token: $(jq -r .api_token ~/.aws/profile_bridge_config.json)" \
+     http://localhost:10999/api/v1/profiles
    ```
 
 ### Collect Debug Information
@@ -422,9 +464,14 @@ When reporting issues, include:
 4. **Console errors:**
    Copy from browser console (F12)
 
-5. **Native messaging test results:**
+5. **API server logs:**
    ```bash
-   ./test-api-server.sh
+   tail -n 50 ~/.aws/logs/aws_profile_bridge_api.log
+   ```
+
+6. **API server health:**
+   ```bash
+   curl http://localhost:10999/health
    ```
 
 ## Getting Help
@@ -463,9 +510,9 @@ For feature requests:
 
 ## Common Questions
 
-### Q: Why does the extension need native messaging?
+### Q: Why does the extension need an API server?
 
-**A:** Firefox extensions can't directly read files. Native messaging allows secure access to `~/.aws/credentials`.
+**A:** Firefox extensions can't directly read files. The HTTP API server provides secure access to `~/.aws/credentials` with token authentication.
 
 ### Q: Is my data secure?
 

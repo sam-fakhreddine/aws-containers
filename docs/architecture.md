@@ -2,7 +2,7 @@
 
 ## Overview
 
-AWS Profile Containers is a Firefox browser extension that enables users to manage multiple AWS profiles with container isolation. The extension integrates with AWS credentials and SSO, automatically creating Firefox containers for each profile to maintain session separation.
+AWS Profile Containers is a Firefox browser extension that enables users to manage multiple AWS profiles with container isolation. The extension integrates with AWS credentials and SSO via a local HTTP API server, automatically creating Firefox containers for each profile to maintain session separation.
 
 ## System Architecture
 
@@ -12,24 +12,25 @@ AWS Profile Containers is a Firefox browser extension that enables users to mana
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │              Extension (TypeScript/React)               │ │
 │  │  ┌──────────────┐  ┌───────────────┐  ┌─────────────┐ │ │
-│  │  │   Popup UI   │  │  Background   │  │   Opener    │ │ │
-│  │  │  (React)     │  │    Page       │  │   Script    │ │ │
+│  │  │   Popup UI   │  │  Background   │  │   Settings  │ │ │
+│  │  │  (React)     │  │    Page       │  │    Page     │ │ │
 │  │  └──────┬───────┘  └───────┬───────┘  └──────┬──────┘ │ │
 │  │         │                  │                  │        │ │
 │  └─────────┼──────────────────┼──────────────────┼────────┘ │
 │            │                  │                  │          │
 │            └──────────────┬───┴──────────────────┘          │
-│                           │ Native Messaging API            │
+│                           │ HTTP API (localhost:10999)      │
 └───────────────────────────┼─────────────────────────────────┘
-                            │
+                            │ Token Authentication
                             ▼
             ┌───────────────────────────────┐
-            │   Native Messaging Host       │
-            │       (Python)                │
+            │   FastAPI Server (Python)     │
+            │   http://127.0.0.1:10999      │
             │  ┌─────────────────────────┐  │
             │  │  Profile Reader         │  │
             │  │  SSO Token Manager      │  │
             │  │  Credentials Provider   │  │
+            │  │  Console URL Generator  │  │
             │  └─────────────────────────┘  │
             └───────────────┬───────────────┘
                             │
@@ -39,6 +40,7 @@ AWS Profile Containers is a Firefox browser extension that enables users to mana
             │  ~/.aws/credentials            │
             │  ~/.aws/config                 │
             │  ~/.aws/sso/cache/             │
+            │  ~/.aws/profile_bridge_config.json │
             └────────────────────────────────┘
 ```
 
@@ -55,7 +57,7 @@ AWS Profile Containers is a Firefox browser extension that enables users to mana
 
 **Custom Hooks** (`src/popup/hooks/`):
 ```typescript
-useProfiles()     // Profile loading, caching, native messaging
+useProfiles()     // Profile loading, caching, HTTP API calls
 useFavorites()    // Favorite profile management
 useContainers()   // Firefox container CRUD operations
 useRecentProfiles() // Recent profile tracking (LRU)
@@ -83,69 +85,61 @@ ErrorState        // Error display with retry
 - Handles popup mount notifications
 - Could be extended for background sync in future
 
-#### 3. Opener Script (`src/opener/`)
+#### 3. Settings Page (`src/settings/`)
 
-**Purpose**: Creates containers and opens AWS Console
+**Purpose**: Configure API token and test connection
 
 **Key Files**:
-- `index.ts` - Main opener logic, handles URL opening
-- `containers.ts` - Container creation wrapper
-- `validator.ts` - URL validation and sanitization
-- `tabs.ts` - Tab management utilities
-- `parser.ts` - URL parsing utilities
+- `settings.tsx` - Settings UI (React)
+- Token storage and validation
+- Connection testing
 
 **Container Creation Flow**:
 ```
 1. User clicks profile
-2. Opener receives profile metadata (name, color, icon)
-3. containerManager.prepareContainer() called
-4. Check if container exists
-5. Create/update container with specified color & icon
-6. Save container ID to managed list
-7. Open AWS Console in container tab
+2. Extension calls API server with token
+3. API returns console URL + metadata (color, icon)
+4. containerManager.prepareContainer() called
+5. Check if container exists
+6. Create/update container with specified color & icon
+7. Save container ID to managed list
+8. Open AWS Console in container tab
 ```
 
 ### Backend (Python)
 
-#### Native Messaging Host (`api-server/src/aws_profile_bridge/`)
+#### FastAPI Server (`api-server/src/aws_profile_bridge/`)
 
-**Purpose**: Bridge between extension and AWS credentials
+**Purpose**: HTTP API bridge between extension and AWS credentials
 
 **Key Modules**:
 
-1. **`aws_profile_bridge.py`** - Main entry point
-   - Handles native messaging protocol
-   - Coordinates profile retrieval
-   - Merges credential and SSO profiles
+1. **`app.py`** - FastAPI application
+   - HTTP server setup
+   - CORS configuration (localhost only)
+   - Route registration
+   - Lifespan management
 
-2. **`file_parsers.py`** - AWS file parsing
-   - `FileCache` - mtime-based cache invalidation
-   - `INIFileParser` - Base parser (DRY principle)
-   - `CredentialsFileParser` - Parses `~/.aws/credentials`
-   - `ConfigFileParser` - Parses `~/.aws/config`
-   - `ProfileConfigReader` - Reads individual profile config
+2. **`api/`** - API routes
+   - `profiles.py` - Profile listing and console URL generation
+   - `health.py` - Health check and version endpoints
+   - Token authentication middleware
 
-3. **`sso_manager.py`** - SSO token management
-   - `SSOTokenCache` - Two-tier cache (memory + file)
-   - `SSOCredentialsProvider` - Fetches temporary credentials
-   - `SSOProfileEnricher` - Adds expiration metadata
+3. **`auth/`** - Authentication
+   - `token_auth.py` - Token validation
+   - `rate_limiter.py` - Rate limiting
+   - Token storage in `~/.aws/profile_bridge_config.json`
 
-4. **`credential_provider.py`** - Credentials retrieval
-   - Fetches credentials from both static and SSO profiles
-   - Handles expiration checking
+4. **`core/`** - Business logic
+   - `file_parsers.py` - AWS file parsing (credentials, config)
+   - `credential_provider.py` - Credentials retrieval
+   - `console_url_generator.py` - AWS Console URL generation
+   - `profile_metadata.py` - Container metadata (colors, icons)
 
-5. **`console_url_generator.py`** - URL generation
-   - Generates AWS Console sign-in URLs
-   - Handles federation tokens
-
-6. **`profile_metadata.py`** - Container metadata
-   - Generates colors from profile names
-   - Assigns icons for visual identification
-
-7. **`native_messaging.py`** - Protocol implementation
-   - JSON message encoding/decoding
-   - stdin/stdout communication
-   - Error handling
+5. **`services/`** - SSO services
+   - `sso_manager.py` - SSO token management
+   - `sso_credentials.py` - SSO credential provider
+   - Token caching and validation
 
 ## Data Flow
 
