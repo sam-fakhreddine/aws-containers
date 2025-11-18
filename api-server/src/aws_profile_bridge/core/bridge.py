@@ -31,6 +31,7 @@ from .parsers import (
     FileCache,
     ProfileConfigReader,
 )
+from .url_cache import ConsoleURLCache
 
 
 class AWSProfileBridgeHandler:
@@ -257,10 +258,11 @@ class AWSProfileBridge:
         # Metadata provider
         metadata_provider = create_default_metadata_provider()
 
-        # Console URL generator
+        # Console URL cache and generator
+        url_cache = ConsoleURLCache()
         url_generator = ConsoleURLGenerator()
         console_url_generator = ProfileConsoleURLGenerator(
-            credential_provider, url_generator
+            credential_provider, url_generator, url_cache
         )
 
         # Message handler

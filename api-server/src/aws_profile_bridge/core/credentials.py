@@ -52,7 +52,8 @@ class CredentialProvider:
         Get credentials for a profile from any available source.
 
         Returns:
-            Dict with aws_access_key_id, aws_secret_access_key, optionally aws_session_token
+            Dict with aws_access_key_id, aws_secret_access_key, optionally aws_session_token,
+            and expiry_time if available
         """
         # Use boto3 if available (handles SSO automatically)
         if BOTO3_AVAILABLE:
@@ -67,6 +68,11 @@ class CredentialProvider:
                     }
                     if credentials.token:
                         result["aws_session_token"] = credentials.token
+                    
+                    # Get expiry time if available
+                    if hasattr(credentials, '_expiry_time'):
+                        result["expiry_time"] = credentials._expiry_time
+                    
                     return result
             except Exception:
                 pass
