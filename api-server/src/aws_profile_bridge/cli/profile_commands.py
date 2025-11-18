@@ -7,7 +7,7 @@ from pathlib import Path
 import click
 
 from ..core.credentials import CredentialProvider
-from ..services.sso import SSOCredentialProvider
+from ..services.sso import SSOCredentialsProvider
 
 
 @click.group()

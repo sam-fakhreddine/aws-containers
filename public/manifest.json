@@ -1,40 +1,23 @@
 {
-    "manifest_version": 3,
+    "manifest_version": 2,
     "name": "AWS Profile Containers",
     "description": "Open AWS profiles from credentials file in separate containers.",
     "version": "0.1.0",
-    "action": {
+    "sidebar_action": {
         "default_icon": {
             "16": "icons/icon-16.png",
             "32": "icons/icon-32.png",
             "48": "icons/icon-48.png"
         },
-        "default_popup": "popup.html"
+        "default_title": "AWS Profile Containers",
+        "default_panel": "popup.html"
     },
     "options_ui": {
         "page": "settings.html",
         "open_in_tab": true
     },
-    "sidebar_action": {
-        "default_icon": {
-            "16": "icons/icon-16.png",
-            "32": "icons/icon-32.png"
-        },
-        "default_title": "AWS Profile Containers",
-        "default_panel": "popup.html",
-        "open_at_install": false
-    },
-    "commands": {
-        "_execute_sidebar_action": {
-            "suggested_key": {
-                "default": "Ctrl+Shift+A",
-                "mac": "Command+Shift+A"
-            }
-        }
-    },
     "background": {
-        "service_worker": "js/backgroundPage.js",
-        "type": "module"
+        "scripts": ["js/backgroundPage.js"]
     },
     "icons": {
         "16": "icons/icon-16.png",
@@ -48,17 +31,13 @@
         "cookies",
         "storage",
         "tabs",
-        "alarms"
-    ],
-    "host_permissions": [
+        "alarms",
         "http://127.0.0.1:10999/*",
         "http://localhost:10999/*",
         "https://*.amazonaws.com/*",
         "https://*.aws.amazon.com/*"
     ],
-    "content_security_policy": {
-        "extension_pages": "script-src 'self'; object-src 'self'"
-    },
+    "content_security_policy": "script-src 'self'; object-src 'self'",
     "browser_specific_settings": {
         "gecko": {
             "id": "aws-profile-containers@samfakhreddine.dev"

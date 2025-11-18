@@ -57,6 +57,13 @@ function useProfiles() {
 
   const callApi = useCallback(
     async (action: "getProfiles" | "enrichSSOProfiles") => {
+      const token = await apiClient.getApiToken();
+      if (!token) {
+        setLoading(false);
+        setError("No API token configured. Please configure your token in Settings.");
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
@@ -65,6 +72,15 @@ function useProfiles() {
           : await apiClient.getProfiles();
 
         await processProfiles(response.profiles);
+        
+        // Auto-enrich SSO profiles in background after initial load
+        if (action === "getProfiles") {
+          setTimeout(() => {
+            apiClient.getProfilesEnriched()
+              .then(enriched => processProfiles(enriched.profiles))
+              .catch(() => {}); // Silently fail SSO enrichment
+          }, 100);
+        }
       } catch (e) {
         if (e instanceof apiClient.ApiClientError) {
           setError(e.message);

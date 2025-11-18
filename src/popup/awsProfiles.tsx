@@ -406,11 +406,13 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                     onClick={() => refreshProfiles()}
                     iconName="refresh"
                     fullWidth
+                    loading={profilesLoading}
+                    disabled={profilesLoading}
                 >
-                    Refresh Profiles
+                    {profilesLoading ? `Loading... (${profiles.length} loaded)` : `Refresh Profiles (${profiles.length})`}
                 </Button>
 
-                {profilesLoading ? (
+                {profilesLoading && profiles.length === 0 ? (
                     <LoadingState />
                 ) : profilesError || openProfileError ? (
                     <ErrorState
@@ -440,6 +442,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                                 overflowY: "auto",
                                 minHeight: "200px",
                                 maxHeight: "calc(100vh - 250px)",
+                                willChange: "scroll-position",
                             }}
                         >
                             <ProfileList
