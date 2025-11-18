@@ -10,6 +10,9 @@ import { sortByCredentialStatus, logProfileSummary } from "../utils/profiles";
 // Internal - services
 import * as apiClient from "../../services/apiClient";
 
+// Internal - hooks
+import { useIsMounted } from "./useIsMounted";
+
 // Types
 import { AWSProfile } from "../types";
 
@@ -86,9 +89,9 @@ function useProfiles() {
     callApi("enrichSSOProfiles");
   }, [callApi]);
 
-  useEffect(() => {
-    let mounted = true;
+  const isMounted = useIsMounted();
 
+  useEffect(() => {
     const restoreFromCache = async () => {
       const result = await browser.storage.local.get(CACHE_KEY);
       const cachedData = result?.[CACHE_KEY] as CachedData | undefined;
@@ -96,7 +99,7 @@ function useProfiles() {
         if (isDebugMode) {
             logProfileSummary(cachedData.profiles);
         }
-        if (mounted) {
+        if (isMounted()) {
           setProfiles(cachedData.profiles);
           setLoading(false);
         }
@@ -106,15 +109,11 @@ function useProfiles() {
     };
 
     restoreFromCache().then((cached) => {
-      if (!cached && mounted) {
+      if (!cached && isMounted()) {
         loadProfiles(true);
       }
     });
-
-    return () => {
-      mounted = false;
-    };
-  }, [loadProfiles]);
+  }, [loadProfiles, isMounted]);
 
   return { 
     profiles, 

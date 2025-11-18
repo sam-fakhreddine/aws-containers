@@ -93,14 +93,14 @@ async function fetchWithTimeout(
             headers,
             signal: controller.signal,
         });
-        clearTimeout(timeoutId);
         return response;
     } catch (error) {
-        clearTimeout(timeoutId);
         if (error instanceof Error && error.name === "AbortError") {
             throw new ApiClientError(`Request timed out after ${timeoutMs}ms`);
         }
         throw error;
+    } finally {
+        clearTimeout(timeoutId);
     }
 }
 
