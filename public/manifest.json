@@ -4,7 +4,11 @@
     "description": "Open AWS profiles from credentials file in separate containers.",
     "version": "0.1.0",
     "browser_action": {
-        "default_icon": "icon.svg",
+        "default_icon": {
+            "16": "icons/icon-16.png",
+            "32": "icons/icon-32.png",
+            "48": "icons/icon-48.png"
+        },
         "default_popup": "popup.html"
     },
     "options_ui": {
@@ -12,7 +16,10 @@
         "open_in_tab": true
     },
     "sidebar_action": {
-        "default_icon": "icon.svg",
+        "default_icon": {
+            "16": "icons/icon-16.png",
+            "32": "icons/icon-32.png"
+        },
         "default_title": "AWS Profile Containers",
         "default_panel": "popup.html",
         "open_at_install": false
@@ -32,9 +39,11 @@
         "persistent": false
     },
     "icons": {
-        "16": "icon.svg",
-        "48": "icon.svg",
-        "128": "icon.svg"
+        "16": "icons/icon-16.png",
+        "32": "icons/icon-32.png",
+        "48": "icons/icon-48.png",
+        "96": "icons/icon-96.png",
+        "128": "icons/icon-128.png"
     },
     "permissions": [
         "contextualIdentities",

@@ -121,10 +121,12 @@ export async function getProfiles(): Promise<ProfileListResponse> {
         }
         if (error instanceof TypeError && error.message.includes("fetch")) {
             throw new ApiClientError(
-                "Cannot connect to API server. Check if service is running."
+                `Cannot connect to API server. Check if service is running. Original error: ${error.message}`
             );
         }
-        throw new ApiClientError("Request failed");
+        throw new ApiClientError(
+            `Request failed: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
     }
 }
 
@@ -169,10 +171,12 @@ export async function getProfilesEnriched(): Promise<ProfileListResponse> {
         }
         if (error instanceof TypeError && error.message.includes("fetch")) {
             throw new ApiClientError(
-                "Cannot connect to API server. Check if service is running."
+                `Cannot connect to API server. Check if service is running. Original error: ${error.message}`
             );
         }
-        throw new ApiClientError("Request failed");
+        throw new ApiClientError(
+            `Request failed: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
     }
 }
 
@@ -228,10 +232,12 @@ export async function getConsoleUrl(
         }
         if (error instanceof TypeError && error.message.includes("fetch")) {
             throw new ApiClientError(
-                "Cannot connect to API server. Check if service is running."
+                `Cannot connect to API server. Check if service is running. Original error: ${error.message}`
             );
         }
-        throw new ApiClientError("Request failed");
+        throw new ApiClientError(
+            `Request failed: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
     }
 }
 
@@ -251,6 +257,8 @@ export async function getApiVersion(): Promise<Record<string, string>> {
         if (error instanceof ApiClientError) {
             throw error;
         }
-        throw new ApiClientError("Request failed");
+        throw new ApiClientError(
+            `Request failed: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
     }
 }

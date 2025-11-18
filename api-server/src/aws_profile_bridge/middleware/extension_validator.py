@@ -14,8 +14,11 @@ async def validate_extension_origin(request: Request, call_next):
         return await call_next(request)
     
     origin = request.headers.get("origin", "")
-    if origin and origin.startswith("moz-extension://"):
-        if ALLOWED_EXTENSION_ID not in request.headers.get("user-agent", ""):
-            logger.warning(f"Unauthorized extension origin: {origin}")
+    if origin and origin.startswith("moz-extension://") and ALLOWED_EXTENSION_ID not in request.headers.get("user-agent", ""):
+        logger.warning(f"Unauthorized extension origin: {origin}")
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"detail": "Unauthorized extension origin"}
+        )
     
     return await call_next(request)

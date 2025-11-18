@@ -3,7 +3,7 @@
 import re
 from fastapi import HTTPException, status
 
-PROFILE_NAME_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
+PROFILE_NAME_PATTERN = re.compile(r'^[a-zA-Z0-9._-]+$')
 
 def validate_profile_name(name: str) -> str:
     """Validate profile name to prevent path traversal."""
