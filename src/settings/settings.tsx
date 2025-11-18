@@ -1,13 +1,21 @@
+// React
 import React, { useState, useEffect } from "react";
-import Container from "@cloudscape-design/components/container";
-import Header from "@cloudscape-design/components/header";
-import SpaceBetween from "@cloudscape-design/components/space-between";
-import FormField from "@cloudscape-design/components/form-field";
-import Input from "@cloudscape-design/components/input";
-import Button from "@cloudscape-design/components/button";
+
+// Cloudscape components
 import Alert from "@cloudscape-design/components/alert";
 import Box from "@cloudscape-design/components/box";
+import Button from "@cloudscape-design/components/button";
+import Container from "@cloudscape-design/components/container";
+import FormField from "@cloudscape-design/components/form-field";
+import Header from "@cloudscape-design/components/header";
+import Input from "@cloudscape-design/components/input";
+import SpaceBetween from "@cloudscape-design/components/space-between";
+
+// Internal - services
 import * as apiClient from "../services/apiClient";
+
+// Constants
+import { API_TOKEN_MIN_LENGTH } from "../popup/constants";
 
 export const Settings: React.FC = () => {
     const [token, setToken] = useState("");
@@ -28,17 +36,31 @@ export const Settings: React.FC = () => {
     };
 
     const handleSave = async () => {
-        if (!token.trim()) {
+        const trimmedToken = token.trim();
+        
+        if (!trimmedToken) {
             setMessage({ type: "error", text: "Token cannot be empty" });
             return;
         }
 
+        if (trimmedToken.length < API_TOKEN_MIN_LENGTH) {
+            setMessage({ 
+                type: "error", 
+                text: `Token must be at least ${API_TOKEN_MIN_LENGTH} characters long` 
+            });
+            return;
+        }
+
         try {
-            await apiClient.setApiToken(token.trim());
-            setSavedToken(token.trim());
+            await apiClient.setApiToken(trimmedToken);
+            setSavedToken(trimmedToken);
             setMessage({ type: "success", text: "Token saved successfully" });
         } catch (error) {
-            setMessage({ type: "error", text: "Failed to save token" });
+            if (error instanceof apiClient.ApiClientError) {
+                setMessage({ type: "error", text: error.message });
+            } else {
+                setMessage({ type: "error", text: "Failed to save token" });
+            }
         }
     };
 

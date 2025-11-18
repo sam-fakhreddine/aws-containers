@@ -4,10 +4,17 @@
  * Optimized with React.memo to prevent unnecessary re-renders
  */
 
+// React
 import React, { FunctionComponent, memo } from "react";
+
+// Cloudscape components
 import Box from "@cloudscape-design/components/box";
-import { AWSProfile } from "../types";
+
+// Internal - components
 import { ProfileItem } from "./ProfileItem";
+
+// Types
+import { AWSProfile } from "../types";
 
 interface ProfileListProps {
     profiles: AWSProfile[];

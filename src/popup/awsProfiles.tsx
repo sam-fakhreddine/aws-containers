@@ -4,22 +4,23 @@
  * Refactored to use custom hooks and extracted components
  */
 
+// React
 import React, { FunctionComponent, useEffect, useState, useMemo, useCallback } from "react";
+
+// External libraries
 import browser from "webextension-polyfill";
+
+// Cloudscape components
+import Alert from "@cloudscape-design/components/alert";
+import Box from "@cloudscape-design/components/box";
+import Button from "@cloudscape-design/components/button";
 import Container from "@cloudscape-design/components/container";
 import Header from "@cloudscape-design/components/header";
-import Button from "@cloudscape-design/components/button";
-import SpaceBetween from "@cloudscape-design/components/space-between";
-import Box from "@cloudscape-design/components/box";
-import Alert from "@cloudscape-design/components/alert";
-import Modal from "@cloudscape-design/components/modal";
 import Link from "@cloudscape-design/components/link";
-import { POPUP_WIDTH_THRESHOLD } from "./constants";
-import { AWSProfile } from "./types";
-import * as apiClient from "../services/apiClient";
-import { prepareContainer } from "../utils/containerManager";
+import Modal from "@cloudscape-design/components/modal";
+import SpaceBetween from "@cloudscape-design/components/space-between";
 
-// Custom hooks
+// Internal - hooks
 import {
     useProfiles,
     useFavorites,
@@ -28,7 +29,7 @@ import {
     useTheme,
 } from "./hooks";
 
-// UI Components
+// Internal - components
 import {
     ProfileList,
     ProfileSearch,
@@ -37,6 +38,18 @@ import {
     ErrorState,
     ThemeSelector,
 } from "./components";
+
+// Internal - services
+import * as apiClient from "../services/apiClient";
+
+// Internal - utils
+import { prepareContainer } from "../utils/containerManager";
+
+// Types
+import { AWSProfile } from "./types";
+
+// Constants
+import { POPUP_WIDTH_THRESHOLD, SEARCH_DEBOUNCE_MS } from "./constants";
 
 /**
  * Complete list of AWS commercial regions
@@ -122,7 +135,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearchFilter(searchFilter);
-        }, 300);
+        }, SEARCH_DEBOUNCE_MS);
 
         return () => clearTimeout(timer);
     }, [searchFilter]);

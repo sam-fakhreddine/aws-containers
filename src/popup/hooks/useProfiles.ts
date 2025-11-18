@@ -1,8 +1,17 @@
+// React
 import { useState, useEffect, useCallback } from "react";
+
+// External libraries
 import browser from "webextension-polyfill";
-import { AWSProfile } from "../types";
+
+// Internal - utils
 import { sortByCredentialStatus, logProfileSummary } from "../utils/profiles";
+
+// Internal - services
 import * as apiClient from "../../services/apiClient";
+
+// Types
+import { AWSProfile } from "../types";
 
 const CACHE_KEY = "aws-profiles";
 const CACHE_EXPIRATION_MS = 60000; // 1 minute
@@ -13,6 +22,11 @@ interface CachedData {
   profiles: AWSProfile[];
 }
 
+/**
+ * Custom hook for managing AWS profiles
+ * Handles loading, caching, and refreshing profiles from the API
+ * @returns Profile state and management functions
+ */
 function useProfiles() {
   const [profiles, setProfiles] = useState<AWSProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -62,7 +76,7 @@ function useProfiles() {
   );
 
   const loadProfiles = useCallback(
-    (force = false) => {
+    (_force = false) => {
       callApi("getProfiles");
     },
     [callApi],
@@ -89,10 +103,10 @@ function useProfiles() {
 
     restoreFromCache().then((cached) => {
       if (!cached) {
-        loadProfiles(true); // Force fresh load if cache is stale or missing
+        loadProfiles(true);
       }
     });
-  }, []); // Run only on mount
+  }, [loadProfiles]);
 
   return { 
     profiles, 
