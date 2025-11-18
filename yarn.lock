@@ -984,9 +984,9 @@
   dependencies:
     tslib "^2.3.1"
 
-"@cloudscape-design/components@^3.0.1133":
+"@cloudscape-design/components@^3.0.1128":
   version "3.0.1133"
-  resolved "https://registry.yarnpkg.com/@cloudscape-design/components/-/components-3.0.1133.tgz#3439496f3a01a6fcfc1ad2c24c47564607330c34"
+  resolved "https://registry.npmjs.org/@cloudscape-design/components/-/components-3.0.1133.tgz#3439496f3a01a6fcfc1ad2c24c47564607330c34"
   integrity sha512-GdhimctV15Ldxz0siJdxpgS6WtM+vTOOWiWjIWn/M9QO/cfeGUx+ROFAAH0cWbEfxr878gSinSJX2w4m5v9hxA==
   dependencies:
     "@cloudscape-design/collection-hooks" "^1.0.0"
@@ -2763,9 +2763,9 @@
   dependencies:
     "@types/node" "*"
 
-"@typescript-eslint/eslint-plugin@^8.47.0":
+"@typescript-eslint/eslint-plugin@^8.46.4":
   version "8.47.0"
-  resolved "https://registry.yarnpkg.com/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.47.0.tgz#c53edeec13a79483f4ca79c298d5231b02e9dc17"
+  resolved "https://registry.npmjs.org/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.47.0.tgz#c53edeec13a79483f4ca79c298d5231b02e9dc17"
   integrity sha512-fe0rz9WJQ5t2iaLfdbDc9T80GJy0AeO453q8C3YCilnGozvOyCG5t+EZtg7j7D88+c3FipfP/x+wzGnh1xp8ZA==
   dependencies:
     "@eslint-community/regexpp" "^4.10.0"

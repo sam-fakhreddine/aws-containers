@@ -55,11 +55,11 @@ fi
 
 # 1. Environment Setup
 print_status "Setting up directories..."
-mkdir -p "$INSTALL_DIR"
 mkdir -p "$LOG_DIR"
 
 # 2. Virtual Environment (Managed by uv)
 print_status "Creating virtual environment (Python 3.12)..."
+rm -rf "$VENV_DIR"
 uv venv "$VENV_DIR" --python 3.12 --seed
 
 # 3. Dependency Installation (Fast)
@@ -120,7 +120,12 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     USER_ID=$(id -u)
     
     print_status "Configuring launchd service..."
+    mkdir -p "$LAUNCH_DIR"
+    
+    # Unload existing service if present
     launchctl bootout "gui/$USER_ID/$PLIST_NAME" 2>/dev/null || true
+    rm -f "$PLIST_FILE"
+    sleep 1
     
     cat <<EOF > "$PLIST_FILE"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -155,8 +160,17 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 </plist>
 EOF
 
-    launchctl bootstrap "gui/$USER_ID" "$PLIST_FILE"
-    print_success "Launchd service active"
+    # Load the service
+    if launchctl bootstrap "gui/$USER_ID" "$PLIST_FILE" 2>/dev/null; then
+        print_success "Launchd service active"
+    else
+        # If bootstrap fails, try load instead
+        launchctl load "$PLIST_FILE" 2>/dev/null || {
+            print_error "Failed to load service. Trying manual start..."
+            "$APP_PYTHON" -m aws_profile_bridge api > "$LOG_DIR/aws_profile_bridge_api.log" 2>&1 &
+            print_success "Started API server manually (PID: $!)"
+        }
+    fi
 
 else
     print_error "Unsupported OS: $OSTYPE"

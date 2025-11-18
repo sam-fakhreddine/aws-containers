@@ -1,9 +1,9 @@
 {
-    "manifest_version": 2,
+    "manifest_version": 3,
     "name": "AWS Profile Containers",
     "description": "Open AWS profiles from credentials file in separate containers.",
     "version": "0.1.0",
-    "browser_action": {
+    "action": {
         "default_icon": {
             "16": "icons/icon-16.png",
             "32": "icons/icon-32.png",
@@ -27,8 +27,8 @@
     "commands": {
         "_execute_sidebar_action": {
             "suggested_key": {
-                "default": "Ctrl+Shift+P",
-                "mac": "Command+Shift+P"
+                "default": "Ctrl+Shift+A",
+                "mac": "Command+Shift+A"
             }
         }
     },
@@ -36,7 +36,7 @@
         "scripts": [
             "js/backgroundPage.js"
         ],
-        "persistent": false
+        "type": "module"
     },
     "icons": {
         "16": "icons/icon-16.png",
@@ -47,7 +47,10 @@
     },
     "permissions": [
         "contextualIdentities",
-        "storage"
+        "cookies",
+        "storage",
+        "tabs",
+        "alarms"
     ],
     "host_permissions": [
         "http://127.0.0.1:10999/*",
@@ -55,13 +58,12 @@
         "https://*.amazonaws.com/*",
         "https://*.aws.amazon.com/*"
     ],
-    "optional_permissions": [
-        "cookies",
-        "tabs"
-    ],
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'"
+    },
     "browser_specific_settings": {
         "gecko": {
-            "id": "aws-profile-containers@yourname.local"
+            "id": "aws-profile-containers@samfakhreddine.dev"
         }
     }
 }
