@@ -22,9 +22,14 @@ dev = [
     "ruff>=0.9.0",
     "mypy>=1.15.0",
 ]
+cli = [
+    "pyperclip>=1.8.0",  # Clipboard support for 'token copy'
+    "qrcode[pil]>=7.4.0",  # QR code support for 'token qr'
+]
 
 [project.scripts]
-aws-profile-bridge-api = "aws_profile_bridge.api_server:main"
+aws-profile-bridge-api = "aws_profile_bridge.app:main"
+aws-profile-bridge-token = "aws_profile_bridge.cli.token_commands:main"
 
 [tool.ruff]
 target-version = "py312"
