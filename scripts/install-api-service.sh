@@ -55,10 +55,13 @@ fi
 
 # 1. Environment Setup
 print_status "Setting up directories..."
-mkdir -p "$INSTALL_DIR"
 mkdir -p "$LOG_DIR"
 
 # 2. Virtual Environment (Managed by uv)
+if [ -d "$VENV_DIR" ]; then
+    print_status "Removing existing virtual environment..."
+    rm -rf "$VENV_DIR"
+fi
 print_status "Creating virtual environment (Python 3.12)..."
 uv venv "$VENV_DIR" --python 3.12 --seed
 
@@ -120,7 +123,20 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     USER_ID=$(id -u)
     
     print_status "Configuring launchd service..."
+    mkdir -p "$LAUNCH_DIR"
+    
+    # Unload existing service if present
     launchctl bootout "gui/$USER_ID/$PLIST_NAME" 2>/dev/null || true
+    
+    # Wait for service to fully stop
+    for i in $(seq 1 5); do
+        if ! launchctl list | grep -q "$PLIST_NAME"; then
+            break
+        fi
+        sleep 1
+    done
+    
+    rm -f "$PLIST_FILE"
     
     cat <<EOF > "$PLIST_FILE"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -155,8 +171,15 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 </plist>
 EOF
 
-    launchctl bootstrap "gui/$USER_ID" "$PLIST_FILE"
-    print_success "Launchd service active"
+    # Load the service
+    if launchctl bootstrap "gui/$USER_ID" "$PLIST_FILE" 2>/dev/null; then
+        print_success "Launchd service active"
+    elif launchctl load "$PLIST_FILE" 2>/dev/null; then
+        print_success "Launchd service active (via load)"
+    else
+        print_error "Failed to load service via launchctl"
+        exit 1
+    fi
 
 else
     print_error "Unsupported OS: $OSTYPE"
