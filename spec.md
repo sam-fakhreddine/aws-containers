@@ -47,20 +47,27 @@ Transform the AWS Containers browser extension into a standalone desktop applica
 │  │  │  │  Container 2: AWS Profile B               │   │  │  │
 │  │  │  └──────────────────────────────────────────┘   │  │  │
 │  │  └─────────────────────────────────────────────────┘  │  │
-│  │          ↕                    ↕                        │  │
-│  │  [URL Filter]          [Native Messaging]             │  │
-│  └──────────┬────────────────────┬────────────────────────┘  │
-│             │                    │                           │
-│  ┌──────────▼──────────┐  ┌──────▼─────────────────────┐    │
-│  │ Browser Policies    │  │ Native Messaging Host      │    │
-│  │ - Domain Whitelist  │  │ - External URL Handler     │    │
-│  │ - Security Settings │  │ - System Browser Launcher  │    │
-│  └─────────────────────┘  └────────────────────────────┘    │
-│                                   ↓                          │
-│                         [System Default Browser]            │
+│  │                      ↕                                 │  │
+│  │              [URL Filter]                              │  │
+│  └──────────────────────┬─────────────────────────────────┘  │
+│                         │                                    │
+│              ┌──────────▼──────────┐                         │
+│              │ Browser Policies    │                         │
+│              │ - Domain Whitelist  │                         │
+│              │ - Security Settings │                         │
+│              └─────────────────────┘                         │
 ├─────────────────────────────────────────────────────────────┤
-│              Backend: AWS Profile API Server                │
-│              (localhost:10999 - existing Python service)    │
+│         Backend: FastAPI Server (localhost:10999)           │
+│  ┌────────────────────────────────────────────────────┐     │
+│  │ Existing Endpoints:                                │     │
+│  │ - /profiles          - /profiles/enrich            │     │
+│  │ - /profiles/{name}/console-url                     │     │
+│  │                                                     │     │
+│  │ New Endpoint:                                      │     │
+│  │ - POST /open-url     (opens URL in system browser) │     │
+│  └────────────────────────────────────────────────────┘     │
+│                         ↓                                    │
+│                  [System Default Browser]                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -84,22 +91,22 @@ Transform the AWS Containers browser extension into a standalone desktop applica
 - Type definitions and validators
 
 **Modified Components**:
-- Background script: Add URL filtering and native messaging
+- Background script: Add URL filtering logic
 - Content scripts: Add external link interception
-- Manifest: Add native messaging permissions
+- API client: Add new endpoint for opening external URLs
 
 **New Components**:
 - URL navigation guard
-- External link handler
-- System browser integration
+- External link handler (calls API)
 
-#### 3. Native Messaging Host
-- **Purpose**: Bridge between extension and system
-- **Functions**:
-  - Open URLs in system default browser
-  - Potential future: System tray integration, notifications
-- **Implementation**: Python script (cross-platform)
-- **Location**: Bundled with application
+#### 3. FastAPI Backend (Enhanced)
+- **Purpose**: Central backend service (already exists)
+- **New Endpoint**: `POST /open-url`
+  - Request: `{"url": "https://example.com"}`
+  - Opens URL in system default browser using Python's `webbrowser` module
+  - Returns: `{"success": true}` or error
+- **Existing Endpoints**: Profile management, console URL generation
+- **Benefits**: Same authentication/communication pattern, easier debugging
 
 #### 4. Browser Policies & Configuration
 - **policies.json**: WebsiteFilter, security settings, extension management
@@ -113,6 +120,7 @@ Transform the AWS Containers browser extension into a standalone desktop applica
   - Set environment variables
   - Launch with correct profile
   - Handle first-run setup
+  - Verify API server is running
 
 ### Data Flow
 
@@ -143,9 +151,9 @@ Content script intercepts click event
     ↓
 Sends message to background script
     ↓
-Background script calls native messaging host
+Background script calls API: POST /open-url
     ↓
-Native host opens URL in system default browser
+API server opens URL in system default browser
     ↓
 Original tab remains on AWS Console
 ```
@@ -162,8 +170,8 @@ If YES: Allow navigation
     ↓
 If NO:
   - Cancel navigation
-  - Send URL to native messaging host
-  - Open in system browser
+  - Call API: POST /open-url
+  - Open in system browser via API
 ```
 
 ## Technical Specifications
@@ -287,8 +295,7 @@ user_pref("browser.rights.3.shown", true);
     "cookies",
     "storage",
     "alarms",
-    "webNavigation",
-    "nativeMessaging"
+    "webNavigation"
   ],
 
   "host_permissions": [
@@ -331,17 +338,7 @@ user_pref("browser.rights.3.shown", true);
 ```typescript
 // background.ts additions
 
-// Native messaging connection
-let nativePort: browser.runtime.Port | null = null;
-
-function connectNativeHost() {
-  nativePort = browser.runtime.connectNative("com.citadel.urlhandler");
-
-  nativePort.onDisconnect.addListener(() => {
-    console.error("Native host disconnected", browser.runtime.lastError);
-    nativePort = null;
-  });
-}
+import { apiClient } from './services/apiClient';
 
 // URL navigation guard
 browser.webNavigation.onBeforeNavigate.addListener(
@@ -354,8 +351,8 @@ browser.webNavigation.onBeforeNavigate.addListener(
       // Cancel navigation
       await browser.tabs.remove(details.tabId);
 
-      // Open in system browser
-      openInSystemBrowser(details.url);
+      // Open in system browser via API
+      await openInSystemBrowser(details.url);
     }
   },
   { url: [{ schemes: ["http", "https"] }] }
@@ -374,15 +371,18 @@ function isAWSUrl(hostname: string): boolean {
   );
 }
 
-function openInSystemBrowser(url: string) {
-  if (!nativePort) {
-    connectNativeHost();
+async function openInSystemBrowser(url: string): Promise<void> {
+  try {
+    await apiClient.post('/open-url', { url });
+  } catch (error) {
+    console.error('Failed to open URL in system browser:', error);
+    // Fallback: show notification to user
+    browser.notifications.create({
+      type: 'basic',
+      title: 'External Link',
+      message: `Could not open: ${url}`
+    });
   }
-
-  nativePort?.postMessage({
-    action: 'open_url',
-    url: url
-  });
 }
 
 // Listen for messages from content script
@@ -456,100 +456,71 @@ window.open = function(url?: string | URL, target?: string, features?: string) {
 };
 ```
 
-### Native Messaging Host
+### FastAPI Backend Enhancement
 
-#### Host Manifest (Linux/macOS)
-```json
-{
-  "name": "com.citadel.urlhandler",
-  "description": "AWS Citadel URL Handler",
-  "path": "/opt/aws-citadel/native-messaging/url-handler",
-  "type": "stdio",
-  "allowed_extensions": ["aws-citadel@citadel.app"]
-}
+#### New API Endpoint
+Add to the existing FastAPI server (already running on localhost:10999):
+
+```python
+# In the existing FastAPI server
+
+import webbrowser
+from fastapi import HTTPException
+from pydantic import BaseModel, HttpUrl
+
+class OpenUrlRequest(BaseModel):
+    url: str
+
+@app.post("/open-url")
+async def open_external_url(request: OpenUrlRequest):
+    """
+    Open a URL in the system default browser.
+    Used for external links clicked within AWS Console.
+    """
+    try:
+        # Validate URL is not an AWS domain (security check)
+        from urllib.parse import urlparse
+        parsed = urlparse(request.url)
+
+        aws_domains = ['aws.amazon.com', 'amazonaws.com']
+        if any(domain in parsed.hostname for domain in aws_domains if parsed.hostname):
+            raise HTTPException(
+                status_code=400,
+                detail="AWS URLs should not be opened externally"
+            )
+
+        # Open in system browser
+        webbrowser.open(request.url)
+
+        return {"success": True, "url": request.url}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to open URL: {str(e)}"
+        )
 ```
 
-#### Host Implementation (Python)
-```python
-#!/usr/bin/env python3
-"""
-AWS Citadel Native Messaging Host
-Handles opening external URLs in system default browser
-"""
+#### API Client Update (Extension)
+```typescript
+// services/apiClient.ts - add method
 
-import sys
-import json
-import struct
-import webbrowser
-import logging
-from pathlib import Path
+export async function openExternalUrl(url: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/open-url`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Token': getApiToken(),
+    },
+    body: JSON.stringify({ url }),
+  });
 
-# Setup logging
-log_dir = Path.home() / '.aws-citadel' / 'logs'
-log_dir.mkdir(parents=True, exist_ok=True)
-logging.basicConfig(
-    filename=log_dir / 'native-host.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+  if (!response.ok) {
+    throw new Error(`Failed to open URL: ${response.statusText}`);
+  }
 
-def get_message():
-    """Read a message from stdin."""
-    try:
-        raw_length = sys.stdin.buffer.read(4)
-        if not raw_length:
-            return None
-        message_length = struct.unpack('=I', raw_length)[0]
-        message = sys.stdin.buffer.read(message_length).decode('utf-8')
-        return json.loads(message)
-    except Exception as e:
-        logging.error(f"Error reading message: {e}")
-        return None
-
-def send_message(message):
-    """Send a message to stdout."""
-    try:
-        encoded = json.dumps(message).encode('utf-8')
-        sys.stdout.buffer.write(struct.pack('=I', len(encoded)))
-        sys.stdout.buffer.write(encoded)
-        sys.stdout.buffer.flush()
-    except Exception as e:
-        logging.error(f"Error sending message: {e}")
-
-def handle_message(message):
-    """Process incoming message."""
-    action = message.get('action')
-
-    if action == 'open_url':
-        url = message.get('url')
-        if url:
-            logging.info(f"Opening URL in system browser: {url}")
-            try:
-                webbrowser.open(url)
-                return {'success': True}
-            except Exception as e:
-                logging.error(f"Error opening URL: {e}")
-                return {'success': False, 'error': str(e)}
-
-    return {'success': False, 'error': 'Unknown action'}
-
-def main():
-    """Main message loop."""
-    logging.info("AWS Citadel native messaging host started")
-
-    while True:
-        message = get_message()
-        if message is None:
-            break
-
-        logging.info(f"Received message: {message}")
-        response = handle_message(message)
-        send_message(response)
-
-    logging.info("AWS Citadel native messaging host stopped")
-
-if __name__ == '__main__':
-    main()
+  return response.json();
+}
 ```
 
 ### Application Launcher
@@ -581,14 +552,12 @@ if [ ! -d "$PROFILE_DIR" ]; then
     cp -r "$CITADEL_HOME/profile-template/"* "$PROFILE_DIR/"
 fi
 
-# Ensure native messaging host is registered
-NATIVE_MESSAGING_DIR="$HOME/.librewolf/native-messaging-hosts"
-mkdir -p "$NATIVE_MESSAGING_DIR"
-cp "$CITADEL_HOME/native-messaging/com.citadel.urlhandler.json" \
-   "$NATIVE_MESSAGING_DIR/"
-
-# Make native host executable
-chmod +x "$CITADEL_HOME/native-messaging/url-handler"
+# Check if API server is running
+if ! curl -s http://localhost:10999/health > /dev/null 2>&1; then
+    echo "Warning: API server not running on localhost:10999"
+    echo "Please start the AWS Profile API server before launching AWS Citadel"
+    exit 1
+fi
 
 # Launch LibreWolf with custom profile
 exec "$LIBREWOLF_BIN" \
@@ -623,11 +592,14 @@ if (-not (Test-Path $ProfileDir)) {
               -Destination $ProfileDir -Recurse
 }
 
-# Register native messaging host
-$NativeMessagingDir = Join-Path $env:APPDATA "LibreWolf\NativeMessagingHosts"
-New-Item -ItemType Directory -Path $NativeMessagingDir -Force | Out-Null
-Copy-Item -Path (Join-Path $CitadelHome "native-messaging\com.citadel.urlhandler.json") `
-          -Destination $NativeMessagingDir -Force
+# Check if API server is running
+try {
+    $null = Invoke-WebRequest -Uri "http://localhost:10999/health" -TimeoutSec 2
+} catch {
+    Write-Host "Warning: API server not running on localhost:10999"
+    Write-Host "Please start the AWS Profile API server before launching AWS Citadel"
+    exit 1
+}
 
 # Launch LibreWolf
 & $LibreWolfBin `

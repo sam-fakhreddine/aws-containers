@@ -49,7 +49,7 @@ This document outlines the functional and non-functional requirements for AWS Ci
 
 **FR-1.5**: The application shall open AWS Console (https://console.aws.amazon.com) as the default homepage.
 
-**FR-1.6**: The application shall verify that the API server (localhost:10999) is running and display an error if not accessible.
+**FR-1.6**: The application launcher shall verify that the API server (localhost:10999) is running and display an error if not accessible.
 
 ### FR-2: Browser Configuration
 
@@ -127,7 +127,7 @@ This document outlines the functional and non-functional requirements for AWS Ci
 - Prevent default navigation
 - Stop event propagation
 - Send the URL to the background script
-- Open the URL in the system default browser via native messaging
+- Open the URL in the system default browser via API call
 
 **FR-6.4**: The extension shall handle `window.open()` calls similarly to anchor clicks.
 
@@ -135,19 +135,19 @@ This document outlines the functional and non-functional requirements for AWS Ci
 
 **FR-6.6**: The extension shall handle links that open in new tabs/windows.
 
-### FR-7: Native Messaging
+### FR-7: External URL Opening via API
 
-**FR-7.1**: The application shall provide a native messaging host for extension-system communication.
+**FR-7.1**: The API server shall provide a `/open-url` endpoint for opening external URLs.
 
-**FR-7.2**: The native messaging host shall support the action: `open_url`.
+**FR-7.2**: The endpoint shall accept POST requests with JSON payload: `{"url": "https://..."}`.
 
-**FR-7.3**: The native messaging host shall open URLs in the system default browser using Python's `webbrowser` module.
+**FR-7.3**: The endpoint shall open URLs in the system default browser using Python's `webbrowser` module.
 
-**FR-7.4**: The native messaging host shall log all actions for debugging purposes.
+**FR-7.4**: The endpoint shall validate that AWS URLs are not opened externally (security check).
 
-**FR-7.5**: The native messaging host shall handle errors gracefully and report failures to the extension.
+**FR-7.5**: The endpoint shall log all URL opening actions for debugging purposes.
 
-**FR-7.6**: The extension shall reconnect to the native host if the connection is lost.
+**FR-7.6**: The endpoint shall handle errors gracefully and return appropriate HTTP status codes.
 
 ### FR-8: API Server Integration
 
@@ -164,6 +164,8 @@ This document outlines the functional and non-functional requirements for AWS Ci
 **FR-8.6**: The extension shall implement a 5-second timeout for API requests (except health checks at 1s).
 
 **FR-8.7**: The extension shall retry failed API requests up to 3 times with exponential backoff.
+
+**FR-8.8**: The extension shall call the `/open-url` endpoint when external links need to be opened.
 
 ### FR-9: AWS Region Selection
 
@@ -430,7 +432,7 @@ This document outlines the functional and non-functional requirements for AWS Ci
 
 **US-3.4**: As a user, I want the application to prevent me from navigating to non-AWS sites so I don't accidentally leave the secure environment.
 
-**US-3.5**: As a user, I want external links (like documentation) to open in my regular browser so I can reference them while working.
+**US-3.5**: As a user, I want external links (like documentation) to open in my regular browser automatically so I can reference them while working.
 
 ### Epic 4: Navigation & Workflow
 
@@ -518,7 +520,7 @@ This document outlines the functional and non-functional requirements for AWS Ci
 
 **UC-4**: Users must have sufficient disk space (200 MB) for installation.
 
-**UC-5**: Users must have administrator rights for initial installation (native messaging registration).
+**UC-5**: Users must have sufficient permissions to run the application and access localhost:10999.
 
 ## Dependencies
 
@@ -526,13 +528,11 @@ This document outlines the functional and non-functional requirements for AWS Ci
 
 **ED-1**: LibreWolf browser (v133.x+)
 
-**ED-2**: AWS Profile API server (existing Python FastAPI server)
+**ED-2**: AWS Profile API server (existing Python FastAPI server with new `/open-url` endpoint)
 
-**ED-3**: Python 3.8+ (for native messaging host)
+**ED-3**: Python 3.8+ (for API server)
 
 **ED-4**: System default browser (for external link handling)
-
-**ED-5**: Operating system native messaging support
 
 ### Internal Dependencies
 
@@ -565,9 +565,9 @@ This document outlines the functional and non-functional requirements for AWS Ci
 ### Application Launch
 - ✅ Application starts in less than 3 seconds
 - ✅ Custom profile directory is created on first run
-- ✅ Native messaging host is registered on first run
 - ✅ AWS Console homepage loads automatically
 - ✅ Error message displayed if API server is not running
+- ✅ Launcher checks API server health before starting
 
 ### Browser UI
 - ✅ URL bar is not visible
@@ -600,11 +600,11 @@ This document outlines the functional and non-functional requirements for AWS Ci
 - ✅ window.open for external URLs opens system browser
 - ✅ AWS links navigate normally
 
-### Native Messaging
-- ✅ Native host is callable from extension
+### API Integration
+- ✅ Extension can call /open-url endpoint
 - ✅ URLs open in system default browser
-- ✅ Errors are logged
-- ✅ Connection recovers if lost
+- ✅ Errors are logged and handled gracefully
+- ✅ API server validates URLs before opening
 
 ### Settings
 - ✅ API URL is configurable
@@ -635,10 +635,10 @@ This document outlines the functional and non-functional requirements for AWS Ci
 - **Mitigation**: Pin to specific LibreWolf version range, automated testing
 - **Contingency**: Maintain compatibility layer, document version requirements
 
-**R-2: Native Messaging Security**
-- **Risk**: Native messaging host could be exploited
-- **Mitigation**: Strict input validation, minimal permissions, code review
-- **Contingency**: Disable native messaging, implement workaround
+**R-2: API Endpoint Security**
+- **Risk**: /open-url endpoint could be exploited to open malicious URLs
+- **Mitigation**: URL validation, authentication via API token, AWS domain blocking
+- **Contingency**: Disable external link opening, manual copy-paste URLs
 
 **R-3: Container API Changes**
 - **Risk**: Firefox/LibreWolf changes Contextual Identities API

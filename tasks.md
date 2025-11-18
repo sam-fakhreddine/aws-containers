@@ -204,38 +204,30 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 
 ---
 
-### TASK-1.3: Implement Native Messaging Integration
+### TASK-1.3: Add API Client Method for External URLs
 **Priority**: P0
-**Effort**: L
+**Effort**: S
 **Dependencies**: TASK-1.1, TASK-1.2
 
-**Description**: Add native messaging support to extension for system browser opening.
+**Description**: Add method to API client for opening external URLs via backend.
 
 **Steps**:
-1. Create `src/background/native-messaging.ts`
-2. Implement connection management:
-   - Connect to native host
-   - Handle disconnections
-   - Auto-reconnect logic
-3. Implement message protocol:
-   - `open_url` action
-   - Success/error responses
-4. Add message handlers in background script
-5. Add error handling and logging
-6. Write integration tests
-
-**Files to Create**:
-- `extension/src/background/native-messaging.ts`
-- `extension/src/background/native-messaging.test.ts`
+1. Update `src/services/apiClient.ts`
+2. Add `openExternalUrl(url: string)` method
+3. Implement POST request to `/open-url` endpoint
+4. Add error handling and logging
+5. Add timeout (5 seconds)
+6. Write unit tests
 
 **Files to Modify**:
-- `extension/src/background.ts` (integrate native messaging)
+- `extension/src/services/apiClient.ts`
+- `extension/src/services/apiClient.test.ts`
 
 **Acceptance Criteria**:
-- ✅ Extension can connect to native host
-- ✅ Messages are sent correctly
-- ✅ Disconnections are handled
-- ✅ Auto-reconnect works
+- ✅ Method posts to /open-url endpoint
+- ✅ Proper headers are sent (X-API-Token)
+- ✅ Errors are handled gracefully
+- ✅ Timeout is implemented
 - ✅ Tests pass
 
 ---
@@ -276,13 +268,13 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 
 **Steps**:
 1. Add `webNavigation` permission
-2. Add `nativeMessaging` permission
-3. Add content scripts configuration:
+2. Add content scripts configuration:
    - Match AWS domains
    - Run at document_start
    - All frames
-4. Update extension description
-5. Update version to 2.0.0
+3. Update extension description
+4. Update version to 2.0.0
+5. Remove any references to native messaging
 
 **Files to Modify**:
 - `extension/manifest.json`
@@ -292,6 +284,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 - ✅ Content scripts are configured correctly
 - ✅ Extension loads without errors
 - ✅ Manifest validation passes
+- ✅ No native messaging permissions
 
 ---
 
@@ -348,101 +341,94 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 
 ---
 
-## Phase 2: Native Messaging Host
+## Phase 2: API Backend Enhancement
 
-### TASK-2.1: Create Native Messaging Host
+### TASK-2.1: Add /open-url Endpoint to API Server
 **Priority**: P0
-**Effort**: M
+**Effort**: S
 **Dependencies**: TASK-1.3
 
-**Description**: Implement Python native messaging host for URL handling.
+**Description**: Add new endpoint to existing FastAPI server for opening external URLs.
 
 **Steps**:
-1. Create `native-messaging/url-handler.py`
-2. Implement native messaging protocol:
-   - Read messages from stdin (4-byte length prefix + JSON)
-   - Write messages to stdout (same format)
-3. Implement action handlers:
-   - `open_url`: Open URL in system browser
-4. Add logging to `~/.aws-citadel/logs/native-host.log`
+1. Locate existing FastAPI server code
+2. Add new endpoint: `POST /open-url`
+3. Implement request model with Pydantic:
+   - `url: str` field
+4. Implement endpoint logic:
+   - Validate URL is not an AWS domain
+   - Use `webbrowser.open()` to open in system browser
+   - Return success/error response
 5. Add error handling
-6. Make script executable
-7. Write unit tests
+6. Add logging
+7. Write unit tests for endpoint
 
-**Files to Create**:
-- `native-messaging/url-handler.py`
-- `native-messaging/test_url_handler.py`
-- `native-messaging/requirements.txt` (if needed)
+**Files to Modify**:
+- API server main file (existing)
+- API server tests (existing)
 
 **Acceptance Criteria**:
-- ✅ Host reads messages correctly
-- ✅ Host writes responses correctly
+- ✅ Endpoint accepts POST requests
 - ✅ URLs open in system browser
-- ✅ Errors are logged
+- ✅ AWS URLs are rejected
+- ✅ Errors are handled gracefully
 - ✅ Tests pass
 
 ---
 
-### TASK-2.2: Create Host Manifests
+### TASK-2.2: Test API Endpoint
 **Priority**: P0
 **Effort**: S
 **Dependencies**: TASK-2.1
 
-**Description**: Create platform-specific native messaging host manifests.
+**Description**: Test the /open-url endpoint independently.
 
 **Steps**:
-1. Create Linux/macOS manifest: `native-messaging/com.citadel.urlhandler.json`
-2. Create Windows manifest: `native-messaging/com.citadel.urlhandler.windows.json`
-3. Set correct paths (will be updated by launcher on first run)
-4. Set allowed extension ID
-5. Document manifest installation locations:
-   - Linux: `~/.librewolf/native-messaging-hosts/`
-   - macOS: `~/Library/Application Support/LibreWolf/NativeMessagingHosts/`
-   - Windows: Registry key
-
-**Files to Create**:
-- `native-messaging/com.citadel.urlhandler.json`
-- `native-messaging/com.citadel.urlhandler.windows.json`
+1. Start API server
+2. Test with curl/Postman:
+   - Valid external URL
+   - Invalid URL
+   - AWS URL (should be rejected)
+   - Missing URL field
+3. Verify system browser opens correctly
+4. Check logs for proper logging
+5. Test error responses
 
 **Acceptance Criteria**:
-- ✅ Manifests are valid JSON
-- ✅ Paths are correct
-- ✅ Extension ID matches
-- ✅ Installation locations documented
+- ✅ Valid URLs open in system browser
+- ✅ AWS URLs are rejected with 400
+- ✅ Invalid requests return proper errors
+- ✅ Logging works correctly
 
 ---
 
-### TASK-2.3: Test Native Messaging End-to-End
+### TASK-2.3: Test Extension to API Integration
 **Priority**: P0
 **Effort**: M
 **Dependencies**: TASK-2.2, TASK-1.4
 
-**Description**: Test full native messaging flow from extension to system browser.
+**Description**: Test full flow from extension to API to system browser.
 
 **Steps**:
-1. Manually install native messaging host:
-   - Copy manifest to correct location
-   - Make Python script executable
-   - Test host standalone (echo test)
+1. Ensure API server is running
 2. Load extension in LibreWolf
-3. Test connection:
-   - Check browser console for connection status
-   - Send test message from extension console
-4. Test full flow:
+3. Test full flow:
    - Navigate to AWS Console
    - Click external link
    - Verify system browser opens with URL
-5. Test error cases:
-   - Kill host, verify reconnection
-   - Invalid messages
+4. Test error cases:
+   - Stop API server, verify error handling
    - Invalid URLs
-6. Document any platform-specific issues
+   - Network timeouts
+5. Check browser console for errors
+6. Verify fallback notification works
+7. Document any platform-specific issues
 
 **Acceptance Criteria**:
-- ✅ Extension connects to host
 - ✅ External links open in system browser
-- ✅ Reconnection works
-- ✅ Error handling works
+- ✅ Error handling works when API is down
+- ✅ Notifications show on errors
+- ✅ No console errors
 - ✅ Works on Linux, macOS, Windows
 
 ---
@@ -579,7 +565,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 ### TASK-4.1: Create Linux Launcher Script
 **Priority**: P1
 **Effort**: M
-**Dependencies**: TASK-3.4, TASK-2.2
+**Dependencies**: TASK-3.4
 
 **Description**: Create Bash launcher script for Linux.
 
@@ -589,14 +575,14 @@ This document breaks down the AWS Citadel project into actionable tasks organize
    - Determine script directory
    - Set environment variables
    - Create profile on first run (copy from template)
-   - Register native messaging host
-   - Make native host executable
+   - Check if API server is running (curl health endpoint)
    - Launch LibreWolf with custom profile
 3. Add command-line argument handling:
    - `--profile <path>`: Use custom profile
    - `--debug`: Enable debug logging
    - `--version`: Show version
-4. Add error handling (LibreWolf not found, etc.)
+   - `--skip-api-check`: Skip API server check
+4. Add error handling (LibreWolf not found, API server not running, etc.)
 5. Make script executable
 6. Test on Ubuntu and Fedora
 
@@ -606,7 +592,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 **Acceptance Criteria**:
 - ✅ Script launches LibreWolf correctly
 - ✅ Profile is created on first run
-- ✅ Native host is registered
+- ✅ API server check works
 - ✅ Command-line arguments work
 - ✅ Error handling works
 - ✅ Works on multiple Linux distros
@@ -652,11 +638,11 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 2. Implement same functionality as Linux script:
    - Determine script directory
    - Create profile on first run
-   - Register native messaging host (Windows Registry)
+   - Check API server health
    - Launch LibreWolf
 3. Add Windows-specific error handling
 4. Test on Windows 10 and Windows 11
-5. Handle Windows paths and registry operations
+5. Handle Windows paths correctly
 
 **Files to Create**:
 - `launcher/aws-citadel.ps1`
@@ -664,7 +650,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 
 **Acceptance Criteria**:
 - ✅ Script launches LibreWolf correctly on Windows
-- ✅ Registry keys are set correctly
+- ✅ API server check works
 - ✅ Profile creation works
 - ✅ Works on Windows 10/11
 - ✅ .bat wrapper works
@@ -684,6 +670,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
    - Existing profile
    - Command-line arguments
    - Error cases (no LibreWolf, no API server)
+   - API server check bypass
 2. Test macOS launcher (same scenarios)
 3. Test Windows launcher (same scenarios)
 4. Test cross-version compatibility
@@ -694,6 +681,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 - ✅ All launchers work on their platforms
 - ✅ First-run experience works
 - ✅ Subsequent launches work
+- ✅ API server check works correctly
 - ✅ Error messages are helpful
 - ✅ Troubleshooting guide exists
 
@@ -935,7 +923,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 1. Set up Playwright or Selenium for browser automation
 2. Write tests for:
    - Extension ↔ API server communication
-   - Extension ↔ Native host communication
+   - API /open-url endpoint integration
    - Container creation and isolation
    - URL filtering and external link handling
    - Profile loading and switching
@@ -944,7 +932,7 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 
 **Files to Create**:
 - `tests/integration/extension-api.test.ts`
-- `tests/integration/native-messaging.test.ts`
+- `tests/integration/external-urls.test.ts`
 - `tests/integration/containers.test.ts`
 - `tests/integration/url-filtering.test.ts`
 
@@ -1060,10 +1048,11 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 3. **XSS testing**:
    - Test input fields for XSS
    - Test link interception for XSS
-4. **Native messaging security**:
-   - Test with malformed messages
-   - Test with malicious URLs
-   - Verify host validation
+4. **API endpoint security**:
+   - Test /open-url with malicious URLs
+   - Test without authentication token
+   - Test with AWS URLs (should be rejected)
+   - Test URL injection attempts
 5. **Extension permissions**:
    - Verify minimal permissions
    - Check for unnecessary access
@@ -1075,13 +1064,14 @@ This document breaks down the AWS Citadel project into actionable tasks organize
 - `tests/security/url-filtering.test.ts`
 - `tests/security/container-isolation.test.ts`
 - `tests/security/xss.test.ts`
+- `tests/security/api-endpoint.test.ts`
 - `docs/security-report.md`
 
 **Acceptance Criteria**:
 - ✅ URL filtering cannot be bypassed
 - ✅ Containers are fully isolated
 - ✅ No XSS vulnerabilities
-- ✅ Native messaging is secure
+- ✅ API endpoint validates inputs properly
 - ✅ Minimal permissions used
 - ✅ Security report created
 
@@ -1505,7 +1495,7 @@ TASK-0.1 (Repo Setup)
 
 Phase 1: Extension
 TASK-1.1 (Navigation Guard) ──┐
-TASK-1.2 (Link Interceptor) ──┼──> TASK-1.3 (Native Messaging)
+TASK-1.2 (Link Interceptor) ──┼──> TASK-1.3 (API Client Update)
                               │           │
                               │           └──> TASK-1.4 (Background Script)
                               │                       │
@@ -1514,10 +1504,10 @@ TASK-1.6 (Build Config) ──────┘                       │
                                                        │
                                         TASK-1.7 (Testing) ──┐
                                                               │
-Phase 2: Native Host                                         │
-TASK-2.1 (Host Implementation) ──> TASK-2.2 (Manifests)     │
-                                           │                  │
-                                           └──> TASK-2.3 (E2E Test) ──┤
+Phase 2: API Backend                                         │
+TASK-2.1 (API Endpoint) ──> TASK-2.2 (Test Endpoint)        │
+                                 │                            │
+                                 └──> TASK-2.3 (Integration Test) ──┤
                                                                        │
 Phase 3: Browser Config                                               │
 TASK-3.1 (userChrome.css) ──┐                                        │
