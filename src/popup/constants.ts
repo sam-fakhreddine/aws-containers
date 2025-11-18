@@ -37,6 +37,13 @@ export const STORAGE_KEYS = {
 } as const;
 
 // Token validation
-export const API_TOKEN_MIN_LENGTH = 32;
-export const API_TOKEN_MAX_LENGTH = 64;
-export const API_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,64}$/;
+export const API_TOKEN_PREFIX = "awspc";
+export const API_TOKEN_LENGTH = 56; // awspc(5) + _(1) + random(43) + _(1) + checksum(6) = 56
+
+// New format: awspc_{43_chars}_{6_char_checksum}
+export const API_TOKEN_PATTERN = /^awspc_[A-Za-z0-9]{43}_[A-Za-z0-9]{6}$/;
+
+// Legacy format (backward compatibility)
+export const API_TOKEN_PATTERN_LEGACY = /^[A-Za-z0-9_-]{32,64}$/;
+export const API_TOKEN_MIN_LENGTH = 32; // Legacy minimum
+export const API_TOKEN_MAX_LENGTH = 64; // Legacy maximum
