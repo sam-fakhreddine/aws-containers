@@ -7,7 +7,7 @@ Follows Single Responsibility Principle.
 """
 
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
 
 try:
     import boto3
@@ -16,14 +16,14 @@ try:
 except ImportError:
     BOTO3_AVAILABLE = False
 
-from ..utils.logger import timer, log_operation, log_result, log_error
-from .parsers import (
-    CredentialsFileParser,
-    ConfigFileParser,
-    ProfileConfigReader,
-    FileCache,
-)
 from ..services.sso import SSOCredentialsProvider, SSOProfileEnricher
+from ..utils.logger import log_error, log_operation, log_result, timer
+from .parsers import (
+    ConfigFileParser,
+    CredentialsFileParser,
+    FileCache,
+    ProfileConfigReader,
+)
 
 
 class CredentialProvider:

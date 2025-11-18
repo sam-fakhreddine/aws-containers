@@ -363,40 +363,35 @@ export const AWSProfilesPopup: FunctionComponent = () => {
 
     // Main view
     return (
-        <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-            <Container
-                header={
-                    <Header
-                        variant="h2"
-                        actions={
+        <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "16px" }}>
+            <SpaceBetween size="m">
+                <Header
+                    variant="h2"
+                    actions={
+                        <SpaceBetween direction="horizontal" size="xs">
+                            <Button 
+                                variant="icon" 
+                                iconName="settings"
+                                onClick={() => browser.runtime.openOptionsPage()}
+                            />
                             <ThemeSelector
                                 mode={themeMode}
                                 onModeChange={setThemeMode}
                             />
-                        }
-                    >
-                        AWS Profile Containers ({__BUILD_TIMESTAMP__})
-                    </Header>
-                }
-                variant="default"
-            >
-                <Box padding={{ bottom: "xs" }} float="right">
-                    <Button 
-                        variant="icon" 
-                        iconName="settings"
-                        onClick={() => browser.runtime.openOptionsPage()}
-                    />
-                </Box>
-                <Box padding={{ bottom: "s" }}>
-                    <Button
-                        variant="primary"
-                        onClick={() => refreshProfiles()}
-                        iconName="refresh"
-                        fullWidth
-                    >
-                        Refresh Profiles
-                    </Button>
-                </Box>
+                        </SpaceBetween>
+                    }
+                >
+                    AWS Profile Containers ({__BUILD_TIMESTAMP__})
+                </Header>
+                <Button
+                    variant="primary"
+                    onClick={() => refreshProfiles()}
+                    iconName="refresh"
+                    fullWidth
+                >
+                    Refresh Profiles
+                </Button>
+
                 {profilesLoading ? (
                     <LoadingState />
                 ) : profilesError || openProfileError ? (
@@ -405,7 +400,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                         onRetry={() => refreshProfiles()}
                     />
                 ) : (
-                    <SpaceBetween size="m">
+                    <>
                         <ProfileSearch
                             searchFilter={searchFilter}
                             onSearchChange={setSearchFilter}
@@ -443,19 +438,17 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                         </div>
 
                         {selectedOrgTab !== "all" && selectedOrgTab !== "credentials" && (
-                            <Box padding={{ top: "s" }}>
-                                <Button
-                                    variant="normal"
-                                    onClick={() => enrichSSOProfiles()}
-                                    fullWidth
-                                >
-                                    Load Entitlements
-                                </Button>
-                            </Box>
+                            <Button
+                                variant="normal"
+                                onClick={() => enrichSSOProfiles()}
+                                fullWidth
+                            >
+                                Load Entitlements
+                            </Button>
                         )}
-                    </SpaceBetween>
+                    </>
                 )}
-            </Container>
+            </SpaceBetween>
 
             <Modal
                 visible={isRemoving}

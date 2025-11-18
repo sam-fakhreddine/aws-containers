@@ -7,17 +7,17 @@ Supports both stderr and file logging with automatic rotation.
 SECURITY: Never logs credentials or sensitive data.
 """
 
-import sys
-import time
-import os
 import json
 import logging
-from pathlib import Path
-from logging.handlers import RotatingFileHandler
-from functools import wraps
+import os
+import sys
+import time
 from contextlib import contextmanager
-from typing import Any, Dict, Optional, Callable
 from datetime import datetime
+from functools import wraps
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional
 
 # Log configuration
 DEFAULT_LOG_DIR = Path.home() / ".aws" / "logs"

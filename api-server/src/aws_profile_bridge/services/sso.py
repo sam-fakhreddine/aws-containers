@@ -6,14 +6,14 @@ Handles SSO token caching and retrieval of temporary credentials.
 Follows Single Responsibility Principle.
 """
 
-import json
 import hashlib
-from pathlib import Path
-from datetime import datetime, timezone
-from typing import Optional, Dict
+import json
 import urllib.request as request
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Dict, Optional
 
-from ..utils.logger import timer, log_operation, log_result, log_error
+from ..utils.logger import log_operation, log_result, timer
 
 # Constants
 DEFAULT_CACHE_TTL_SECONDS = 30  # In-memory cache TTL for SSO tokens

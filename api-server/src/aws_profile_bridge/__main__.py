@@ -8,6 +8,10 @@ import sys
 # CRITICAL: Import logging configuration FIRST, before any other modules
 # This prevents boto3 and other libraries from writing to stderr
 from .config import logging  # noqa: F401
+from .app import main as app_main
+from .auth.token_manager import TokenManager
+from .config import settings
+from .core.bridge import main as bridge_main
 
 
 def main() -> int:
@@ -16,9 +20,11 @@ def main() -> int:
     # Python 3.12 match statement for clean command routing
     match sys.argv[1:]:
         case ["api"] | ["server"] | ["api-server"]:
-            from .app import main as app_main
-
             app_main()
+            return 0
+
+        case ["rotate-token"]:
+            rotate_token()
             return 0
 
         case ["--version"] | ["-v"]:
@@ -31,10 +37,18 @@ def main() -> int:
 
         case _:
             # Original native messaging functionality
-            from .core.bridge import main as bridge_main
-
             bridge_main()
             return 0
+
+
+def rotate_token() -> None:
+    """Rotate API token."""
+    token_manager = TokenManager(settings.CONFIG_FILE)
+    token_manager.load_or_create()
+    new_token = token_manager.rotate()
+    print(f"New API token generated: {new_token}")
+    print(f"Token saved to: {settings.CONFIG_FILE}")
+    print("\nUpdate your extension settings with the new token.")
 
 
 def print_help() -> None:
@@ -47,6 +61,7 @@ Usage:
 
 Commands:
     api, server       Start HTTP API server
+    rotate-token      Generate new API token
     --version, -v     Show version
     --help, -h        Show this help
 
@@ -55,6 +70,7 @@ Native Messaging Mode (default):
     
 Examples:
     python -m aws_profile_bridge api
+    python -m aws_profile_bridge rotate-token
     python -m aws_profile_bridge --version
     """
     print(help_text)

@@ -1,9 +1,10 @@
 """AWS Profile Bridge HTTP API Server - Clean Architecture."""
 
-import sys
-import signal
 import asyncio
 import logging
+import os
+import signal
+import sys
 from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
 
@@ -11,12 +12,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from .config import settings
-from .auth.token_manager import TokenManager
-from .auth.rate_limiter import RateLimiter
-from .auth.authenticator import Authenticator
-from .middleware.logging import log_requests
 from .api import health, profiles
+from .auth.authenticator import Authenticator
+from .auth.rate_limiter import RateLimiter
+from .auth.token_manager import TokenManager
+from .config import settings
+from .middleware.extension_validator import validate_extension_origin
+from .middleware.logging import log_requests
 
 
 def setup_logging() -> logging.Logger:
@@ -100,6 +102,9 @@ def create_app() -> FastAPI:
     # Logging middleware
     app.middleware("http")(log_requests)
 
+    # Extension origin validation
+    app.middleware("http")(validate_extension_origin)
+
     # Register routes
     app.include_router(health.router)
     app.include_router(profiles.router)
@@ -112,8 +117,6 @@ app = create_app()
 
 def start_server() -> None:
     """Run the API server."""
-    import os
-
     match os.getenv("ENV", "production").lower():
         case "development" | "dev":
             uvicorn.run(

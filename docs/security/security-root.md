@@ -178,15 +178,27 @@ This is AWS's official SSO endpoint for retrieving temporary role credentials.
 {
   "permissions": [
     "contextualIdentities",  // Create/manage Firefox containers
-    "cookies",               // Required for container isolation
-    "tabs",                  // Open tabs in containers
-    "storage",               // Store favorites/recent profiles
-    "nativeMessaging"        // Communicate with Python bridge
+    "storage"                // Store favorites/recent profiles
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:10999/*",    // Local API server only
+    "http://localhost:10999/*",     // Local API server only
+    "https://*.amazonaws.com/*",    // AWS Console domains only
+    "https://*.aws.amazon.com/*"    // AWS Console domains only
+  ],
+  "optional_permissions": [
+    "tabs"                   // Requested when opening AWS Console
   ]
 }
 ```
 
-**Why native messaging?** Firefox extensions cannot directly read files. The native messaging bridge is the only way to access ~/.aws/credentials.
+**Security Improvements:**
+- ✅ **Host-specific permissions**: Only AWS domains and localhost
+- ✅ **Runtime permission requests**: Tabs permission requested when needed
+- ✅ **Removed cookies permission**: Not actually required for container isolation
+- ✅ **Principle of least privilege**: Minimal default permissions
+
+**📖 For detailed permission security analysis, see [PERMISSIONS_SECURITY.md](PERMISSIONS_SECURITY.md)**
 
 ## Privacy
 
