@@ -17,8 +17,12 @@ export const MILLISECONDS_PER_MINUTE = 60000;
 export const MINUTES_PER_HOUR = 60;
 export const MINUTES_PER_DAY = 1440; // 24 * 60
 
-// API Configuration
-export const API_BASE_URL = "http://127.0.0.1:10999";
+
+
+// UI Timing
+export const SEARCH_DEBOUNCE_MS = 300;
+export const MESSAGE_DISPLAY_DURATION_MS = 5000;
+export const TRANSITION_DURATION_MS = 200;
 
 // Storage keys
 export const STORAGE_KEYS = {
@@ -29,4 +33,9 @@ export const STORAGE_KEYS = {
     PROFILES_CACHE_TIME: "profilesCacheTime",
     CONTAINERS: "containers",
     THEME_MODE: "themeMode",
+    API_TOKEN: "apiToken",
 } as const;
+
+// Token validation
+export const API_TOKEN_MIN_LENGTH = 32;
+export const API_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,}$/;

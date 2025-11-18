@@ -4,7 +4,10 @@
  * Memoized for performance
  */
 
+// React
 import React, { FunctionComponent, memo } from "react";
+
+// Cloudscape components
 import Input from "@cloudscape-design/components/input";
 import Select from "@cloudscape-design/components/select";
 import SpaceBetween from "@cloudscape-design/components/space-between";
