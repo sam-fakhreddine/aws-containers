@@ -13,12 +13,15 @@ Common issues and solutions for AWS Profile Containers.
 **Solutions:**
 
 1. **Check if API server is running:**
+
    ```bash
    curl http://localhost:10999/health
    ```
+
    Should return: `{"status":"healthy","version":"2.0.0",...}`
 
 2. **Start the API server:**
+
    ```bash
    # Linux
    systemctl --user start aws-profile-bridge
@@ -28,6 +31,7 @@ Common issues and solutions for AWS Profile Containers.
    ```
 
 3. **Check API server status:**
+
    ```bash
    # Linux
    systemctl --user status aws-profile-bridge
@@ -37,6 +41,7 @@ Common issues and solutions for AWS Profile Containers.
    ```
 
 4. **View API server logs:**
+
    ```bash
    tail -f ~/.aws/logs/aws_profile_bridge_api.log
    ```
@@ -48,6 +53,7 @@ Common issues and solutions for AWS Profile Containers.
    - Click "Test Connection"
 
 6. **Reinstall:**
+
    ```bash
    cd /path/to/aws-containers
    ./scripts/install-api-service.sh
@@ -58,6 +64,7 @@ Common issues and solutions for AWS Profile Containers.
 **Problem:** API server can't start because port 10999 is in use
 
 **Solution:**
+
 ```bash
 # Find process using port 10999
 lsof -i :10999
@@ -78,6 +85,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
 **Solutions:**
 
 1. **Install Python 3.12+:**
+
    ```bash
    # Ubuntu/Debian
    sudo apt install python3.12
@@ -87,6 +95,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
    ```
 
 2. **Or use pyenv:**
+
    ```bash
    pyenv install 3.12
    pyenv global 3.12
@@ -99,6 +108,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
 **Solutions:**
 
 1. **Get your API token:**
+
    ```bash
    cat ~/.aws/profile_bridge_config.json
    ```
@@ -111,6 +121,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
    - Click "Test Connection"
 
 3. **Regenerate token if needed:**
+
    ```bash
    # Reinstall to generate new token
    ./scripts/install-api-service.sh
@@ -125,6 +136,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
 **Causes & Solutions:**
 
 1. **No credentials configured:**
+
    ```bash
    # Check if credentials file exists
    ls -la ~/.aws/credentials
@@ -136,6 +148,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
 
 2. **Incorrect file format:**
    Verify `~/.aws/credentials` has correct format:
+
    ```ini
    [profile-name]
    aws_access_key_id = AKIA...
@@ -143,6 +156,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
    ```
 
 3. **File permissions:**
+
    ```bash
    chmod 600 ~/.aws/credentials
    chmod 600 ~/.aws/config
@@ -160,16 +174,19 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
    - Report errors in GitHub issue
 
 2. **Verify credentials exist:**
+
    ```bash
    grep -A 3 "\[profile-name\]" ~/.aws/credentials
    ```
 
 3. **Check API server is running:**
+
    ```bash
    curl http://localhost:10999/health
    ```
 
 4. **Check API server logs:**
+
    ```bash
    tail -f ~/.aws/logs/aws_profile_bridge_api.log
    ```
@@ -187,15 +204,19 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
 **Solutions:**
 
 **For credential-based profiles:**
+
 1. Refresh credentials using your credential management tool
 2. Update `~/.aws/credentials` with new credentials
 3. Reload extension popup
 
 **For SSO profiles:**
+
 1. Re-authenticate with AWS SSO:
+
    ```bash
    aws sso login --profile <profile-name>
    ```
+
 2. Reload extension popup
 
 ### SSO Profile Not Working
@@ -205,15 +226,19 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
 **Solutions:**
 
 1. **Verify you've logged in:**
+
    ```bash
    aws sso login --profile <profile-name>
    ```
 
 2. **Check SSO configuration:**
+
    ```bash
    cat ~/.aws/config
    ```
+
    Should have:
+
    ```ini
    [profile sso-name]
    sso_start_url = ...
@@ -223,12 +248,15 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
    ```
 
 3. **Check SSO cache:**
+
    ```bash
    ls -la ~/.aws/sso/cache/
    ```
+
    Should contain cached token files
 
 4. **Verify AWS CLI is installed:**
+
    ```bash
    aws --version
    ```
@@ -288,17 +316,20 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
 **Solutions:**
 
 1. **Verify credentials are valid:**
+
    ```bash
    # Test with AWS CLI
    AWS_PROFILE=profile-name aws sts get-caller-identity
    ```
 
 2. **Check network access to AWS:**
+
    ```bash
    curl -I https://signin.aws.amazon.com
    ```
 
 3. **Check API server logs:**
+
    ```bash
    tail -f ~/.aws/logs/aws_profile_bridge_api.log
    ```
@@ -329,6 +360,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
 **Solutions:**
 
 1. **Remove quarantine flag:**
+
    ```bash
    xattr -d com.apple.quarantine ~/.local/bin/aws_profile_bridge
    ```
@@ -357,11 +389,13 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
 **Solutions:**
 
 1. **Verify manifest.json exists:**
+
    ```bash
    ls -la /path/to/aws-containers/dist/manifest.json
    ```
 
 2. **Rebuild extension:**
+
    ```bash
    cd /path/to/aws-containers
    npm install
@@ -431,11 +465,13 @@ For detailed troubleshooting:
    - View background page console
 
 3. **API server logs:**
+
    ```bash
    tail -f ~/.aws/logs/aws_profile_bridge_api.log
    ```
 
 4. **Test API server:**
+
    ```bash
    curl http://localhost:10999/health
    curl -H "X-API-Token: $(jq -r .api_token ~/.aws/profile_bridge_config.json)" \
@@ -447,16 +483,19 @@ For detailed troubleshooting:
 When reporting issues, include:
 
 1. **Firefox version:**
+
    ```
    Help → About Firefox
    ```
 
 2. **Extension version:**
+
    ```
    about:debugging → Extension version
    ```
 
 3. **Operating system:**
+
    ```bash
    uname -a
    ```
@@ -465,11 +504,13 @@ When reporting issues, include:
    Copy from browser console (F12)
 
 5. **API server logs:**
+
    ```bash
    tail -n 50 ~/.aws/logs/aws_profile_bridge_api.log
    ```
 
 6. **API server health:**
+
    ```bash
    curl http://localhost:10999/health
    ```
@@ -497,7 +538,7 @@ When reporting issues:
    - Console errors/logs
 
 3. **Submit on GitHub:**
-   https://github.com/sam-fakhreddine/aws-containers/issues
+   <https://github.com/sam-fakhreddine/aws-containers/issues>
 
 ### Feature Requests
 
@@ -529,6 +570,7 @@ For feature requests:
 ### Q: How do I update the extension?
 
 **A:** Rebuild and reload:
+
 ```bash
 git pull
 npm run build

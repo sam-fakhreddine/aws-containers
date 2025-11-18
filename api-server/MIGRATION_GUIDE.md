@@ -32,9 +32,10 @@ sso_manager.py                  →  services/sso.py
 routes/                         →  api/
 ```
 
-## No Changes Required For:
+## No Changes Required For
 
 ✅ **Command-line usage** - All CLI commands work exactly the same:
+
 ```bash
 python -m aws_profile_bridge api
 python -m aws_profile_bridge --version
@@ -42,16 +43,19 @@ python -m aws_profile_bridge --help
 ```
 
 ✅ **Package-level imports** - These still work:
+
 ```python
 from aws_profile_bridge import AWSProfileBridge, main
 ```
 
 ✅ **Configuration files** - No changes to:
+
 - `~/.aws/credentials`
 - `~/.aws/config`
 - `~/.aws/profile_bridge_config.json`
 
 ✅ **API endpoints** - All HTTP endpoints unchanged:
+
 - `GET /health`
 - `GET /profiles`
 - `POST /profiles/{profile_name}/console-url`
@@ -76,6 +80,7 @@ python3 -m aws_profile_bridge api
 ### Issue: `ModuleNotFoundError: No module named 'aws_profile_bridge.aws_profile_bridge'`
 
 **Solution:** Update import to:
+
 ```python
 from aws_profile_bridge.core.bridge import AWSProfileBridge
 ```
@@ -83,6 +88,7 @@ from aws_profile_bridge.core.bridge import AWSProfileBridge
 ### Issue: `ImportError: cannot import name 'get_logger' from 'aws_profile_bridge.debug_logger'`
 
 **Solution:** Update import to:
+
 ```python
 from aws_profile_bridge.utils.logger import get_logger
 ```
