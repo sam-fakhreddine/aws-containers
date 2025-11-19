@@ -6,6 +6,14 @@
 
 A Firefox extension that reads your AWS credentials file and opens AWS profiles in separate isolated containers with automatic AWS Console federation.
 
+**Key Features:**
+- 🔐 Automatic AWS Console federation with your credentials
+- 🔒 Each profile in its own isolated Firefox container
+- 📁 Auto-detection of profiles from `~/.aws/credentials` and `~/.aws/config`
+- 🔑 Full AWS IAM Identity Center (SSO) support
+- ⭐ Favorites and recent profiles tracking
+- 🌍 Region selection for console access
+
 ## ⚠️ Security Notice
 
 **This extension reads sensitive AWS credentials from your local filesystem.**
@@ -17,8 +25,6 @@ A Firefox extension that reads your AWS credentials file and opens AWS profiles 
 - 📖 **[Read full security documentation](docs/security/security-root.md)** before installing
 
 ## Quick Start
-
-### Installation
 
 ```bash
 # Clone the repository
@@ -33,317 +39,88 @@ yarn install
 yarn build
 ```
 
-### Load Extension in Firefox
-
-1. Open Firefox and navigate to: `about:debugging#/runtime/this-firefox`
+**Load Extension in Firefox:**
+1. Open `about:debugging#/runtime/this-firefox`
 2. Click "Load Temporary Add-on"
-3. Navigate to and select: `dist/manifest.json`
-4. Click the extension icon in your toolbar
+3. Select `dist/manifest.json`
 
-**📖 Detailed Installation Guide**: [docs/getting-started/install-root.md](docs/getting-started/install-root.md)
-
-## Features
-
-### Core Functionality
-
-- 🔐 **AWS Console Federation**: Automatically generates authenticated console URLs
-- 🔒 **Container Isolation**: Each AWS profile opens in its own Firefox container
-- 📁 **Automatic Profile Detection**: Reads profiles from `~/.aws/credentials` and `~/.aws/config`
-- 🔑 **AWS IAM Identity Center (SSO)**: Full support for SSO profiles
-- ⏰ **Credential Monitoring**: Shows credential expiration status
-- 🌍 **Region Selector**: Choose AWS region before opening console
-
-### UX Enhancements
-
-- 🔍 **Search/Filter**: Quick profile search as you type
-- ⭐ **Favorites**: Star frequently-used profiles
-- 🕐 **Recent Profiles**: Tracks your last 10 opened profiles
-- 🎨 **Smart Color Coding**: Automatically assigns colors based on environment
-  - Production → Red | Staging → Yellow | Development → Green
-
-**📖 Complete Features List**: [docs/user-guide/features.md](docs/user-guide/features.md)
-
-## Architecture
-
-The extension uses a **local HTTP API server** that bridges between the browser and your AWS credentials:
-
-```mermaid
-graph LR
-    A[Firefox Extension] -->|HTTP + Token| B[API Server :10999]
-    B -->|Reads| C[~/.aws/credentials]
-    B -->|Calls| D[AWS Federation API]
-    D -->|Console URL| B
-    B -->|Console URL| A
-    A -->|Opens| E[AWS Console in Container]
-
-    style A fill:#e1f5ff
-    style B fill:#fff4e1
-    style D fill:#ffe1f5
-    style E fill:#e1ffe1
-```
-
-**Key Security Points:**
-
-- Credentials never leave your local machine except to AWS's official API
-- API server binds to localhost (127.0.0.1) only
-- Token-based authentication between extension and API server
-- No credentials stored in browser storage
-
-**📖 Detailed Architecture**: [docs/development/architecture.md](docs/development/architecture.md)
-
-## Usage
-
-### Basic Workflow
-
-1. **Click the extension icon** in your Firefox toolbar
-2. **Search or browse** your AWS profiles
-3. **Select a region** from the dropdown
-4. **Click a profile** to open AWS Console in an isolated container
-
-### Profile Organization
-
-Profiles are automatically organized into three sections:
-
-- **⭐ Favorites** - Your starred profiles (alphabetical)
-- **🕐 Recent** - Last 10 used profiles (chronological)
-- **All Profiles** - Complete list (alphabetical)
-
-### API Server Management
-
-**Linux (systemd):**
-```bash
-systemctl --user status aws-profile-bridge
-systemctl --user restart aws-profile-bridge
-journalctl --user -u aws-profile-bridge -f  # View logs
-```
-
-**macOS (launchd):**
-```bash
-launchctl list | grep aws-profile-bridge
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.plist
-tail -f ~/.aws/logs/aws_profile_bridge_api.log  # View logs
-```
-
-**📖 Complete Usage Guide**: [docs/user-guide/usage.md](docs/user-guide/usage.md)
-
-## Configuration
-
-### AWS Credentials File Format
-
-**Credential-based profiles** (`~/.aws/credentials`):
-```ini
-[production-account]
-aws_access_key_id = AKIA...
-aws_secret_access_key = ...
-aws_session_token = ...
-# Expires 2024-11-10 15:30:00 UTC
-```
-
-**SSO profiles** (`~/.aws/config`):
-```ini
-[profile sso-dev]
-sso_start_url = https://my-sso-portal.awsapps.com/start
-sso_region = us-east-1
-sso_account_id = 123456789012
-sso_role_name = DeveloperAccess
-region = us-east-1
-```
-
-### Extension Token Configuration
-
-After installation, configure the extension with the API token:
-
-```bash
-# Get your API token
-cat ~/.aws/profile_bridge_config.json
-```
-
-Then in Firefox:
-1. Click extension icon → settings (⚙️)
-2. Paste the `api_token` value
-3. Click "Save Token" → "Test Connection"
-
-**📖 Token Authentication Guide**: [docs/TOKEN_AUTHENTICATION.md](docs/TOKEN_AUTHENTICATION.md)
-
-## Troubleshooting
-
-### Extension Shows "API Server Not Running"
-
-```bash
-# Check if server is running
-curl http://localhost:10999/health
-
-# Start the server
-systemctl --user start aws-profile-bridge  # Linux
-# or
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.plist  # macOS
-
-# Check logs
-tail -f ~/.aws/logs/aws_profile_bridge_api.log
-```
-
-### No Profiles Showing
-
-```bash
-# Check credentials file exists
-cat ~/.aws/credentials
-
-# Verify API token is configured in extension settings
-```
-
-### SSO Profile Not Working
-
-```bash
-# Re-authenticate with AWS SSO
-aws sso login --profile <profile-name>
-```
-
-**📖 Complete Troubleshooting Guide**: [docs/user-guide/troubleshooting.md](docs/user-guide/troubleshooting.md)
-
-## Requirements
-
-### For Users (Quick Start)
-
-- Firefox (latest version recommended)
-- Python 3.12+ (for API server)
-- `uv` (Python package manager - auto-installed if missing)
-
-### For Developers (Building from Source)
-
-- **Node.js**: Version 22.14.0+ or 24.10.0+
-- **Yarn**: Package manager
-- **Python 3.12+** with `uv`
-
-**📖 Complete Prerequisites**: [docs/getting-started/install-root.md#prerequisites](docs/getting-started/install-root.md#prerequisites)
-
-## Compatibility
-
-- **Firefox**: 60+ (tested on latest)
-- **Operating Systems**:
-  - ✅ **macOS** - Fully supported (Intel & Apple Silicon)
-  - ✅ **Linux** - Fully supported
-  - ⚠️ **Windows** - Not currently supported
-- **Python**: 3.12+
-- **Node.js**: 22.14.0+ or 24.10.0+ (for building)
-
-## Project Structure
-
-```
-aws-containers/
-├── api-server/             # Python API server (FastAPI)
-│   ├── src/                # Source code
-│   └── tests/              # Unit tests
-├── src/                    # Extension source code
-│   ├── popup/              # Popup UI (React)
-│   ├── services/           # API client
-│   └── settings/           # Settings page
-├── scripts/                # Installation & utility scripts
-├── docs/                   # Documentation
-└── dist/                   # Built extension (generated)
-```
-
-**📖 Detailed Project Structure**: [docs/development/REORGANIZATION.md](docs/development/REORGANIZATION.md)
+📖 **[Complete Installation Guide](docs/getting-started/install-root.md)**
 
 ## Documentation
 
 ### Getting Started
-- [Installation Guide](docs/getting-started/install-root.md)
-- [Quick Start](docs/getting-started/quick-start.md)
-- [First Steps](docs/getting-started/first-steps.md)
+- 📘 [Installation Guide](docs/getting-started/install-root.md) - Detailed setup instructions
+- 📘 [Requirements & Compatibility](docs/getting-started/requirements.md) - System requirements
+- 📘 [Configuration](docs/getting-started/configuration.md) - AWS credentials and token setup
+- 📘 [Quick Start Guide](docs/getting-started/quick-start.md) - Fast track to get running
+- 📘 [First Steps](docs/getting-started/first-steps.md) - What to do after installation
 
 ### User Guide
-- [Features](docs/user-guide/features.md)
-- [Usage](docs/user-guide/usage.md)
-- [Managing Profiles](docs/user-guide/profiles.md)
-- [Container Management](docs/user-guide/containers.md)
-- [Troubleshooting](docs/user-guide/troubleshooting.md)
+- 📗 [Features](docs/user-guide/features.md) - Complete feature list
+- 📗 [Usage Guide](docs/user-guide/usage.md) - How to use the extension
+- 📗 [Managing Profiles](docs/user-guide/profiles.md) - Working with AWS profiles
+- 📗 [Container Management](docs/user-guide/containers.md) - Understanding containers
+- 📗 [Troubleshooting](docs/user-guide/troubleshooting.md) - Common issues and solutions
 
-### Security
-- [Security Overview](docs/security/security-root.md)
-- [Privacy Policy](docs/security/privacy.md)
-- [Best Practices](docs/security/best-practices.md)
+### Security & Privacy
+- 🔒 [Security Overview](docs/security/security-root.md) - How we protect your credentials
+- 🔒 [Privacy Policy](docs/security/privacy.md) - What data we collect (spoiler: none)
+- 🔒 [Best Practices](docs/security/best-practices.md) - Recommended security practices
 
 ### Development
-- [Architecture](docs/development/architecture.md)
-- [Building from Source](docs/development/building.md)
-- [Contributing](docs/development/contributing.md)
-- [Testing](docs/development/testing.md)
+- 🔧 [Architecture](docs/development/architecture.md) - How the extension works
+- 🔧 [Building from Source](docs/development/building.md) - Development setup
+- 🔧 [Contributing](docs/development/contributing.md) - How to contribute
+- 🔧 [Testing](docs/development/testing.md) - Running tests
 
-### API Reference
-- [Extension API](docs/api/extension-api.md)
-- [API Migration Guide](docs/API_MIGRATION.md)
+### Reference
+- 📚 [Extension API](docs/api/extension-api.md) - API reference
+- 📚 [Token Authentication](docs/TOKEN_AUTHENTICATION.md) - Token system details
+- 📚 [Full Documentation Index](docs/index.md) - All documentation
 
-**📖 Full Documentation Index**: [docs/index.md](docs/index.md)
+## How It Works
 
-## Development
+The extension uses a local HTTP API server that bridges between Firefox and your AWS credentials:
 
-### Building from Source
-
-```bash
-# Install dependencies
-yarn install
-
-# Development build (watch mode)
-yarn dev
-
-# Production build
-yarn build
-
-# Run tests
-yarn test
+```
+Firefox Extension  →  API Server (localhost:10999)  →  ~/.aws/credentials
+                   ←  AWS Console URL              ←  AWS Federation API
 ```
 
-### API Server Development
+- Credentials stay on your machine (only sent to AWS's official API)
+- API server binds to localhost only
+- Token-based authentication between extension and server
+- Each profile opens in an isolated Firefox container
 
-```bash
-cd api-server
+📖 **[Detailed Architecture Documentation](docs/development/architecture.md)**
 
-# Run tests
-uv run pytest
+## Requirements
 
-# Run with hot reload
-ENV=development uv run python -m aws_profile_bridge api
-```
+- **Firefox**: Version 60+ (latest recommended)
+- **Python**: 3.12+
+- **Operating Systems**: macOS, Linux (Windows via WSL2)
+- **For Building**: Node.js 22.14.0+ or 24.10.0+, Yarn
 
-**📖 Complete Development Guide**: [docs/development/building.md](docs/development/building.md)
-
-## Contributing
-
-Contributions welcome! Please:
-
-1. Read the [Contributing Guide](docs/development/contributing.md)
-2. Review the [Code of Conduct](CODE_OF_CONDUCT.md)
-3. Check [good first issues](https://github.com/sam-fakhreddine/aws-containers/labels/good%20first%20issue)
-
-## Security & Privacy
-
-### What We Do
-
-- ✅ Read `~/.aws/credentials` and `~/.aws/config` (local filesystem only)
-- ✅ Send temporary credentials to AWS Federation API (official AWS service)
-- ✅ Token-based authentication for API server
-- ✅ Use native Firefox containers for isolation
-
-### What We Don't Do
-
-- ❌ Store credentials in browser storage
-- ❌ Send credentials to any server except AWS
-- ❌ Collect analytics or telemetry
-- ❌ Phone home or track usage
-
-**📖 Complete Security Documentation**: [docs/security/security-root.md](docs/security/security-root.md)
+📖 **[Complete Requirements](docs/getting-started/requirements.md)**
 
 ## Support
 
-For issues:
+Having issues? Check these resources:
 
-1. Check the [Troubleshooting Guide](docs/user-guide/troubleshooting.md)
-2. Verify API server is running: `curl http://localhost:10999/health`
-3. Check API server logs: `tail -f ~/.aws/logs/aws_profile_bridge_api.log`
-4. Check Firefox console: `about:debugging` → "Inspect"
-5. Open an issue on [GitHub](https://github.com/sam-fakhreddine/aws-console-containers/issues)
+1. 📖 [Troubleshooting Guide](docs/user-guide/troubleshooting.md)
+2. 🔍 Verify API server: `curl http://localhost:10999/health`
+3. 📋 Check logs: `tail -f ~/.aws/logs/aws_profile_bridge_api.log`
+4. 🐛 [Report an issue](https://github.com/sam-fakhreddine/aws-containers/issues)
 
-**📖 Complete Support Guide**: [SUPPORT.md](SUPPORT.md)
+📖 **[Complete Support Guide](SUPPORT.md)**
+
+## Contributing
+
+Contributions welcome! Please see:
+
+- 📖 [Contributing Guide](docs/development/contributing.md)
+- 📖 [Code of Conduct](CODE_OF_CONDUCT.md)
+- 🏷️ [Good First Issues](https://github.com/sam-fakhreddine/aws-containers/labels/good%20first%20issue)
 
 ## License
 
@@ -355,3 +132,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - **Issues**: https://github.com/sam-fakhreddine/aws-containers/issues
 - **Releases**: https://github.com/sam-fakhreddine/aws-containers/releases
 - **Changelog**: [CHANGELOG.md](CHANGELOG.md)
+
+---
+
+Made with ☕ by developers who were tired of logging in and out of AWS accounts.
