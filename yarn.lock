@@ -984,10 +984,10 @@
   dependencies:
     tslib "^2.3.1"
 
-"@cloudscape-design/components@^3.0.1128":
-  version "3.0.1133"
-  resolved "https://registry.npmjs.org/@cloudscape-design/components/-/components-3.0.1133.tgz#3439496f3a01a6fcfc1ad2c24c47564607330c34"
-  integrity sha512-GdhimctV15Ldxz0siJdxpgS6WtM+vTOOWiWjIWn/M9QO/cfeGUx+ROFAAH0cWbEfxr878gSinSJX2w4m5v9hxA==
+"@cloudscape-design/components@^3.0.1136":
+  version "3.0.1136"
+  resolved "https://registry.yarnpkg.com/@cloudscape-design/components/-/components-3.0.1136.tgz#5596df2e2c6180c8bd9b383717402fc9422f8789"
+  integrity sha512-3Pc/e0WkgAkOs993cucT21eGKpiPq58V/66v52CK7db/xYg4O0SL5BmByQyJSDnnEM0K+lUAEL7ODN5TB02FQQ==
   dependencies:
     "@cloudscape-design/collection-hooks" "^1.0.0"
     "@cloudscape-design/component-toolkit" "^1.0.0-beta"
@@ -1007,15 +1007,15 @@
     tslib "^2.4.0"
     weekstart "^1.1.0"
 
-"@cloudscape-design/design-tokens@^3.0.63":
-  version "3.0.63"
-  resolved "https://registry.npmjs.org/@cloudscape-design/design-tokens/-/design-tokens-3.0.63.tgz#07b54b6de91298d99dfdfc1641d98d337c794563"
-  integrity sha512-wlvLy7uTTZMAcotVQYDlwZnSrmGSc7e9v8Thp1Jq7itLyroE1hvX0kvqaSuNR5IGVDvOUsbZVmz7yLYFj02C6w==
+"@cloudscape-design/design-tokens@^3.0.64":
+  version "3.0.64"
+  resolved "https://registry.yarnpkg.com/@cloudscape-design/design-tokens/-/design-tokens-3.0.64.tgz#0da375b120ba3ba029af72945f97f32fde2c6e2a"
+  integrity sha512-ODcGhqDyHtYqm35CP0Bt255EkFtcwUr5J0SweEcRJf/WhIrLnz7elOaZcbKcygzoo35EGSqFh7mt/W8kIZD+Lg==
 
-"@cloudscape-design/global-styles@^1.0.47":
-  version "1.0.47"
-  resolved "https://registry.npmjs.org/@cloudscape-design/global-styles/-/global-styles-1.0.47.tgz#4f56a1d839be865524690e800098276b8b90ebe8"
-  integrity sha512-abQMQb1I4Suuw0kHYQAsHhM9r91A2rhX1PzJNwGBBXVrhIO7oj4UXqivhedoQAVPg7QTl/OyaFv2Ve40pkoJGg==
+"@cloudscape-design/global-styles@^1.0.48":
+  version "1.0.48"
+  resolved "https://registry.yarnpkg.com/@cloudscape-design/global-styles/-/global-styles-1.0.48.tgz#f6ea19a184aee4b15e07d7c48e48212604a33a80"
+  integrity sha512-6FXtKW/AJLAxYEvKmM8hRawtldT/76utLaU1dbWW3ZmjcLhkODaIVz+vQP0+tlq7eth569Xo3fNwTCr8VcTmCA==
 
 "@cloudscape-design/test-utils-core@^1.0.0":
   version "1.0.68"

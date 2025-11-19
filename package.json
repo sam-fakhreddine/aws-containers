@@ -95,9 +95,9 @@
     "webpack-merge": "^6.0.1"
   },
   "dependencies": {
-    "@cloudscape-design/components": "^3.0.1128",
-    "@cloudscape-design/design-tokens": "^3.0.63",
-    "@cloudscape-design/global-styles": "^1.0.47",
+    "@cloudscape-design/components": "^3.0.1136",
+    "@cloudscape-design/design-tokens": "^3.0.64",
+    "@cloudscape-design/global-styles": "^1.0.48",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-test-renderer": "^19.2.0",
