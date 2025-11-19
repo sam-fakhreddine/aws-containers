@@ -1,0 +1,67 @@
+# Code Owners for AWS Profile Containers
+#
+# This file defines individuals or teams responsible for code in this repository.
+# Code owners are automatically requested for review when someone opens a pull request
+# that modifies code that they own.
+#
+# Learn more: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo
+# This is a required review for all PRs
+* @sam-fakhreddine
+
+# Documentation
+/docs/ @sam-fakhreddine
+*.md @sam-fakhreddine
+/README.md @sam-fakhreddine
+/CHANGELOG.md @sam-fakhreddine
+
+# Browser Extension - TypeScript/React
+/src/ @sam-fakhreddine
+/public/ @sam-fakhreddine
+*.ts @sam-fakhreddine
+*.tsx @sam-fakhreddine
+*.js @sam-fakhreddine
+*.jsx @sam-fakhreddine
+
+# API Server - Python
+/api-server/ @sam-fakhreddine
+*.py @sam-fakhreddine
+/pyproject.toml @sam-fakhreddine
+/uv.lock @sam-fakhreddine
+
+# Configuration Files
+/config/ @sam-fakhreddine
+/.github/ @sam-fakhreddine
+/.husky/ @sam-fakhreddine
+/package.json @sam-fakhreddine
+/yarn.lock @sam-fakhreddine
+/tsconfig.json @sam-fakhreddine
+/.eslintrc.js @sam-fakhreddine
+/jest.config.js @sam-fakhreddine
+
+# Security
+/SECURITY.md @sam-fakhreddine
+/docs/security/ @sam-fakhreddine
+
+# CI/CD
+/.github/workflows/ @sam-fakhreddine
+/.releaserc.json @sam-fakhreddine
+
+# Community Files
+/CODE_OF_CONDUCT.md @sam-fakhreddine
+/CONTRIBUTING.md @sam-fakhreddine
+/SUPPORT.md @sam-fakhreddine
+
+# Tests
+/tests/ @sam-fakhreddine
+/__tests__/ @sam-fakhreddine
+*.test.ts @sam-fakhreddine
+*.test.tsx @sam-fakhreddine
+*.test.js @sam-fakhreddine
+*.spec.ts @sam-fakhreddine
+*.spec.js @sam-fakhreddine
+
+# Build and Deployment
+/scripts/ @sam-fakhreddine
+/Dockerfile @sam-fakhreddine
