@@ -1,716 +1,560 @@
-# AWS Profile Containers - Architecture Documentation
+# Architecture Overview
 
-## Overview
+High-level architecture of AWS Profile Containers.
 
-AWS Profile Containers is a Firefox browser extension that enables users to manage multiple AWS profiles with container isolation. The extension integrates with AWS credentials and SSO via a local HTTP API server, automatically creating Firefox containers for each profile to maintain session separation.
+## System Components
 
-## System Architecture
+AWS Profile Containers consists of two main components:
+
+1. **Firefox Browser Extension** - User interface and container management
+2. **HTTP API Server** - Credential handling and AWS integration
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Firefox Browser                          │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              Extension (TypeScript/React)               │ │
-│  │  ┌──────────────┐  ┌───────────────┐  ┌─────────────┐ │ │
-│  │  │   Popup UI   │  │  Background   │  │   Settings  │ │ │
-│  │  │  (React)     │  │    Page       │  │    Page     │ │ │
-│  │  └──────┬───────┘  └───────┬───────┘  └──────┬──────┘ │ │
-│  │         │                  │                  │        │ │
-│  └─────────┼──────────────────┼──────────────────┼────────┘ │
-│            │                  │                  │          │
-│            └──────────────┬───┴──────────────────┘          │
-│                           │ HTTP API (localhost:10999)      │
-└───────────────────────────┼─────────────────────────────────┘
-                            │ Token Authentication
-                            ▼
-            ┌───────────────────────────────┐
-            │   FastAPI Server (Python)     │
-            │   http://127.0.0.1:10999      │
-            │  ┌─────────────────────────┐  │
-            │  │  Profile Reader         │  │
-            │  │  SSO Token Manager      │  │
-            │  │  Credentials Provider   │  │
-            │  │  Console URL Generator  │  │
-            │  └─────────────────────────┘  │
-            └───────────────┬───────────────┘
-                            │
-                            ▼
-            ┌───────────────────────────────┐
-            │     Filesystem                 │
-            │  ~/.aws/credentials            │
-            │  ~/.aws/config                 │
-            │  ~/.aws/sso/cache/             │
-            │  ~/.aws/profile_bridge_config.json │
-            └────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│           Firefox Browser                    │
+│  ┌───────────────────────────────────────┐  │
+│  │   AWS Profile Containers Extension   │  │
+│  │                                       │  │
+│  │  ┌─────────────┐   ┌──────────────┐  │  │
+│  │  │   Popup UI  │   │   Settings   │  │  │
+│  │  │  (React)    │   │    Page      │  │  │
+│  │  └──────┬──────┘   └──────────────┘  │  │
+│  │         │                            │  │
+│  │         │  ┌──────────────┐          │  │
+│  │         └──│  API Client  │          │  │
+│  │            │   Service    │          │  │
+│  │            └──────┬───────┘          │  │
+│  └───────────────────┼──────────────────┘  │
+│                      │ HTTP (Token Auth)   │
+└──────────────────────┼─────────────────────┘
+                       │
+         ┌─────────────▼──────────────┐
+         │  HTTP API Server           │
+         │  (localhost:10999)         │
+         │                            │
+         │  ┌──────────────────────┐  │
+         │  │ FastAPI Application  │  │
+         │  └──────────┬───────────┘  │
+         │             │              │
+         │  ┌──────────▼───────────┐  │
+         │  │ Profile Bridge       │  │
+         │  └──────────┬───────────┘  │
+         │             │              │
+         │  ┌──────────▼───────────┐  │
+         │  │ Credential Provider  │  │
+         │  └──────────┬───────────┘  │
+         └─────────────┼──────────────┘
+                       │
+         ┌─────────────▼──────────────┐
+         │    Local Filesystem        │
+         │  ~/.aws/credentials        │
+         │  ~/.aws/config             │
+         │  ~/.aws/sso/cache/         │
+         └─────────────┬──────────────┘
+                       │
+         ┌─────────────▼──────────────┐
+         │      AWS APIs (HTTPS)      │
+         │  - Federation API          │
+         │  - SSO API                 │
+         └────────────────────────────┘
 ```
 
-## Component Architecture
+## Communication Flow
 
-### Frontend (TypeScript/React)
+### 1. Extension ↔ API Server
 
-#### 1. Popup UI (`src/popup/`)
+The extension communicates with the API server via HTTP:
 
-**Main Component**: `awsProfiles.tsx`
-- Orchestrates all hooks and UI components
-- Manages state flow between hooks
-- Handles profile selection and container creation
-
-**Custom Hooks** (`src/popup/hooks/`):
-```typescript
-useProfiles()     // Profile loading, caching, HTTP API calls
-useFavorites()    // Favorite profile management
-useContainers()   // Firefox container CRUD operations
-useRecentProfiles() // Recent profile tracking (LRU)
-useRegion()       // AWS region selection
+```
+Extension                          API Server
+   │                                  │
+   │  GET /profiles                   │
+   │  X-API-Token: <token>            │
+   ├─────────────────────────────────>│
+   │                                  │
+   │  JSON: [{name, type, ...}]       │
+   │<─────────────────────────────────┤
+   │                                  │
+   │  POST /profiles/{name}/console-url
+   │  X-API-Token: <token>            │
+   ├─────────────────────────────────>│
+   │                                  │
+   │  JSON: {url, metadata}           │
+   │<─────────────────────────────────┤
 ```
 
-**UI Components** (`src/popup/components/`):
-```typescript
-ProfileList       // Renders profile table
-ProfileItem       // Individual profile row
-ProfileSearch     // Search and region selector
-OrganizationTabs  // Tab navigation for SSO orgs
-LoadingState      // Loading spinner
-ErrorState        // Error display with retry
+**Protocol Details:**
+- **Transport**: HTTP over localhost (127.0.0.1:10999)
+- **Authentication**: Bearer token in `X-API-Token` header
+- **Format**: JSON request/response bodies
+- **Security**: Localhost-only, CORS restricted to `moz-extension://*`
+
+### 2. API Server ↔ AWS
+
+The API server interacts with AWS services:
+
+```
+API Server                         AWS
+   │                                │
+   │  Read ~/.aws/credentials       │
+   ├────────────────────>            │
+   │                                 │
+   │  GET Federation API             │
+   │  (with temp credentials)        │
+   ├────────────────────────────────>│
+   │                                 │
+   │  Signin Token (12h expiry)      │
+   │<────────────────────────────────┤
+   │                                 │
+   │  Build federation URL           │
+   │                                 │
 ```
 
-**Architecture Pattern**: Custom Hooks + Presentational Components
-- **Hooks** contain all business logic and state management
-- **Components** are purely presentational
-- **Benefits**: Testable, reusable, maintainable
+**AWS Integration:**
+- **Credentials**: Read from `~/.aws/credentials` and `~/.aws/config`
+- **Federation API**: `https://signin.aws.amazon.com/federation`
+- **SSO API**: `https://portal.sso.{region}.amazonaws.com/`
+- **Security**: HTTPS only, official AWS endpoints
 
-#### 2. Background Page (`src/backgroundPage.ts`)
+## Data Flow Sequence
 
-- Minimal background script (non-persistent)
-- Handles popup mount notifications
-- Could be extended for background sync in future
+### Opening a Profile in AWS Console
 
-#### 3. Settings Page (`src/settings/`)
+```mermaid
+sequenceDiagram
+    actor User
+    participant Popup as Extension Popup
+    participant API as API Server<br/>(localhost:10999)
+    participant FS as ~/.aws/*
+    participant AWS as AWS Federation API
+    participant Browser as Firefox
+    participant Console as AWS Console
 
-**Purpose**: Configure API token and test connection
+    User->>Popup: Click profile
+    Popup->>Popup: Get stored API token
+    Popup->>API: POST /profiles/{name}/console-url<br/>Header: X-API-Token
 
-**Key Files**:
-- `settings.tsx` - Settings UI (React)
-- Token storage and validation
+    API->>API: Validate token
+    API->>FS: Read ~/.aws/credentials
+    FS-->>API: Profile credentials
+
+    alt SSO Profile
+        API->>FS: Read ~/.aws/sso/cache/
+        FS-->>API: SSO token
+        API->>AWS: Get temporary credentials
+        AWS-->>API: Session credentials
+    end
+
+    alt Has session token
+        API->>AWS: POST /federation<br/>Action=getSigninToken
+        AWS-->>API: Signin token (12h expiry)
+        API->>API: Build federation URL
+    else Long-term credentials
+        API->>API: Use basic console URL
+    end
+
+    API-->>Popup: {url, color, icon}
+
+    Popup->>Browser: Create/find container
+    Browser->>Browser: Apply color/icon
+    Browser->>Console: Open URL in container tab
+    Console-->>User: Authenticated AWS Console
+```
+
+## Extension Architecture
+
+### Component Structure
+
+```
+extension/
+├── popup/                    # User interface
+│   ├── awsProfiles.tsx      # Main profile list component
+│   ├── hooks/
+│   │   └── useProfiles.ts   # Profile data management
+│   └── components/
+│       ├── ProfileList.tsx  # Profile rendering
+│       └── SearchBar.tsx    # Search/filter
+│
+├── services/                 # Business logic
+│   ├── apiClient.ts         # HTTP API client
+│   └── config.ts            # Configuration
+│
+├── settings/                 # Settings page
+│   └── index.tsx            # Token configuration
+│
+└── types/                    # TypeScript types
+    └── index.ts             # Shared type definitions
+```
+
+### Key Extension Components
+
+**Popup UI (`popup/awsProfiles.tsx`)**
+- Renders profile list (Favorites → Recent → All)
+- Handles user interactions (click, search, favorite)
+- Manages region selection
+- Communicates with API server via `apiClient`
+
+**API Client (`services/apiClient.ts`)**
+- HTTP client for API server communication
+- Handles authentication (token injection)
+- Error handling and retries
+- Timeout management (30s default)
+
+**Profile Hook (`popup/hooks/useProfiles.ts`)**
+- Fetches profiles from API server
+- Manages loading and error states
+- Caches profile data
+- Provides refresh functionality
+
+**Settings Page (`settings/index.tsx`)**
+- Token configuration interface
 - Connection testing
+- Token storage in browser local storage
 
-**Container Creation Flow**:
-```
-1. User clicks profile
-2. Extension calls API server with token
-3. API returns console URL + metadata (color, icon)
-4. containerManager.prepareContainer() called
-5. Check if container exists
-6. Create/update container with specified color & icon
-7. Save container ID to managed list
-8. Open AWS Console in container tab
-```
+### Browser APIs Used
 
-### Backend (Python)
-
-#### FastAPI Server (`api-server/src/aws_profile_bridge/`)
-
-**Purpose**: HTTP API bridge between extension and AWS credentials
-
-**Key Modules**:
-
-1. **`app.py`** - FastAPI application
-   - HTTP server setup
-   - CORS configuration (localhost only)
-   - Route registration
-   - Lifespan management
-
-2. **`api/`** - API routes
-   - `profiles.py` - Profile listing and console URL generation
-   - `health.py` - Health check and version endpoints
-   - Token authentication middleware
-
-3. **`auth/`** - Authentication
-   - `token_auth.py` - Token validation
-   - `rate_limiter.py` - Rate limiting
-   - Token storage in `~/.aws/profile_bridge_config.json`
-
-4. **`core/`** - Business logic
-   - `file_parsers.py` - AWS file parsing (credentials, config)
-   - `credential_provider.py` - Credentials retrieval
-   - `console_url_generator.py` - AWS Console URL generation
-   - `profile_metadata.py` - Container metadata (colors, icons)
-
-5. **`services/`** - SSO services
-   - `sso_manager.py` - SSO token management
-   - `sso_credentials.py` - SSO credential provider
-   - Token caching and validation
-
-## Data Flow
-
-### Profile Loading Flow
-
-```
-┌─────────────┐
-│   User      │
-│ opens popup │
-└──────┬──────┘
-       │
-       ▼
-┌──────────────────┐
-│  useProfiles()   │
-│  hook executes   │
-└──────┬───────────┘
-       │
-       ├─── Check cache (browser.storage.local)
-       │    └─── If valid (< 5min old) ────► Return cached profiles
-       │
-       ├─── Cache miss/expired
-       │
-       ▼
-┌──────────────────────────────┐
-│  Connect to native host      │
-│  browser.runtime            │
-│   .connectNative()           │
-└──────┬───────────────────────┘
-       │
-       ▼
-┌──────────────────────────────┐
-│  Native messaging host       │
-│  (Python)                    │
-│                              │
-│  1. Read ~/.aws/credentials  │
-│  2. Read ~/.aws/config       │
-│  3. Check SSO cache         │
-│  4. Enrich with metadata    │
-│  5. Return profile list     │
-└──────┬───────────────────────┘
-       │
-       ▼
-┌──────────────────────────────┐
-│  useProfiles() receives data │
-│  1. Sort alphabetically      │
-│  2. Save to cache            │
-│  3. Update state             │
-└──────┬───────────────────────┘
-       │
-       ▼
-┌──────────────────────────────┐
-│  UI renders ProfileList      │
-│  with AWSProfile[]           │
-└──────────────────────────────┘
-```
-
-### Profile Selection Flow
-
-```
-┌─────────────┐
-│   User      │
-│ clicks      │
-│  profile    │
-└──────┬──────┘
-       │
-       ▼
-┌──────────────────────────────┐
-│  handleOpenProfile()         │
-│  1. Add to recent profiles   │
-│  2. Connect to native host   │
-│  3. Request console URL      │
-└──────┬───────────────────────┘
-       │
-       ▼
-┌──────────────────────────────┐
-│  Native host generates URL   │
-│  1. Get credentials          │
-│  2. Get federation token     │
-│  3. Build sign-in URL        │
-└──────┬───────────────────────┘
-       │
-       ▼
-┌──────────────────────────────┐
-│  Extension receives URL      │
-│  + metadata (color, icon)    │
-└──────┬───────────────────────┘
-       │
-       ▼
-┌──────────────────────────────┐
-│  prepareContainer()          │
-│  1. Lookup existing          │
-│  2. Create if missing        │
-│  3. Save container ID        │
-└──────┬───────────────────────┘
-       │
-       ▼
-┌──────────────────────────────┐
-│  browser.tabs.create()       │
-│  Opens AWS Console in        │
-│  dedicated container         │
-└──────────────────────────────┘
-```
-
-## Storage Architecture
-
-### Browser Storage (extension)
-
-**Used for**: Client-side caching and preferences
-
+**Container Management:**
 ```typescript
-{
-  favorites: string[],              // ["profile1", "profile2"]
-  recentProfiles: string[],         // ["profile3", "profile1"] (LRU)
-  selectedRegion: string,           // "us-east-1"
-  cachedProfiles: AWSProfile[],     // Full profile list
-  profilesCacheTime: number,        // Timestamp
-  containers: string[]              // Managed container IDs
-}
+browser.contextualIdentities.create({
+  name: profileName,
+  color: profileColor,
+  icon: profileIcon
+})
 ```
 
-**Cache Strategy**:
-- TTL: 5 minutes
-- Invalidation: Manual refresh or TTL expiry
-- Benefits: Fast popup load, offline profile viewing
-
-### File System (Python host)
-
-**AWS Credentials**: `~/.aws/credentials`
-```ini
-[profile-name]
-aws_access_key_id = AKIA...
-aws_secret_access_key = ...
-aws_session_token = ...  # Optional
-# Expires 2025-11-11 15:30:00 UTC  # Optional comment
-```
-
-**AWS Config**: `~/.aws/config`
-```ini
-[profile profile-name]
-sso_start_url = https://example.awsapps.com/start
-sso_region = us-east-1
-sso_account_id = 123456789012
-sso_role_name = ReadOnlyRole
-region = us-east-1
-```
-
-**SSO Cache**: `~/.aws/sso/cache/*.json`
-```json
-{
-  "startUrl": "https://example.awsapps.com/start",
-  "region": "us-east-1",
-  "accessToken": "...",
-  "expiresAt": "2025-11-11T23:59:59Z"
-}
-```
-
-## Caching Strategy
-
-### Multi-Level Cache Architecture
-
-```
-┌─────────────────────────────────────────────────────┐
-│                Request for Profile Data              │
-└──────────────────┬──────────────────────────────────┘
-                   │
-     ┌─────────────┴─────────────┐
-     │  Level 1: Browser Storage │
-     │  TTL: 5 minutes           │
-     │  Hit Rate: ~80%           │
-     └─────────────┬─────────────┘
-                   │ Cache Miss
-                   ▼
-     ┌─────────────────────────────┐
-     │  Level 2: Python Memory      │
-     │  TTL: 30 seconds (SSO)       │
-     │  Hit Rate: ~60%              │
-     └─────────────┬───────────────┘
-                   │ Cache Miss
-                   ▼
-     ┌─────────────────────────────┐
-     │  Level 3: File mtime Cache   │
-     │  Invalidation: mtime change  │
-     │  Hit Rate: ~90%              │
-     └─────────────┬───────────────┘
-                   │ Cache Miss
-                   ▼
-     ┌─────────────────────────────┐
-     │  Level 4: Filesystem Read    │
-     │  Parse credentials/config    │
-     └─────────────────────────────┘
-```
-
-**Benefits**:
-- Fast response times (< 50ms typical)
-- Minimal file I/O operations
-- Automatic invalidation on file changes
-- Reduced network calls to AWS SSO
-
-## Extension Manifest Permissions
-
-### Required Permissions
-
-1. **contextualIdentities**
-   - Purpose: Create and manage Firefox containers
-   - Used in: `src/utils/containerManager.ts`
-   - Security: Required for core functionality
-
-2. **cookies**
-   - Purpose: Container cookie isolation
-   - Used in: Automatic by container API
-   - Security: Each container has isolated cookies
-
-3. **tabs**
-   - Purpose: Open AWS Console in specific container
-   - Used in: `src/opener/tabs.ts`
-   - Security: Only creates tabs, doesn't inspect content
-
-4. **storage**
-   - Purpose: Cache profiles and user preferences
-   - Used in: All hooks (`useFavorites`, `useProfiles`, etc.)
-   - Security: Local storage only, no sync
-
-5. **nativeMessaging**
-   - Purpose: Communicate with Python host
-   - Used in: `src/popup/hooks/useProfiles.ts`
-   - Security: Only communicates with specified host
-
-### Allowed Extension ID
-
-Configured in native messaging manifest:
-```json
-{
-  "allowed_extensions": ["aws-profile-containers@yourname.local"]
-}
-```
-
-**Security**: Only the specified extension can connect to native host.
-
-## Native Messaging Protocol
-
-### Message Format
-
-**Request** (Extension → Python):
-```json
-{
-  "action": "getProfiles"
-}
-```
-
-```json
-{
-  "action": "openProfile",
-  "profileName": "my-profile"
-}
-```
-
-**Response** (Python → Extension):
-```json
-{
-  "action": "profileList",
-  "profiles": [
-    {
-      "name": "profile1",
-      "has_credentials": true,
-      "expiration": null,
-      "expired": false,
-      "color": "blue",
-      "icon": "fingerprint",
-      "is_sso": false
-    }
-  ]
-}
-```
-
-```json
-{
-  "action": "consoleUrl",
-  "url": "https://signin.aws.amazon.com/federation...",
-  "profileName": "profile1",
-  "color": "blue",
-  "icon": "fingerprint"
-}
-```
-
-```json
-{
-  "action": "error",
-  "message": "Could not read credentials file"
-}
-```
-
-### Protocol Implementation
-
-**Extension Side** (`src/popup/hooks/useProfiles.ts`):
+**Storage:**
 ```typescript
-const port = browser.runtime.connectNative(NATIVE_MESSAGING_HOST_NAME);
-
-port.onMessage.addListener((response: unknown) => {
-  if (isProfileListResponse(response)) {
-    // Handle profile list
-  } else if (isErrorResponse(response)) {
-    // Handle error
-  }
-});
-
-port.postMessage({ action: "getProfiles" });
+browser.storage.local.set({
+  favorites: [...profileNames],
+  recent: [...profileNames],
+  apiToken: "..."
+})
 ```
 
-**Python Side** (`api-server/src/aws_profile_bridge/native_messaging.py`):
-```python
-message = read_message(sys.stdin)
-if message['action'] == 'getProfiles':
-    profiles = get_all_profiles()
-    send_message(sys.stdout, {
-        'action': 'profileList',
-        'profiles': profiles
-    })
+**Tabs:**
+```typescript
+browser.tabs.create({
+  url: consoleUrl,
+  cookieStoreId: containerCookieStore
+})
 ```
 
-## Build Pipeline
+## API Server Architecture
 
-### Development Build
+### Module Organization
 
-```bash
-npm run dev
-# → webpack -w --config config/webpack/webpack.dev.js
+```
+api-server/src/aws_profile_bridge/
+├── app.py                   # FastAPI application setup
+├── __main__.py              # CLI entry point
+│
+├── api/                     # HTTP endpoints
+│   ├── health.py            # /health
+│   └── profiles.py          # /profiles, /profiles/{name}/console-url
+│
+├── auth/                    # Authentication
+│   ├── authenticator.py     # Token validation
+│   ├── token_manager.py     # Token generation
+│   └── rate_limiter.py      # Rate limiting
+│
+├── core/                    # Business logic
+│   ├── bridge.py            # Main orchestrator
+│   ├── parsers.py           # AWS file parsing
+│   ├── credentials.py       # Credential aggregation
+│   ├── console_url.py       # URL generation
+│   ├── metadata.py          # Color/icon assignment
+│   └── url_cache.py         # Console URL caching
+│
+├── services/                # External integrations
+│   └── sso.py               # AWS SSO integration
+│
+├── middleware/              # HTTP middleware
+│   ├── logging.py           # Request/response logging
+│   └── extension_validator.py  # Origin validation
+│
+├── config/                  # Configuration
+│   ├── settings.py          # App settings
+│   └── logging.py           # Log configuration
+│
+└── utils/                   # Utilities
+    ├── logger.py            # Logging helpers
+    └── validators.py        # Input validation
 ```
 
-**Output**:
-- `dist/js/opener.js`
-- `dist/js/backgroundPage.js`
-- `dist/js/popup.js`
-- Source maps included
-- No minification
-- Fast rebuild
+### Request Flow
 
-### Production Build
-
-```bash
-npm run build
-# → npm run build:transpile
-# → npm run build:update-version
-# → npm run build:package
+```
+HTTP Request
+    │
+    ▼
+[Middleware: Logging] ────> Log request
+    │
+    ▼
+[Middleware: CORS] ────────> Validate origin
+    │
+    ▼
+[Auth: Token Validation] ──> Check X-API-Token header
+    │
+    ▼
+[Auth: Rate Limiting] ─────> Check request rate
+    │
+    ▼
+[API Endpoint] ────────────> Handle request
+    │
+    ▼
+[Core: Bridge] ────────────> Orchestrate operation
+    │
+    ├──> [Parsers] ────────> Read AWS files
+    │
+    ├──> [Credentials] ────> Get credentials
+    │
+    ├──> [Console URL] ────> Generate URL
+    │
+    └──> [Metadata] ───────> Add color/icon
+    │
+    ▼
+JSON Response ─────────────> Return to extension
 ```
 
-**Pipeline**:
-1. **Transpile** (`webpack --config config/webpack/webpack.prod.js`)
-   - Minification with Terser
-   - Tree shaking (removes unused code)
-   - Console.log stripping
-   - Source maps for debugging
+## Security Architecture
 
-2. **Update Version** (`scripts/build/update-version.js`)
-   - Syncs `package.json` version to `manifest.json`
+### Trust Boundaries
 
-3. **Package** (`web-ext build`)
-   - Creates `.zip` file in `web-ext-artifacts/`
-   - Ready for Mozilla Add-ons submission
-
-### Bundle Analysis
-
-```bash
-npm run build:analyze
-# → ANALYZE=true npm run build:transpile
+```
+┌─────────────────────────────────────────┐
+│ Browser (Untrusted)                     │
+│  - Extension UI                         │
+│  - User input                           │
+└──────────┬──────────────────────────────┘
+           │ HTTP + Token
+           ▼
+┌─────────────────────────────────────────┐
+│ API Server (Trusted)                    │
+│  - Token validation                     │
+│  - Rate limiting                        │
+│  - Credential access                    │
+└──────────┬──────────────────────────────┘
+           │ File I/O
+           ▼
+┌─────────────────────────────────────────┐
+│ Filesystem (Sensitive)                  │
+│  - ~/.aws/credentials                   │
+│  - ~/.aws/config                        │
+└──────────┬──────────────────────────────┘
+           │ HTTPS
+           ▼
+┌─────────────────────────────────────────┐
+│ AWS APIs (External)                     │
+│  - Federation API                       │
+│  - SSO API                              │
+└─────────────────────────────────────────┘
 ```
 
-Opens interactive bundle visualization showing:
-- Module sizes
-- Dependency tree
-- Optimization opportunities
+### Security Measures
 
-## Testing Architecture
+**Extension:**
+- Minimal permissions (`contextualIdentities`, `storage`)
+- Host-specific permissions (localhost + AWS domains only)
+- No broad `<all_urls>` permission
+- Token stored in encrypted browser storage
 
-### Unit Tests
+**API Server:**
+- Localhost binding only (127.0.0.1)
+- Token-based authentication (all endpoints except `/health`)
+- Rate limiting (prevents brute force)
+- CORS restricted to `moz-extension://*`
+- No credential logging
+- No credential storage
 
-**Framework**: Jest + React Testing Library
+**Communication:**
+- HTTP over localhost (no network exposure)
+- Credentials never transmitted to extension
+- Only console URLs (with temporary tokens) returned
+- Tokens rotate on API server restart
 
-**Component Tests**:
-- `src/popup/components/__tests__/`
-- Tests: Rendering, user interactions, props, edge cases
-- Coverage target: 90%+
+## Performance Considerations
 
-**Hook Tests**:
-- `src/popup/hooks/__tests__/`
-- Tests: State management, side effects, error handling
-- Mock: `webextension-polyfill`
+### Caching Strategy
 
-**Utility Tests**:
-- `src/utils/__tests__/`
-- Tests: Pure functions, algorithms, edge cases
-- Coverage target: 100%
+**Extension-side:**
+- Profile list cached in memory (React state)
+- Favorites/recent persisted in browser storage
+- Refresh on demand or profile open
 
-### Integration Tests
+**API Server-side:**
+- File mtime-based cache for `~/.aws/credentials`
+- SSO token cache (memory + disk)
+- Console URL cache (TTL-based, default 10 minutes)
 
-- Native messaging protocol
-- Profile loading end-to-end
-- Container creation flow
-- Cache hit/miss scenarios
+### Response Times
 
-### E2E Tests (Future)
+| Operation | Typical Time | Notes |
+|-----------|-------------|-------|
+| GET /health | < 10ms | No I/O |
+| GET /profiles | 50-200ms | File reading + parsing |
+| GET /profiles/enrich | 2-10s | SSO token validation |
+| POST /console-url | 1-2s | AWS Federation API call |
+| Profile open (cached) | 100-300ms | Cached console URL |
 
-- Full user workflows
-- Browser automation with Playwright
-- Real extension loaded in Firefox
+### Optimization Techniques
 
-## Performance Optimizations
-
-### Frontend Optimizations
-
-1. **React Memoization**
-   ```typescript
-   const organizations = useMemo(() => {
-     // Expensive grouping operation
-   }, [profiles]);
-   ```
-
-2. **Cache-First Loading**
-   - Show cached data immediately
-   - Fetch fresh data in background
-   - Update UI when new data arrives
-
-3. **Optimized Re-renders**
-   - Individual hooks prevent unnecessary re-renders
-   - Components only re-render when their props change
-
-### Backend Optimizations
-
-1. **File mtime Caching**
-   ```python
-   if cached_mtime == current_mtime:
-       return cached_data
-   ```
-
-2. **In-Memory Token Cache**
-   ```python
-   self._memory_cache: Dict[str, tuple] = {}
-   ```
-
-3. **Hash-Based SSO Lookup**
-   ```python
-   cache_key = hashlib.sha1(start_url.encode()).hexdigest()
-   # O(1) lookup instead of O(n) search
-   ```
-
-### Build Optimizations
-
-1. **Tree Shaking** - Removes unused code
-2. **Code Splitting** - Separate entry points
-3. **Minification** - Reduces bundle size by 20-30%
-4. **Scope Hoisting** - Concatenates modules
-
-## Security Considerations
-
-See `docs/security.md` for detailed security documentation.
-
-**Key Security Features**:
-- URL validation prevents XSS
-- Native messaging restricts communication
-- Container isolation prevents cross-contamination
-- No credential storage in extension
-- Error messages sanitized
-
-## Future Architecture Enhancements
-
-### Planned Improvements
-
-1. **Service Worker Migration**
-   - Migrate from background page to service worker
-   - Required for Manifest V3
-
-2. **Profile Sync**
-   - Optional cloud sync for favorites/recent
-   - Encrypted storage
-
-3. **Advanced Caching**
-   - IndexedDB for larger datasets
-   - Background refresh
-
-4. **WebSocket Communication**
-   - Replace polling with push updates
-   - Real-time credential expiration alerts
-
-5. **Multi-Browser Support**
-   - Chrome/Edge using different APIs
-   - Shared core logic
+1. **Lazy Loading**: Profiles loaded on popup open, not background
+2. **Memoization**: React components use `useMemo` for expensive operations
+3. **Debouncing**: Search input debounced (300ms)
+4. **Batch Operations**: Multiple profiles processed in parallel
+5. **Connection Pooling**: FastAPI/httpx connection reuse
 
 ## Deployment Architecture
 
-### Extension Distribution
+### Installation
 
-1. **Mozilla Add-ons (AMO)**
-   - Automatic updates
-   - Signed by Mozilla
-   - Discovery through add-on store
+```
+User runs: ./scripts/install-api-service.sh
+    │
+    ▼
+[Check for uv] ────────────> Install if missing
+    │
+    ▼
+[Create venv] ─────────────> ~/.local/share/aws-profile-bridge/venv
+    │
+    ▼
+[Install deps] ────────────> FastAPI, boto3, etc.
+    │
+    ▼
+[Configure service] ───────> systemd (Linux) or launchd (macOS)
+    │
+    ▼
+[Start server] ────────────> Runs on port 10999
+    │
+    ▼
+[Generate token] ──────────> ~/.aws/profile_bridge_config.json
+```
 
-2. **Manual Installation**
-   - Development/testing
-   - Enterprise deployments
-   - Custom builds
+### Runtime
 
-### Native Host Distribution
+**Linux (systemd):**
+```
+systemd user service: aws-profile-bridge.service
+    ├─> Starts on boot (user login)
+    ├─> Restarts on failure
+    ├─> Logs to journald
+    └─> Status: systemctl --user status aws-profile-bridge
+```
 
-1. **Pre-built Binaries**
-   - PyInstaller standalone executables
-   - Platform-specific (Linux, macOS Intel, macOS ARM)
-   - No Python required
+**macOS (launchd):**
+```
+LaunchAgent: ~/Library/LaunchAgents/com.aws.profile-bridge.plist
+    ├─> Starts on login
+    ├─> Restarts on failure
+    ├─> Logs to ~/.aws/logs/aws_profile_bridge_api.log
+    └─> Status: launchctl list | grep aws-profile-bridge
+```
 
-2. **Python Script**
-   - Requires Python 3.8+
-   - Dependencies: boto3, botocore
-   - Manual installation
+## Design Patterns
 
-## Configuration Management
+### Strategy Pattern
 
-### Extension Configuration
+**Profile Metadata Rules** (`core/metadata.py`):
+```python
+class MetadataRule:
+    def matches(self, profile_name: str) -> bool: ...
+    def get_color(self) -> str: ...
+    def get_icon(self) -> str: ...
 
-**Hardcoded** (constants.ts):
+class KeywordMetadataRule(MetadataRule):
+    # Rules for prod → red, dev → green, etc.
+```
+
+### Repository Pattern
+
+**File Caching** (`core/parsers.py`):
+```python
+class FileCache:
+    def get(self, file_path: str) -> Optional[str]:
+        if self._is_cached(file_path):
+            return self._cache[file_path]
+        return self._read_and_cache(file_path)
+```
+
+### Dependency Injection
+
+All components receive dependencies via constructor:
+```python
+class ProfileBridge:
+    def __init__(
+        self,
+        credential_provider: CredentialProvider,
+        console_url_generator: ConsoleURLGenerator,
+        metadata_provider: MetadataProvider
+    ):
+        # Easy to test, clear dependencies
+```
+
+### Factory Pattern
+
+**Container Creation** (Extension):
 ```typescript
-CACHE_DURATION_MS = 5 * 60 * 1000
-MAX_RECENT_PROFILES = 10
-```
-
-**User Preferences** (browser.storage):
-```typescript
-selectedRegion: string
-favorites: string[]
-```
-
-### Native Host Configuration
-
-**Environment Variables**:
-```bash
-EXTENSION_ID="custom-id@example.com" ./install.sh
-```
-
-**Manifest Configuration**:
-```json
-{
-  "allowed_extensions": ["$EXTENSION_ID"]
+async function createOrFindContainer(profile: Profile): Promise<Container> {
+    const existing = await findExistingContainer(profile.name);
+    if (existing) return existing;
+    return await createNewContainer(profile);
 }
 ```
 
-## Monitoring & Debugging
+## Error Handling
 
-### Extension Debugging
+### Extension
 
-1. **about:debugging**
-   - Load temporary extension
-   - Inspect popup
-   - View background logs
+```typescript
+try {
+    const profiles = await apiClient.getProfiles();
+    setProfiles(profiles);
+} catch (error) {
+    if (error instanceof ApiClientError) {
+        if (error.statusCode === 401) {
+            showError("Invalid API token. Check settings.");
+        } else if (error.statusCode === 503) {
+            showError("API server not running.");
+        }
+    }
+}
+```
 
-2. **Browser Console**
-   - Popup console (F12)
-   - Background page console
-   - Error tracking
+### API Server
 
-### Native Host Debugging
+```python
+@router.post("/profiles/{profile_name}/console-url")
+async def get_console_url(profile_name: str):
+    try:
+        return bridge.generate_console_url(profile_name)
+    except ProfileNotFoundError:
+        raise HTTPException(404, "Profile not found")
+    except CredentialError:
+        raise HTTPException(500, "Failed to get credentials")
+    except AWSFederationError:
+        raise HTTPException(502, "AWS Federation API error")
+```
 
-1. **Log File**: `/tmp/aws_profile_bridge.log`
-   ```python
-   logging.basicConfig(
-       level=logging.ERROR,
-       handlers=[logging.FileHandler('/tmp/aws_profile_bridge.log')]
-   )
-   ```
+## Future Enhancements
 
-2. **Manual Testing**:
-   ```bash
-   echo '{"action":"getProfiles"}' | python aws_profile_bridge.py
-   ```
+### Planned Features
 
-## Conclusion
+1. **WebSocket Support**: Real-time profile updates
+2. **Multi-Region**: Support all AWS regions
+3. **Profile Groups**: Organize profiles into custom groups
+4. **Metrics/Monitoring**: Prometheus metrics, health dashboards
+5. **Windows Support**: Windows service configuration
 
-The AWS Profile Containers extension employs a clean, modular architecture with clear separation of concerns. The frontend uses modern React patterns with custom hooks, while the backend leverages efficient caching and file parsing. Security is built-in at every layer, and the system is designed for both performance and maintainability.
+### Scalability Considerations
+
+- API server stateless (can run multiple instances)
+- Token validation can use shared cache (Redis)
+- Console URL caching reduces AWS API calls
+- Profile parsing optimized for large credential files (1000+ profiles)
+
+## Related Documentation
+
+- [Development Architecture](development/architecture.md) - Detailed technical architecture
+- [API Migration Guide](../API_MIGRATION.md) - Migration from Native Messaging
+- [Security Overview](security/security-root.md) - Security model and best practices
+- [API Server README](../api-server/README.md) - API server implementation details

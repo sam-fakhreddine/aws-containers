@@ -24,7 +24,7 @@ Before seeking support, please check our comprehensive documentation:
 Common issues and their solutions are documented in:
 
 - [Troubleshooting Guide](./docs/user-guide/troubleshooting.md)
-- [Security Best Practices](./docs/security/security-best-practices.md)
+- [Security Best Practices](./docs/security/best-practices.md)
 
 ### GitHub Discussions
 
