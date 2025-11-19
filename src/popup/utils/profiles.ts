@@ -33,9 +33,15 @@ export function sortByCredentialStatus(profiles: AWSProfile[]): AWSProfile[] {
 
 /**
  * Logs a summary of the AWS profiles for debugging purposes.
+ * Only logs in development mode.
  * @param profiles The array of AWS profiles to summarize.
  */
 export function logProfileSummary(profiles: AWSProfile[]): void {
+  // Only log in development mode
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+
   const ssoCount = profiles.filter((p) => p.is_sso).length;
   const activeCredsCount = profiles.filter(
     (p) => p.has_credentials && !p.expired,

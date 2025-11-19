@@ -15,7 +15,7 @@ function handleMessage(request: unknown) {
 
     const message = request as { popupMounted?: boolean };
     if (message.popupMounted) {
-        console.log("backgroundPage notified that Popup.tsx has mounted.");
+        // Popup has mounted - no action needed
     }
 }
 
