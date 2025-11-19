@@ -147,3 +147,120 @@ async def test_console_url_endpoint(client: AsyncClient) -> None:
     data = response.json()
     assert "action" in data
     assert data["action"] in ["consoleUrl", "error"]
+
+
+@pytest.mark.asyncio
+async def test_options_requests(client: AsyncClient) -> None:
+    """Test OPTIONS requests for CORS."""
+    response = await client.options("/profiles")
+    assert response.status_code == status.HTTP_200_OK
+
+    response = await client.options("/profiles/enrich")
+    assert response.status_code == status.HTTP_200_OK
+
+    response = await client.options("/profiles/test-profile/console-url")
+    assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.asyncio
+async def test_profile_list_timeout(client: AsyncClient) -> None:
+    """Test timeout handling for profile list."""
+    with patch("aws_profile_bridge.api.profiles.authenticator") as mock_auth:
+        mock_auth.authenticate.return_value = None
+        with patch("aws_profile_bridge.api.profiles.asyncio.wait_for") as mock_wait:
+            import asyncio
+            mock_wait.side_effect = asyncio.TimeoutError()
+            response = await client.post("/profiles", headers={"X-API-Token": "test-token"})
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["action"] == "error"
+    assert "timed out" in data["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_profile_list_exception(client: AsyncClient) -> None:
+    """Test exception handling for profile list."""
+    with patch("aws_profile_bridge.api.profiles.authenticator") as mock_auth:
+        mock_auth.authenticate.return_value = None
+        with patch("aws_profile_bridge.api.profiles.AWSProfileBridge") as mock_bridge:
+            mock_bridge.side_effect = Exception("Test error")
+            response = await client.post("/profiles", headers={"X-API-Token": "test-token"})
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["action"] == "error"
+    assert "Failed to get profiles" in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_enrich_timeout(client: AsyncClient) -> None:
+    """Test timeout handling for profile enrichment."""
+    with patch("aws_profile_bridge.api.profiles.authenticator") as mock_auth:
+        mock_auth.authenticate.return_value = None
+        with patch("aws_profile_bridge.api.profiles.asyncio.wait_for") as mock_wait:
+            import asyncio
+            mock_wait.side_effect = asyncio.TimeoutError()
+            response = await client.post("/profiles/enrich", headers={"X-API-Token": "test-token"})
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["action"] == "error"
+    assert "timed out" in data["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_enrich_exception(client: AsyncClient) -> None:
+    """Test exception handling for profile enrichment."""
+    with patch("aws_profile_bridge.api.profiles.authenticator") as mock_auth:
+        mock_auth.authenticate.return_value = None
+        with patch("aws_profile_bridge.api.profiles.AWSProfileBridge") as mock_bridge:
+            mock_bridge.side_effect = Exception("Test error")
+            response = await client.post("/profiles/enrich", headers={"X-API-Token": "test-token"})
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["action"] == "error"
+    assert "Failed to enrich profiles" in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_console_url_timeout(client: AsyncClient) -> None:
+    """Test timeout handling for console URL generation."""
+    with patch("aws_profile_bridge.api.profiles.authenticator") as mock_auth:
+        mock_auth.authenticate.return_value = None
+        with patch("aws_profile_bridge.api.profiles.asyncio.wait_for") as mock_wait:
+            import asyncio
+            mock_wait.side_effect = asyncio.TimeoutError()
+            response = await client.post("/profiles/test-profile/console-url", headers={"X-API-Token": "test-token"})
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["action"] == "error"
+    assert "timed out" in data["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_console_url_exception(client: AsyncClient) -> None:
+    """Test exception handling for console URL generation."""
+    with patch("aws_profile_bridge.api.profiles.authenticator") as mock_auth:
+        mock_auth.authenticate.return_value = None
+        with patch("aws_profile_bridge.api.profiles.AWSProfileBridge") as mock_bridge:
+            mock_bridge.side_effect = Exception("Test error")
+            response = await client.post("/profiles/test-profile/console-url", headers={"X-API-Token": "test-token"})
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["action"] == "error"
+    assert "Failed to generate console URL" in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_set_authenticator() -> None:
+    """Test authenticator can be set."""
+    from aws_profile_bridge.api import profiles
+    from unittest.mock import Mock
+
+    mock_authenticator = Mock()
+    profiles.set_authenticator(mock_authenticator)
+    assert profiles.authenticator is mock_authenticator
