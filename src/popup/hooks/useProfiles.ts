@@ -17,7 +17,7 @@ import { useIsMounted } from "./useIsMounted";
 import { AWSProfile } from "../types";
 
 const CACHE_KEY = "aws-profiles";
-const CACHE_EXPIRATION_MS = 60000; // 1 minute
+const CACHE_EXPIRATION_MS = 1800000; // 30 minutes
 const isDebugMode = process.env.NODE_ENV === "development";
 
 interface CachedData {
@@ -57,6 +57,13 @@ function useProfiles() {
 
   const callApi = useCallback(
     async (action: "getProfiles" | "enrichSSOProfiles") => {
+      const token = await apiClient.getApiToken();
+      if (!token) {
+        setLoading(false);
+        setError("No API token configured. Please configure your token in Settings.");
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {

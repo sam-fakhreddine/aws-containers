@@ -12,19 +12,28 @@ dependencies = [
     "uvicorn[standard]>=0.38.0",
     "pydantic>=2.12.0",
     "boto3>=1.40.0",
+    "click>=8.1.0",
+    "httpx>=0.28.0",
+    "psutil>=5.9.0",
+    "tinydb>=4.8.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
-    "httpx>=0.28.0",
     "ruff>=0.9.0",
     "mypy>=1.15.0",
 ]
+cli = [
+    "pyperclip>=1.8.0",  # Clipboard support for 'token copy'
+    "qrcode[pil]>=7.4.0",  # QR code support for 'token qr'
+]
 
 [project.scripts]
-aws-profile-bridge-api = "aws_profile_bridge.api_server:main"
+aws-profile-bridge = "aws_profile_bridge.cli.main:main"
+aws-profile-bridge-api = "aws_profile_bridge.app:main"
+aws-profile-bridge-token = "aws_profile_bridge.cli.token_commands:main"
 
 [tool.ruff]
 target-version = "py312"
@@ -38,3 +47,21 @@ python_version = "3.12"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+
+[tool.coverage.run]
+omit = [
+    "*/cli/*",
+    "*/__main__.py",
+    "*/config/logging.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]

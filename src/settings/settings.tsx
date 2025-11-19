@@ -15,13 +15,16 @@ import SpaceBetween from "@cloudscape-design/components/space-between";
 import * as apiClient from "../services/apiClient";
 
 // Constants
-import { API_TOKEN_MIN_LENGTH } from "../popup/constants";
+import { API_TOKEN_LENGTH } from "../popup/constants";
 
 export const Settings: React.FC = () => {
     const [token, setToken] = useState("");
     const [savedToken, setSavedToken] = useState<string | null>(null);
-    const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+    const [message, setMessage] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(
+        null
+    );
     const [testing, setTesting] = useState(false);
+    const [isLegacy, setIsLegacy] = useState(false);
 
     useEffect(() => {
         loadToken();
@@ -32,29 +35,34 @@ export const Settings: React.FC = () => {
         setSavedToken(stored);
         if (stored) {
             setToken(stored);
+            setIsLegacy(apiClient.isLegacyToken(stored));
         }
     };
 
     const handleSave = async () => {
         const trimmedToken = token.trim();
-        
+
         if (!trimmedToken) {
             setMessage({ type: "error", text: "Token cannot be empty" });
-            return;
-        }
-
-        if (trimmedToken.length < API_TOKEN_MIN_LENGTH) {
-            setMessage({ 
-                type: "error", 
-                text: `Token must be at least ${API_TOKEN_MIN_LENGTH} characters long` 
-            });
             return;
         }
 
         try {
             await apiClient.setApiToken(trimmedToken);
             setSavedToken(trimmedToken);
-            setMessage({ type: "success", text: "Token saved successfully" });
+
+            // Check if it's a legacy token and show warning
+            const legacy = apiClient.isLegacyToken(trimmedToken);
+            setIsLegacy(legacy);
+
+            if (legacy) {
+                setMessage({
+                    type: "warning",
+                    text: "Token saved successfully, but you are using a legacy token format. Please rotate to the new format (awspc_...) for better security.",
+                });
+            } else {
+                setMessage({ type: "success", text: "Token saved successfully" });
+            }
         } catch (error) {
             if (error instanceof apiClient.ApiClientError) {
                 setMessage({ type: "error", text: error.message });
@@ -103,6 +111,29 @@ export const Settings: React.FC = () => {
                         The API token is required to authenticate with the backend server.
                         You can find your token in <code>~/.aws/profile_bridge_config.json</code>
                     </Alert>
+
+                    {isLegacy && savedToken && (
+                        <Alert
+                            type="warning"
+                            header="Legacy Token Format Detected"
+                            action={
+                                <Button
+                                    onClick={() => {
+                                        window.open(
+                                            "https://github.com/sam-fakhreddine/aws-containers/blob/main/docs/security/TOKEN_FORMAT_PROPOSAL.md",
+                                            "_blank"
+                                        );
+                                    }}
+                                >
+                                    Learn More
+                                </Button>
+                            }
+                        >
+                            You are using an old token format. For better security, please rotate your
+                            token by restarting the API server. New tokens use the format{" "}
+                            <code>awspc_...</code> with built-in checksum validation.
+                        </Alert>
+                    )}
 
                     <FormField
                         label="API Token"

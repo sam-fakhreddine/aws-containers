@@ -122,7 +122,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     const [openProfileError, setOpenProfileError] = useState<string | null>(null);
 
     /**
-     * Notify background page that popup mounted
+     * Notify background page that popup mounted and cleanup on unmount
      */
     useEffect(() => {
         browser.runtime.sendMessage({ popupMounted: true }).catch((err) => {
@@ -132,6 +132,11 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             }
         });
         loadProfiles();
+
+        // Cleanup on unmount
+        return () => {
+            browser.runtime.sendMessage({ popupUnmounted: true }).catch(() => {});
+        };
     }, [loadProfiles]);
 
     /**
@@ -406,11 +411,13 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                     onClick={() => refreshProfiles()}
                     iconName="refresh"
                     fullWidth
+                    loading={profilesLoading}
+                    disabled={profilesLoading}
                 >
-                    Refresh Profiles
+                    {profilesLoading ? `Loading... (${profiles.length} loaded)` : `Refresh Profiles (${profiles.length})`}
                 </Button>
 
-                {profilesLoading ? (
+                {profilesLoading && profiles.length === 0 ? (
                     <LoadingState />
                 ) : profilesError || openProfileError ? (
                     <ErrorState
@@ -440,6 +447,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                                 overflowY: "auto",
                                 minHeight: "200px",
                                 maxHeight: "calc(100vh - 250px)",
+                                willChange: "scroll-position",
                             }}
                         >
                             <ProfileList

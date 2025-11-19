@@ -1,7 +1,18 @@
-name: Build Release
+name: Manual Release
 
 on:
   workflow_dispatch:  # Manual trigger only
+    inputs:
+      release-type:
+        description: 'Release type'
+        required: true
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+        default: 'auto'
 
 jobs:
   build-native-host:
@@ -66,9 +77,11 @@ jobs:
   semantic-release:
     name: Semantic Release
     runs-on: ubuntu-latest
+    needs: build-native-host
     outputs:
       new-release-published: ${{ steps.semantic.outputs.new-release-published }}
       new-release-version: ${{ steps.semantic.outputs.new-release-version }}
+      new-release-git-tag: ${{ steps.semantic.outputs.new-release-git-tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -91,6 +104,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Release summary
+        if: steps.semantic.outputs.new-release-published == 'true'
+        run: |
+          echo "## 🎉 Manual Release Published" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.semantic.outputs.new-release-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ steps.semantic.outputs.new-release-git-tag }}" >> $GITHUB_STEP_SUMMARY
+
   build-extension:
     name: Build Firefox Extension
     runs-on: ubuntu-latest
@@ -101,7 +121,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
-          ref: v${{ needs.semantic-release.outputs.new-release-version }}
+          ref: ${{ needs.semantic-release.outputs.new-release-git-tag }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -122,10 +142,10 @@ jobs:
           path: web-ext-artifacts/*.zip
           retention-days: 90
 
-  create-release-assets:
-    name: Create Release Assets
+  upload-release-assets:
+    name: Upload Release Assets
     runs-on: ubuntu-latest
-    needs: [build-native-host, build-extension, semantic-release]
+    needs: [semantic-release, build-extension, build-native-host]
     if: needs.semantic-release.outputs.new-release-published == 'true'
 
     steps:
@@ -135,50 +155,60 @@ jobs:
       - name: Display structure
         run: ls -R
 
-      - name: Get release info
-        id: release
+      - name: Prepare release assets
         run: |
-          UPLOAD_URL=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v${{ needs.semantic-release.outputs.new-release-version }}" | \
-            jq -r '.upload_url')
-          echo "upload_url=${UPLOAD_URL}" >> $GITHUB_OUTPUT
+          # Rename native hosts with version
+          mkdir -p release-assets
+          cp native-host-linux/aws_profile_bridge release-assets/aws_profile_bridge-${{ needs.semantic-release.outputs.new-release-version }}-linux
+          cp native-host-darwin-x86_64/aws_profile_bridge release-assets/aws_profile_bridge-${{ needs.semantic-release.outputs.new-release-version }}-macos-intel
+          cp native-host-darwin-arm64/aws_profile_bridge release-assets/aws_profile_bridge-${{ needs.semantic-release.outputs.new-release-version }}-macos-arm64
 
-      - name: Upload Linux native host to release
-        uses: actions/upload-release-asset@v1
+          # Copy Firefox extension
+          cp firefox-extension/*.zip release-assets/aws_profile_containers-${{ needs.semantic-release.outputs.new-release-version }}.xpi
+
+      - name: Validate release assets
+        run: |
+          echo "Validating all release assets exist..."
+          EXPECTED_FILES=(
+            "aws_profile_bridge-${{ needs.semantic-release.outputs.new-release-version }}-linux"
+            "aws_profile_bridge-${{ needs.semantic-release.outputs.new-release-version }}-macos-intel"
+            "aws_profile_bridge-${{ needs.semantic-release.outputs.new-release-version }}-macos-arm64"
+            "aws_profile_containers-${{ needs.semantic-release.outputs.new-release-version }}.xpi"
+          )
+
+          MISSING_FILES=()
+          for file in "${EXPECTED_FILES[@]}"; do
+            if [ ! -f "release-assets/$file" ]; then
+              MISSING_FILES+=("$file")
+              echo "❌ Missing: $file"
+            else
+              echo "✅ Found: $file"
+            fi
+          done
+
+          if [ ${#MISSING_FILES[@]} -ne 0 ]; then
+            echo ""
+            echo "ERROR: ${#MISSING_FILES[@]} expected file(s) missing!"
+            echo "This will cause the release to fail."
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ All expected release assets present"
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.semantic-release.outputs.new-release-version }}
+          files: release-assets/*
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: ./native-host-linux/aws_profile_bridge
-          asset_name: aws_profile_bridge-linux
-          asset_content_type: application/octet-stream
 
-      - name: Upload macOS Intel native host to release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: ./native-host-darwin-x86_64/aws_profile_bridge
-          asset_name: aws_profile_bridge-macos-intel
-          asset_content_type: application/octet-stream
-
-      - name: Upload macOS ARM64 native host to release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: ./native-host-darwin-arm64/aws_profile_bridge
-          asset_name: aws_profile_bridge-macos-arm64
-          asset_content_type: application/octet-stream
-
-      - name: Upload Firefox extension to release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: ./firefox-extension/aws_profile_containers-${{ needs.semantic-release.outputs.new-release-version }}.zip
-          asset_name: aws_profile_containers.xpi
-          asset_content_type: application/x-xpinstall
+      - name: Upload summary
+        run: |
+          echo "## 📦 Release Assets Uploaded" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          ls -lh release-assets/ >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "[View Release](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.semantic-release.outputs.new-release-version }})" >> $GITHUB_STEP_SUMMARY

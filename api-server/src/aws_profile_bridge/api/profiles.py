@@ -3,7 +3,7 @@
 import asyncio
 import logging
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, Request
 
 from ..auth.authenticator import Authenticator
 from ..core.bridge import AWSProfileBridge
@@ -23,8 +23,12 @@ def set_authenticator(auth: Authenticator) -> None:
 
 @router.get("/profiles")
 @router.post("/profiles")
-async def get_profiles(x_api_token: str | None = Header(None, alias="X-API-Token")):
+@router.options("/profiles")
+async def get_profiles(request: Request, x_api_token: str | None = Header(None, alias="X-API-Token")):
     """Get all AWS profiles (fast mode)."""
+    if request.method == "OPTIONS":
+        return {}
+    
     authenticator.authenticate(x_api_token)
 
     try:
@@ -47,10 +51,14 @@ async def get_profiles(x_api_token: str | None = Header(None, alias="X-API-Token
 
 @router.get("/profiles/enrich")
 @router.post("/profiles/enrich")
+@router.options("/profiles/enrich")
 async def get_profiles_enriched(
-    x_api_token: str | None = Header(None, alias="X-API-Token")
+    request: Request, x_api_token: str | None = Header(None, alias="X-API-Token")
 ):
     """Get all AWS profiles with SSO enrichment."""
+    if request.method == "OPTIONS":
+        return {}
+    
     authenticator.authenticate(x_api_token)
 
     try:
@@ -75,10 +83,14 @@ async def get_profiles_enriched(
 
 
 @router.post("/profiles/{profile_name}/console-url")
+@router.options("/profiles/{profile_name}/console-url")
 async def get_console_url(
-    profile_name: str, x_api_token: str | None = Header(None, alias="X-API-Token")
+    profile_name: str, request: Request, x_api_token: str | None = Header(None, alias="X-API-Token")
 ):
     """Generate AWS Console URL for specified profile."""
+    if request.method == "OPTIONS":
+        return {}
+    
     authenticator.authenticate(x_api_token)
     profile_name = validate_profile_name(profile_name)
 

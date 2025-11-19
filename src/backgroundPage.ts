@@ -13,9 +13,12 @@ function handleMessage(request: unknown) {
         return;
     }
 
-    const message = request as { popupMounted?: boolean };
+    const message = request as { popupMounted?: boolean; popupUnmounted?: boolean };
     if (message.popupMounted) {
         console.log("backgroundPage notified that Popup.tsx has mounted.");
+    }
+    if (message.popupUnmounted) {
+        console.log("backgroundPage notified that Popup.tsx has unmounted.");
     }
 }
 

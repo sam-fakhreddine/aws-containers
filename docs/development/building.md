@@ -5,7 +5,7 @@ Complete guide to building AWS Profile Containers from source.
 ## Prerequisites
 
 ### Required
-- Node.js 16+
+- Node.js 22.14.0+ or 24.10.0+
 - npm or yarn
 - Git
 

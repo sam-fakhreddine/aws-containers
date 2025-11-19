@@ -10,6 +10,7 @@ start_time: float = time.time()
 
 
 @router.get("/health")
+@router.options("/health")
 async def health_check():
     """Health check endpoint for monitoring."""
     return {

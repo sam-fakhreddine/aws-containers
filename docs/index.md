@@ -10,7 +10,7 @@ AWS Profile Containers is a Firefox extension that reads your AWS credentials fi
 
 ### Project Origin
 
-This project evolved from custom CLI scripts and Firefox extensions, inspired by [granted.dev](https://granted.dev) but tailored to specific workflow needs. **[Learn more about the project's background →](development/background.md)**
+This project evolved from custom CLI scripts and Firefox extensions, unified into a cohesive browser extension tailored to specific AWS workflow needs.
 
 ## Key Features
 
@@ -105,7 +105,6 @@ security/best-practices
 :maxdepth: 2
 :caption: Development
 
-development/background
 development/architecture
 development/contributing
 development/building

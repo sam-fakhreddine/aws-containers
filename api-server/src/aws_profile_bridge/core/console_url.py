@@ -151,9 +151,11 @@ class ProfileConsoleURLGenerator:
         self,
         credential_provider,  # Type: CredentialProvider
         url_generator: ConsoleURLGenerator,
+        url_cache=None,  # Type: Optional[ConsoleURLCache]
     ):
         self.credential_provider = credential_provider
         self.url_generator = url_generator
+        self.url_cache = url_cache
 
     def generate_url(self, profile_name: str) -> Dict[str, str]:
         """
@@ -174,5 +176,17 @@ class ProfileConsoleURLGenerator:
                 f"For SSO profiles, run: aws sso login --profile {profile_name}"
             }
 
+        # Check cache with credential expiry validation
+        if self.url_cache:
+            cached_url = self.url_cache.get(profile_name, credentials.get("expiry_time"))
+            if cached_url:
+                return {"url": cached_url}
+
         # Generate URL
-        return self.url_generator.generate_url(credentials)
+        result = self.url_generator.generate_url(credentials)
+        
+        # Cache successful result with credential expiry
+        if self.url_cache and "url" in result:
+            self.url_cache.set(profile_name, result["url"], credentials.get("expiry_time"))
+        
+        return result

@@ -21,7 +21,7 @@ Comprehensive installation instructions for AWS Profile Containers.
 - AWS credentials configured (`~/.aws/credentials` or `~/.aws/config`)
 
 ### Optional
-- Node.js (v16 or later) - for building from source
+- Node.js (v22.14.0+ or v24.10.0+) - for building from source
 - Python 3.8+ - only if not using pre-built executables
 - AWS CLI - for SSO profile management
 

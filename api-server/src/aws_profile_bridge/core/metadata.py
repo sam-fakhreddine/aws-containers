@@ -7,6 +7,7 @@ Uses Strategy pattern (Open/Closed Principle) for extensibility.
 """
 
 from abc import ABC, abstractmethod
+from functools import lru_cache
 from typing import Dict, List
 
 
@@ -67,6 +68,7 @@ class ProfileMetadataProvider:
         self.default_color = default_color
         self.default_icon = default_icon
 
+    @lru_cache(maxsize=256)
     def get_color(self, profile_name: str) -> str:
         """Get color for profile based on matching rule."""
         for rule in self.rules:
@@ -74,6 +76,7 @@ class ProfileMetadataProvider:
                 return rule.get_color()
         return self.default_color
 
+    @lru_cache(maxsize=256)
     def get_icon(self, profile_name: str) -> str:
         """Get icon for profile based on matching rule."""
         for rule in self.rules:
