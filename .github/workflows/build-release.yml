@@ -166,6 +166,36 @@ jobs:
           # Copy Firefox extension
           cp firefox-extension/*.zip release-assets/aws_profile_containers-${{ needs.semantic-release.outputs.new-release-version }}.xpi
 
+      - name: Validate release assets
+        run: |
+          echo "Validating all release assets exist..."
+          EXPECTED_FILES=(
+            "aws_profile_bridge-${{ needs.semantic-release.outputs.new-release-version }}-linux"
+            "aws_profile_bridge-${{ needs.semantic-release.outputs.new-release-version }}-macos-intel"
+            "aws_profile_bridge-${{ needs.semantic-release.outputs.new-release-version }}-macos-arm64"
+            "aws_profile_containers-${{ needs.semantic-release.outputs.new-release-version }}.xpi"
+          )
+
+          MISSING_FILES=()
+          for file in "${EXPECTED_FILES[@]}"; do
+            if [ ! -f "release-assets/$file" ]; then
+              MISSING_FILES+=("$file")
+              echo "❌ Missing: $file"
+            else
+              echo "✅ Found: $file"
+            fi
+          done
+
+          if [ ${#MISSING_FILES[@]} -ne 0 ]; then
+            echo ""
+            echo "ERROR: ${#MISSING_FILES[@]} expected file(s) missing!"
+            echo "This will cause the release to fail."
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ All expected release assets present"
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:

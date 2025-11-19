@@ -1,5 +1,13 @@
 name: E2E Tests
 
+# This workflow runs comprehensive E2E tests on a schedule (daily) and on-demand.
+# It tests across multiple platforms (Ubuntu + macOS) to catch platform-specific issues.
+#
+# Different from build-extension.yml (CI):
+# - CI workflow: Runs on every PR for quick validation (Ubuntu only)
+# - This workflow: Runs daily for thorough cross-platform testing
+# - This workflow: Auto-creates GitHub issues on failures for visibility
+
 on:
   # Run on schedule
   schedule:
@@ -28,17 +36,10 @@ jobs:
         os: [ubuntu-latest, macos-latest]
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
+      - name: Setup Node.js environment
+        uses: ./.github/actions/setup-node-env
         with:
-          node-version: '24'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+          fetch-depth: '1'  # E2E tests don't need full git history
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps firefox
