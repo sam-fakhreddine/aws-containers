@@ -18,7 +18,7 @@ For most users, this is the easiest installation method:
 ### Prerequisites
 
 - Firefox browser
-- Node.js (v16 or later)
+- Node.js (v22.14.0+ or v24.10.0+)
 - npm
 
 ### Steps
@@ -135,7 +135,7 @@ For developers who want to modify the code:
 ### Prerequisites
 
 - Firefox browser
-- Node.js (v16 or later)
+- Node.js (v22.14.0+ or v24.10.0+)
 - npm
 - Python 3.8+ (for native messaging host)
 - pip (Python package manager)

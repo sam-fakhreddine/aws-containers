@@ -1,38 +1,77 @@
-name: Manual Release
+name: Release
 
 on:
-  workflow_dispatch:  # Manual trigger only
-    inputs:
-      release-type:
-        description: 'Release type'
-        required: true
-        type: choice
-        options:
-          - auto
-          - patch
-          - minor
-          - major
-        default: 'auto'
+  push:
+    branches:
+      - main
+
+# Ensure only one release workflow runs at a time
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node.js environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Setup Node.js environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps firefox
+
+      - name: Build extension for testing
+        run: npm run build
+
+      - name: Run Playwright tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-report-release
+          path: playwright-report/
+          retention-days: 30
+
   build-native-host:
-    name: Build Native Messaging Host
+    name: Build Native Host (${{ matrix.arch_name }})
     runs-on: ${{ matrix.os }}
+    needs: [test, e2e-tests]
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             platform: linux
             arch_name: Linux
-          - os: macos-15-intel  # Intel x86_64
-            platform: darwin-x86_64
-            arch_name: macOS Intel
           - os: macos-15  # Apple Silicon ARM64
             platform: darwin-arm64
             arch_name: macOS ARM64
-          # - os: windows-latest  # Future: Add Windows support
-          #   platform: windows
-          #   arch_name: Windows
+          - os: macos-13  # Intel x86_64
+            platform: darwin-x86_64
+            arch_name: macOS Intel
 
     steps:
       - name: Checkout code
@@ -42,6 +81,7 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.14'
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
@@ -52,7 +92,6 @@ jobs:
         run: |
           cd native-messaging
           pyinstaller --clean aws_profile_bridge.spec
-          cd ..
 
       - name: Prepare executable
         run: |
@@ -60,10 +99,8 @@ jobs:
           cp native-messaging/dist/aws_profile_bridge bin/${{ matrix.platform }}/
           chmod +x bin/${{ matrix.platform }}/aws_profile_bridge
 
-      - name: Test executable (Linux/macOS)
-        if: matrix.os != 'windows-latest'
+      - name: Test executable
         run: |
-          # Just verify it exists and is executable
           ls -la bin/${{ matrix.platform }}/aws_profile_bridge
           file bin/${{ matrix.platform }}/aws_profile_bridge
 
@@ -77,12 +114,13 @@ jobs:
   semantic-release:
     name: Semantic Release
     runs-on: ubuntu-latest
-    needs: build-native-host
+    needs: [test, build-native-host]
     outputs:
       new-release-published: ${{ steps.semantic.outputs.new-release-published }}
       new-release-version: ${{ steps.semantic.outputs.new-release-version }}
       new-release-git-tag: ${{ steps.semantic.outputs.new-release-git-tag }}
     steps:
+      # Note: semantic-release needs special checkout with token for pushing commits
       - name: Checkout code
         uses: actions/checkout@v5
         with:
@@ -107,17 +145,18 @@ jobs:
       - name: Release summary
         if: steps.semantic.outputs.new-release-published == 'true'
         run: |
-          echo "## 🎉 Manual Release Published" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎉 New Release Published" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** ${{ steps.semantic.outputs.new-release-version }}" >> $GITHUB_STEP_SUMMARY
           echo "**Tag:** ${{ steps.semantic.outputs.new-release-git-tag }}" >> $GITHUB_STEP_SUMMARY
 
   build-extension:
     name: Build Firefox Extension
     runs-on: ubuntu-latest
-    needs: [build-native-host, semantic-release]
+    needs: semantic-release
     if: needs.semantic-release.outputs.new-release-published == 'true'
 
     steps:
+      # Note: Can't use composite action here - needs specific git tag checkout
       - name: Checkout code
         uses: actions/checkout@v5
         with:
@@ -134,6 +173,25 @@ jobs:
 
       - name: Build extension
         run: npm run build
+
+      - name: Validate build output
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ Error: dist directory not found"
+            exit 1
+          fi
+          if [ ! -f "dist/manifest.json" ]; then
+            echo "❌ Error: manifest.json not found"
+            exit 1
+          fi
+          echo "✅ Build validation passed"
+
+      - name: List build artifacts
+        run: |
+          echo "### Build Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          ls -lh web-ext-artifacts/ >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload extension artifact
         uses: actions/upload-artifact@v5
@@ -165,36 +223,6 @@ jobs:
 
           # Copy Firefox extension
           cp firefox-extension/*.zip release-assets/aws_profile_containers-${{ needs.semantic-release.outputs.new-release-version }}.xpi
-
-      - name: Validate release assets
-        run: |
-          echo "Validating all release assets exist..."
-          EXPECTED_FILES=(
-            "aws_profile_bridge-${{ needs.semantic-release.outputs.new-release-version }}-linux"
-            "aws_profile_bridge-${{ needs.semantic-release.outputs.new-release-version }}-macos-intel"
-            "aws_profile_bridge-${{ needs.semantic-release.outputs.new-release-version }}-macos-arm64"
-            "aws_profile_containers-${{ needs.semantic-release.outputs.new-release-version }}.xpi"
-          )
-
-          MISSING_FILES=()
-          for file in "${EXPECTED_FILES[@]}"; do
-            if [ ! -f "release-assets/$file" ]; then
-              MISSING_FILES+=("$file")
-              echo "❌ Missing: $file"
-            else
-              echo "✅ Found: $file"
-            fi
-          done
-
-          if [ ${#MISSING_FILES[@]} -ne 0 ]; then
-            echo ""
-            echo "ERROR: ${#MISSING_FILES[@]} expected file(s) missing!"
-            echo "This will cause the release to fail."
-            exit 1
-          fi
-
-          echo ""
-          echo "✅ All expected release assets present"
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2

@@ -1,0 +1,112 @@
+name: Documentation Issue
+description: Report an issue with documentation or suggest improvements
+title: "[Docs]: "
+labels: ["documentation", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve our documentation!
+
+        Good documentation is crucial for project success. Your feedback is valuable.
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Issue Type
+      description: What kind of documentation issue is this?
+      options:
+        - Missing documentation
+        - Incorrect/outdated information
+        - Unclear explanation
+        - Typo/grammar
+        - Code example issue
+        - Broken link
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Where is the documentation issue located?
+      placeholder: |
+        File: docs/user-guide/profiles.md
+        Section: "Creating Profiles"
+        Line: 45
+
+        Or provide a URL if viewing online.
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Issue Description
+      description: Describe the documentation issue clearly
+      placeholder: What's wrong with the current documentation?
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Current Documentation
+      description: What does the documentation currently say? (if applicable)
+      placeholder: Quote the problematic section
+      render: markdown
+    validations:
+      required: false
+
+  - type: textarea
+    id: suggested
+    attributes:
+      label: Suggested Improvement
+      description: How should the documentation be improved?
+      placeholder: What should it say instead?
+      render: markdown
+    validations:
+      required: false
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Impact
+      description: How does this affect users?
+      options:
+        - Critical (Prevents users from completing tasks)
+        - High (Causes significant confusion)
+        - Medium (Minor confusion or inconvenience)
+        - Low (Cosmetic issue)
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other information that might be helpful
+      placeholder: Screenshots, related issues, etc.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you be willing to contribute?
+      options:
+        - label: I would be willing to submit a PR to fix this
+          required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Pre-submission Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched for existing documentation issues
+          required: true
+        - label: I have verified this is a documentation issue (not a code bug)
+          required: true

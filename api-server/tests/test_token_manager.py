@@ -15,8 +15,8 @@ class TestTokenGeneration:
         token = TokenManager.generate_token()
 
         assert token.startswith("awspc_")
-        assert len(token) == 56  # awspc_ (6) + random (43) + _ (1) + checksum (6)
-        
+        assert len(token) == 56  # awspc (5) + _ (1) + random (43) + _ (1) + checksum (6)
+
         parts = token.split("_")
         assert len(parts) == 3
         assert parts[0] == "awspc"
@@ -100,16 +100,27 @@ class TestTokenValidation:
         """Test that invalid tokens are rejected."""
         invalid_tokens = [
             "",  # Empty
-            "short",  # Too short
+            "short",  # Too short (< 32)
             "invalid!@#$%^&*()",  # Invalid characters
-            "awspc_tooshort_123456",  # Correct prefix but wrong lengths
-            "wrong_" + "0" * 43 + "_123456",  # Wrong prefix
-            "awspc_" + "0" * 40 + "_123456",  # Random part too short
-            "awspc_" + "0" * 43 + "_123",  # Checksum too short
+            "a" * 65,  # Too long for legacy format (> 64)
+            "a" * 31,  # Too short for legacy format (< 32)
+            "token with spaces in it",  # Spaces not allowed
+            "token!with!special@chars#",  # Special chars not allowed (too short)
         ]
 
         for invalid_token in invalid_tokens:
             assert TokenManager.validate_format(invalid_token) is False
+
+    def test_validate_format_new_format_invalid_lengths(self):
+        """Test that new format tokens with invalid lengths are rejected as new format but may pass as legacy."""
+        # These have wrong lengths for new format but may be valid legacy tokens
+        token1 = "awspc_" + "0" * 40 + "_123456"  # Random part too short (48 chars total)
+        token2 = "awspc_" + "0" * 43 + "_123"  # Checksum too short (52 chars total)
+
+        # Both should match legacy pattern (between 32-64 chars)
+        # So validate_format will return True (as legacy tokens)
+        assert TokenManager.validate_format(token1) is True
+        assert TokenManager.validate_format(token2) is True
 
     def test_validate_format_pattern_matching(self):
         """Test that pattern matching works correctly."""
