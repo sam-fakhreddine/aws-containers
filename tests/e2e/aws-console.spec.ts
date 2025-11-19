@@ -12,7 +12,7 @@ test.describe('AWS Console Integration', () => {
     await page.goto(awsConsoleUrl);
 
     // Verify navigation works
-    await expect(page).toHaveURL(/amazonaws\.com/);
+    await expect(page).toHaveURL(/^https:\/\/(?:[^\/]+\.)?amazonaws\.com/);
   });
 
   test('should support multiple AWS regions', async ({ page }) => {
