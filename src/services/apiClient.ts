@@ -180,11 +180,14 @@ async function fetchWithTimeout(
         if (token) {
             headers.set("X-API-Token", token);
         }
+        // Force connection close to prevent keep-alive accumulation
+        headers.set("Connection", "close");
 
         const response = await fetch(url, {
             ...options,
             headers,
             signal: controller.signal,
+            keepalive: false,
         });
         return response;
     } catch (error) {

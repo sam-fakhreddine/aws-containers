@@ -122,7 +122,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     const [openProfileError, setOpenProfileError] = useState<string | null>(null);
 
     /**
-     * Notify background page that popup mounted
+     * Notify background page that popup mounted and cleanup on unmount
      */
     useEffect(() => {
         browser.runtime.sendMessage({ popupMounted: true }).catch((err) => {
@@ -132,6 +132,11 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             }
         });
         loadProfiles();
+
+        // Cleanup on unmount
+        return () => {
+            browser.runtime.sendMessage({ popupUnmounted: true }).catch(() => {});
+        };
     }, [loadProfiles]);
 
     /**
