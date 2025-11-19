@@ -107,4 +107,4 @@ from aws_profile_bridge.utils.logger import get_logger
 
 ## Need Help?
 
-Check `REFACTORING_SUMMARY.md` for detailed changes or open an issue on GitHub.
+Open an issue on GitHub if you encounter any migration problems.

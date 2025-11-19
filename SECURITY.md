@@ -120,7 +120,7 @@ When we receive a security bug report, we will:
 
 - [Project Security Documentation](./docs/security/security-root.md)
 - [Privacy Policy](./docs/security/privacy.md)
-- [Security Best Practices](./docs/security/security-best-practices.md)
+- [Security Best Practices](./docs/security/best-practices.md)
 
 ## Bug Bounty Program
 
