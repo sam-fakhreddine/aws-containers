@@ -1,0 +1,48 @@
+[profile acme-corp-production]
+sso_start_url = https://acme-corp.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 123456789012
+sso_role_name = AdministratorAccess
+region = us-east-1
+
+[profile acme-corp-staging]
+sso_start_url = https://acme-corp.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 234567890123
+sso_role_name = PowerUserAccess
+region = us-west-2
+
+[profile acme-corp-development]
+sso_start_url = https://acme-corp.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 345678901234
+sso_role_name = DeveloperAccess
+region = eu-west-1
+
+[profile globex-production]
+sso_start_url = https://globex.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 456789012345
+sso_role_name = AdministratorAccess
+region = us-east-1
+
+[profile globex-development]
+sso_start_url = https://globex.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 567890123456
+sso_role_name = DeveloperAccess
+region = us-west-2
+
+[profile initech-production]
+sso_start_url = https://initech.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 678901234567
+sso_role_name = AdministratorAccess
+region = ap-southeast-1
+
+[profile initech-staging]
+sso_start_url = https://initech.awsapps.com/start
+sso_region = us-east-1
+sso_account_id = 789012345678
+sso_role_name = PowerUserAccess
+region = ap-southeast-2

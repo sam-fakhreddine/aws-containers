@@ -40,5 +40,16 @@
         "gecko": {
             "id": "aws-profile-containers@samfakhreddine.dev"
         }
+    },
+    "browser_action": {
+        "default_icon": {
+            "16": "icons/icon-16.png",
+            "32": "icons/icon-32.png",
+            "48": "icons/icon-48.png"
+        },
+        "default_title": "AWS Profile Containers"
+    },
+    "data_collection_permissions": {
+        "data_collection": false
     }
 }
