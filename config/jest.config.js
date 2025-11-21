@@ -94,7 +94,7 @@ module.exports = {
     // Automatically restore mock state between every test
     // restoreMocks: false,
     // The root directory that Jest should scan for tests and modules within
-    // rootDir: null,
+    rootDir: "../",
     // A list of paths to directories that Jest should use to search for files in
     roots: ["<rootDir>/src"],
     // Allows you to use a custom runner instead of Jest's default test runner
@@ -103,7 +103,7 @@ module.exports = {
     setupFiles: [],
 
     // A list of paths to modules that run some code to configure or set up the testing framework before each test
-    setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
+    setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
     // A list of paths to snapshot serializer modules Jest should use for snapshot testing
     // snapshotSerializers: [],
     // The test environment that will be used for testing
