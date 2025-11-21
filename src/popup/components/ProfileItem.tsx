@@ -8,12 +8,12 @@ import React, { FunctionComponent, memo } from "react";
 import Box from "@cloudscape-design/components/box";
 import Badge from "@cloudscape-design/components/badge";
 import Icon from "@cloudscape-design/components/icon";
-import { AWSProfile } from "../types";
+import { AWSProfile } from "@/types";
 import {
     MILLISECONDS_PER_MINUTE,
     MINUTES_PER_HOUR,
     MINUTES_PER_DAY,
-} from "../constants";
+} from "@/constants";
 
 interface ProfileItemProps {
     profile: AWSProfile;

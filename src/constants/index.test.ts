@@ -128,7 +128,7 @@ describe("AWS Regions", () => {
      * Test that AWS_REGIONS contains expected regions
      */
     it("should contain all configured AWS regions", () => {
-        expect(AWS_REGIONS).toHaveLength(10);
+        expect(AWS_REGIONS).toHaveLength(29);
     });
 
     /**
@@ -155,7 +155,7 @@ describe("AWS Regions", () => {
     it("should contain eu-west-1 region", () => {
         const euWest1 = AWS_REGIONS.find((r) => r.code === "eu-west-1");
         expect(euWest1).toBeDefined();
-        expect(euWest1?.name).toBe("EU (Ireland)");
+        expect(euWest1?.name).toBe("Europe (Ireland)");
     });
 
     it("should contain ap-southeast-1 region", () => {

@@ -4,7 +4,7 @@
  */
 
 import { parseOpenerParams } from "./parser";
-import { CUSTOM_PROTOCOL_PREFIX } from "../constants";
+import { CUSTOM_PROTOCOL_PREFIX } from "@/constants";
 
 describe("parseOpenerParams", () => {
     /**

@@ -1,14 +1,21 @@
 # Archive
 .archive/
 
-# JavaScript/TypeScript
+# WXT Build Output
+.output/
+.wxt/
 dist/
+
+# JavaScript/TypeScript
 node_modules/
 npm-debug.log
 yarn-error.log
-.vscode/
 storybook-static/
+
+# Extension Artifacts
 web-ext-artifacts/
+*.xpi
+*.zip
 
 # Python
 __pycache__/
@@ -72,3 +79,6 @@ bundle-report.html
 
 # Logs
 *.log
+
+# Temporary investigation files
+INVESTIGATE_TEST_FAILURES.md

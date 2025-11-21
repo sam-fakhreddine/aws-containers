@@ -1,7 +1,7 @@
 import { prepareContainer } from "./containers";
 import { parseOpenerParams } from "./parser";
 import { newTab } from "./tabs";
-import { Container } from "../types";
+import { Container } from "@/types";
 
 /**
  * Sanitizes an error for display to the user

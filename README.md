@@ -42,7 +42,7 @@ yarn build
 **Load Extension in Firefox:**
 1. Open `about:debugging#/runtime/this-firefox`
 2. Click "Load Temporary Add-on"
-3. Select `dist/manifest.json`
+3. Select `.output/firefox-mv2/manifest.json`
 
 📖 **[Complete Installation Guide](docs/getting-started/install-root.md)**
 
@@ -77,6 +77,30 @@ yarn build
 - 📚 [Extension API](docs/api/extension-api.md) - API reference
 - 📚 [Token Authentication](docs/TOKEN_AUTHENTICATION.md) - Token system details
 - 📚 [Full Documentation Index](docs/index.md) - All documentation
+
+## Build System
+
+This extension is built using the **WXT Framework** - a modern, Vite-powered framework for building web extensions:
+
+- ⚡ **Fast builds** with Vite and esbuild
+- 🔥 **Hot Module Replacement** during development
+- 📦 **Optimized production builds** with automatic code splitting
+- 🎯 **TypeScript-first** with excellent type safety
+- 🔧 **Simple configuration** with sensible defaults
+
+### Development vs Production
+
+```bash
+# Development build (with HMR)
+yarn dev
+
+# Production build (optimized)
+yarn build
+```
+
+Development builds output to `.output/` and include source maps. Production builds are minified and optimized for distribution.
+
+📖 **[Complete Build Documentation](docs/development/building.md)**
 
 ## How It Works
 

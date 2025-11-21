@@ -69,6 +69,7 @@ module.exports = {
     moduleFileExtensions: ["js", "json", "jsx", "ts", "tsx", "node"],
     // A map from regular expressions to module names that allow to stub out resources with a single module
     moduleNameMapper: {
+        "@/(.*)": "<rootDir>/src/$1",
         "@src/(.*)": "<rootDir>/src/$1",
         "\\.(css|less|scss|sss|styl)$":
             "<rootDir>/node_modules/jest-css-modules",
@@ -103,7 +104,7 @@ module.exports = {
     setupFiles: [],
 
     // A list of paths to modules that run some code to configure or set up the testing framework before each test
-    setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
+    setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
     // A list of paths to snapshot serializer modules Jest should use for snapshot testing
     // snapshotSerializers: [],
     // The test environment that will be used for testing

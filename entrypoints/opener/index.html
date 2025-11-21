@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>Opening AWS Containers</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <style>
+        @import url("https://fonts.googleapis.com/css?family=Rubik&display=swap");
+        
+        body {
+            background-color: #EEEDF4;
+            font-family: "Rubik", sans-serif;
+            color: #151617;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        #internalErrorContainer .title {
+            font-family: "Rubik", sans-serif;
+            font-weight: 300;
+            font-style: normal;
+            color: #151617;
+        }
+        
+        .title h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        #internalErrorBody {
+            font-weight: bold;
+            display: block;
+            overflow: auto;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        
+        .description {
+            line-height: 1.6;
+        }
+        
+        .description p {
+            margin: 10px 0;
+        }
+        
+        .description a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        
+        .description a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div id="errorPageContainer" class="container">
+        <div id="text-container">
+            <!-- Internal error -->
+            <div id="internalErrorContainer" class="hidden">
+                <div class="title">
+                    <h1 class="title-text">AWS Containers Error</h1>
+                </div>
+
+                <div class="description">
+                    <div>
+                        <p>We are unable to open the URL you requested.</p>
+                        <p>This could be due to an internal problem or some mistakes in your link. Please check the correctness of your link and try again.</p>
+                        <p>Below you can see some error details:</p>
+                        <p id="internalErrorBody"></p>
+                    </div>
+                </div>
+            </div>
+            <!-- / Internal error -->
+        </div>
+    </div>
+    <script type="module" src="./main.ts"></script>
+</body>
+</html>

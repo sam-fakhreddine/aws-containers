@@ -3,13 +3,13 @@
  * Uses centralized container management utilities
  */
 
-import { Container } from "../types";
+import { Container } from "@/types";
 import {
     prepareContainer as prepareContainerUtil,
     CONTAINER_COLORS,
     DEFAULT_ICON,
     colorFromContainerName,
-} from "../utils/containerManager";
+} from "@/utils/containerManager";
 
 // Re-export utilities for backwards compatibility
 export { colorFromContainerName, CONTAINER_COLORS, DEFAULT_ICON };

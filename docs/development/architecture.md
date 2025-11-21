@@ -9,27 +9,38 @@ Technical architecture overview of AWS Profile Containers.
 │           Firefox Browser                    │
 │  ┌───────────────────────────────────────┐  │
 │  │     AWS Profile Containers Extension │  │
+│  │         (Built with WXT)             │  │
 │  │                                       │  │
 │  │  ┌─────────────┐   ┌──────────────┐  │  │
 │  │  │   Popup UI  │   │  Background  │  │  │
-│  │  │  (React)    │   │    Page      │  │  │
+│  │  │  (React)    │   │    Script    │  │  │
 │  │  └──────┬──────┘   └──────┬───────┘  │  │
 │  │         │                 │          │  │
 │  │         └─────────┬───────┘          │  │
+│  │                   │                  │  │
+│  │         ┌─────────▼────────┐         │  │
+│  │         │   API Client     │         │  │
+│  │         │  (HTTP/fetch)    │         │  │
+│  │         └─────────┬────────┘         │  │
 │  │                   │                  │  │
 │  │         ┌─────────▼────────┐         │  │
 │  │         │ Container        │         │  │
 │  │         │ Management       │         │  │
 │  │         └─────────┬────────┘         │  │
 │  └───────────────────┼──────────────────┘  │
-│                      │ Native Messaging    │
+│                      │ HTTP (localhost)    │
 └──────────────────────┼─────────────────────┘
                        │
          ┌─────────────▼──────────────┐
-         │  Native Messaging Host     │
-         │  (Python/Standalone Binary)│
+         │  HTTP API Server           │
+         │  (Python/FastAPI)          │
+         │  localhost:10999           │
          │                            │
          │  ┌──────────────────────┐  │
+         │  │ Token Auth           │  │
+         │  └──────────┬───────────┘  │
+         │             │              │
+         │  ┌──────────▼───────────┐  │
          │  │ Profile Aggregator   │  │
          │  └──────────┬───────────┘  │
          │             │              │
@@ -58,13 +69,43 @@ Technical architecture overview of AWS Profile Containers.
 
 ## Extension Components
 
-### Popup UI (`src/popup/`)
+### Build System
 
-**Technology:** React + TypeScript
+**Framework:** WXT (Vite-based)
+
+**Configuration:** `wxt.config.ts`
+
+**Benefits:**
+- ⚡ Fast builds with Vite and esbuild
+- 🔥 Hot Module Replacement during development
+- 📦 Optimized production builds
+- 🎯 TypeScript-first with excellent type safety
+
+**Directory Structure:**
+```
+entrypoints/          # Extension pages (WXT convention)
+├── background.ts     # Background script
+├── popup/           # Popup UI
+├── options/         # Settings page
+└── opener/          # AWS Console opener
+
+src/                 # Shared code
+├── components/      # React components
+├── hooks/          # Custom hooks
+├── services/       # API client, utilities
+├── utils/          # Helper functions
+└── types/          # TypeScript definitions
+```
+
+### Popup UI (`entrypoints/popup/`)
+
+**Technology:** React + TypeScript + Cloudscape Design System
 
 **Files:**
-- `index.tsx` - Entry point
-- `awsProfiles.tsx` - Main UI component
+- `main.tsx` - Entry point (WXT convention)
+- `index.html` - HTML template
+- `src/popup/awsProfiles.tsx` - Main UI component
+- `src/components/` - Reusable components
 
 **Responsibilities:**
 - Render profile list
@@ -72,26 +113,47 @@ Technical architecture overview of AWS Profile Containers.
 - Display favorites/recent/all profiles
 - Search and filter
 - Region selection
-- Communicate with background page
+- Communicate with API server via HTTP
 
 **State Management:**
 - Local React state for UI
 - Browser storage for persistence (favorites, recent, region)
+- Custom hooks for data fetching
 
-### Background Page (`src/backgroundPage.ts`)
+### Background Script (`entrypoints/background.ts`)
 
-**Technology:** TypeScript
+**Technology:** TypeScript (wrapped in WXT's `defineBackground()`)
 
 **Responsibilities:**
-- Native messaging communication
-- Message routing between popup and native host
+- Message routing between popup and API server
 - Error handling
 - Lifecycle management
+- Extension initialization
 
 **APIs Used:**
-- `browser.runtime.connectNative()` - Connect to native host
-- `browser.runtime.sendNativeMessage()` - Send messages
-- `browser.runtime.onMessage` - Receive from popup
+- `browser.runtime.onMessage` - Receive messages from popup
+- `browser.storage.local` - Persistent storage
+- `fetch()` - HTTP requests to API server
+
+### API Client (`src/services/apiClient.ts`)
+
+**Technology:** TypeScript with fetch API
+
+**Responsibilities:**
+- HTTP communication with API server (localhost:10999)
+- Token-based authentication
+- Request/response handling
+- Error handling and retries
+
+**Endpoints:**
+- `GET /health` - Health check
+- `GET /profiles` - List AWS profiles
+- `POST /console-url` - Generate AWS Console URL
+
+**Authentication:**
+- Token stored in browser local storage
+- Token sent in `X-Auth-Token` header
+- Token generated on first API server start
 
 ### Container Management (`src/opener/`)
 
@@ -111,15 +173,21 @@ Technical architecture overview of AWS Profile Containers.
 - `browser.contextualIdentities.*` - Container operations
 - `browser.tabs.*` - Tab management
 
-## Native Messaging Host
+## HTTP API Server
 
 ### Architecture
 
-**Implementation:** Python (source) or Standalone executable (PyInstaller)
+**Implementation:** Python with FastAPI
 
 **Location:**
 - **Source:** `api-server/src/aws_profile_bridge/`
-- **Installed:** `~/.local/bin/aws_profile_bridge`
+- **Running:** HTTP server on `localhost:10999`
+
+**Management:**
+- Start: `./scripts/manage.sh start`
+- Stop: `./scripts/manage.sh stop`
+- Status: `./scripts/manage.sh status`
+- Logs: `./scripts/manage.sh logs`
 
 ### Modules
 
@@ -228,19 +296,21 @@ Patterns:
 ```
 1. User clicks extension icon
    ↓
-2. Popup sends getProfiles message to background
+2. Popup calls API client
    ↓
-3. Background sends to native host via native messaging
+3. API client sends HTTP GET to localhost:10999/profiles
+   - Includes X-Auth-Token header
    ↓
-4. Native host:
+4. API server:
+   - Validates token
    - Reads ~/.aws/credentials (credential profiles)
    - Reads ~/.aws/config (SSO profiles)
    - Checks SSO token cache
    - Enriches with metadata (colors, icons, expiration)
    ↓
-5. Native host returns JSON array of profiles
+5. API server returns JSON array of profiles
    ↓
-6. Background forwards to popup
+6. API client returns to popup
    ↓
 7. Popup renders profile list
 ```
@@ -250,20 +320,23 @@ Patterns:
 ```
 1. User clicks profile in popup
    ↓
-2. Popup sends openProfile message with:
+2. Popup calls API client with:
    - profile name
    - region
    ↓
-3. Background sends to native host
+3. API client sends HTTP POST to localhost:10999/console-url
+   - Includes X-Auth-Token header
+   - Body: {"profile": "...", "region": "..."}
    ↓
-4. Native host:
+4. API server:
+   - Validates token
    - Reads credentials for profile
    - Calls AWS Federation API
    - Generates console URL
    ↓
-5. Native host returns console URL
+5. API server returns console URL
    ↓
-6. Background forwards to popup
+6. API client returns to popup
    ↓
 7. Popup:
    - Creates/finds container
@@ -311,11 +384,17 @@ Used in extension:
 ### Trust Boundaries
 
 ```
-Extension ←(native messaging)→ Native Host ←(HTTPS)→ AWS
-    ↓                              ↓
-Local Storage              Local Filesystem
-(metadata only)            (credentials)
+Extension ←(HTTP/localhost)→ API Server ←(HTTPS)→ AWS
+    ↓                            ↓
+Local Storage            Local Filesystem
+(metadata + token)       (credentials)
 ```
+
+**Token Authentication:**
+- Token generated on API server first start
+- Stored in `~/.aws-profile-bridge/token`
+- Extension reads token and includes in requests
+- Server validates token on each request
 
 ### Attack Surface
 
@@ -350,58 +429,119 @@ Local Storage              Local Filesystem
 
 ### Extension Build
 
-**Tool:** Webpack
+**Framework:** WXT (Vite-based)
+
+**Configuration:** `wxt.config.ts`
 
 **Entry points:**
-- `src/popup/index.tsx` → `dist/popup.js`
-- `src/backgroundPage.ts` → `dist/backgroundPage.js`
-- `src/opener/index.ts` → `dist/opener.js`
+- `entrypoints/popup/main.tsx` → `.output/firefox-mv2/popup.js`
+- `entrypoints/background.ts` → `.output/firefox-mv2/background.js`
+- `entrypoints/options/main.tsx` → `.output/firefox-mv2/options.js`
+- `entrypoints/opener/main.ts` → `.output/firefox-mv2/opener.js`
 
-**Loaders:**
-- TypeScript (`ts-loader`)
-- SCSS (`sass-loader`, `css-loader`, `style-loader`)
+**Build Process:**
+1. TypeScript compilation with type checking
+2. React JSX transformation
+3. SCSS compilation to CSS
+4. Asset optimization and copying
+5. Code minification and tree-shaking
+6. Manifest generation for Firefox Manifest V2
 
 **Output:**
-- `dist/` directory
-- Bundled JavaScript
+- `.output/firefox-mv2/` directory
+- Optimized JavaScript bundles
 - Compiled CSS
-- Manifest and static assets
+- Generated manifest.json
+- Static assets (icons, images)
 
-### Native Host Build
+**Commands:**
+```bash
+# Development (with HMR)
+yarn dev
 
-**Tool:** PyInstaller
+# Production build
+yarn build
+```
 
-**Input:** Python source in `api-server/src/`
+**Performance:**
+- 3-5x faster than Webpack
+- Hot Module Replacement in development
+- Optimized code splitting
+- Tree-shaking for smaller bundles
 
-**Output:** Standalone executable
-- Linux: `bin/linux/aws_profile_bridge`
-- macOS Intel: `bin/darwin-x86_64/aws_profile_bridge`
-- macOS ARM64: `bin/darwin-arm64/aws_profile_bridge`
+### API Server
 
-**Includes:**
-- Python runtime
-- boto3, botocore
-- All dependencies
-- ~15-20MB
+**Framework:** Python with FastAPI
+
+**Installation:**
+```bash
+# Using management script
+./scripts/manage.sh install
+
+# Manual with uv
+cd api-server && uv pip install -e .
+```
+
+**Running:**
+```bash
+# Start server
+./scripts/manage.sh start
+
+# Or manually
+python -m aws_profile_bridge.cli server start
+```
+
+**Configuration:**
+- Binds to `localhost:10999`
+- Token-based authentication
+- Automatic token generation
+- Logging to `~/.aws-profile-bridge/logs/`
 
 ## Testing Architecture
 
 ### Extension Tests
 
-**Framework:** Jest + React Testing Library
+**Framework:** Jest + React Testing Library + fast-check
+
+**Test Types:**
+1. **Unit Tests** - Component and function tests
+2. **Property-Based Tests** - Verify correctness properties across many inputs
+3. **Integration Tests** - API communication tests
 
 **Coverage:**
 - Component rendering
 - User interactions
 - State management
-- Native messaging mocks
+- API client communication
+- Container management
 
 **Files:**
 - `*.test.tsx` - Component tests
 - `*.test.ts` - Unit tests
+- `*.pbt.test.ts` - Property-based tests
 - `__mocks__/` - Mock implementations
 
-### Native Host Tests
+**Property-Based Tests:**
+- Build output equivalence
+- Manifest permission preservation
+- API communication preservation
+- Path alias resolution
+- Performance optimizations
+- CSS property removal
+
+**Commands:**
+```bash
+# Run all tests
+yarn test
+
+# Run with coverage
+yarn test:coverage
+
+# Run property-based tests
+yarn test src/__tests__/*.pbt.test.ts
+```
+
+### API Server Tests
 
 **Framework:** pytest
 
@@ -410,52 +550,90 @@ Local Storage              Local Filesystem
 - SSO management
 - Credential provider
 - URL generation
-- Native messaging protocol
+- HTTP API endpoints
+- Token authentication
 
 **Files:**
 - `tests/test_*.py` - Unit tests
 - Mocked file I/O
 - Mocked AWS API calls
-- 75%+ coverage
+- 90%+ coverage
+
+**Commands:**
+```bash
+cd api-server
+
+# Run tests
+pytest
+
+# Run with coverage
+pytest --cov
+```
 
 ## Deployment Architecture
 
 ### Distribution
 
 **Extension:**
-- Built locally by user
-- Loaded as temporary add-on
+- Built locally by user with WXT
+- Loaded as temporary add-on from `.output/firefox-mv2/`
 - Or signed and distributed as `.xpi`
 
-**Native Host:**
-- Pre-built executables in GitHub Releases
-- Or built locally with `build-native-host.sh`
-- Installed to `~/.local/bin/`
+**API Server:**
+- Installed via management script
+- Runs as background service
+- Python-based, no compilation needed
 
 ### Installation
 
-**Script:** `install.sh`
+**Quick Install:**
+```bash
+# Clone repository
+git clone https://github.com/sam-fakhreddine/aws-containers.git
+cd aws-containers
 
-**Steps:**
-1. Detect platform
-2. Find or use existing executable/script
-3. Copy to `~/.local/bin/`
-4. Create native messaging manifest
-5. Build extension (if needed)
+# Install API server
+./scripts/manage.sh install
+
+# Build extension
+yarn install
+yarn build
+
+# Load in Firefox
+# about:debugging → Load Temporary Add-on → .output/firefox-mv2/manifest.json
+```
+
+**Management Script:** `./scripts/manage.sh`
+
+**Commands:**
+- `install` - Install and start API server
+- `start` - Start API server
+- `stop` - Stop API server
+- `status` - Check server status
+- `logs` - View server logs
+- `restart` - Restart server
 
 ### Updates
 
-**Manual update:**
+**Extension update:**
 ```bash
 git pull
-npm run build
-# Reload extension in Firefox
+yarn install
+yarn build
+# Reload extension in Firefox (about:debugging)
+```
+
+**API server update:**
+```bash
+git pull
+./scripts/manage.sh restart
 ```
 
 **Future:** Automatic updates via AMO (addons.mozilla.org)
 
 ## Further Reading
 
-- [Contributing Guide](contributing.md)
-- [Building from Source](building.md)
-- [Testing Guide](testing.md)
+- [WXT Migration Guide](WXT_MIGRATION.md) - Details on Webpack to WXT migration
+- [Building from Source](building.md) - Build instructions and configuration
+- [Contributing Guide](contributing.md) - How to contribute
+- [Testing Guide](testing.md) - Testing strategy and guidelines

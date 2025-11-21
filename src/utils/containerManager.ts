@@ -6,8 +6,8 @@
  */
 
 import browser, { type ContextualIdentities } from "webextension-polyfill";
-import { STORAGE_KEYS } from "../popup/constants";
-import { isStringArray } from "../popup/types";
+import { STORAGE_KEYS } from "@/constants";
+import { isStringArray } from "@/types";
 
 /**
  * Container color options available in Firefox

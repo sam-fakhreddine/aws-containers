@@ -28,7 +28,7 @@ import {
     useRegion,
     useTheme,
     useEnabledRegions,
-} from "./hooks";
+} from "@/hooks";
 
 // Internal - components
 import {
@@ -38,13 +38,13 @@ import {
     LoadingState,
     ErrorState,
     ThemeSelector,
-} from "./components";
+} from "@/components";
 
 // Internal - services
-import * as apiClient from "../services/apiClient";
+import * as apiClient from "@/services/apiClient";
 
 // Internal - utils
-import { prepareContainer, clearAllContainers } from "../utils/containerManager";
+import { prepareContainer, clearAllContainers } from "@/utils/containerManager";
 
 // Types
 import { AWSProfile } from "./types";
@@ -120,6 +120,11 @@ export const AWSProfilesPopup: FunctionComponent = () => {
      */
     const organizations = useMemo(() => {
         const orgs = new Map<string, { name: string; profiles: AWSProfile[] }>();
+
+        // Guard against undefined profiles
+        if (!profiles || !Array.isArray(profiles)) {
+            return orgs;
+        }
 
         // Credentials group (from ~/.aws/credentials)
         const credentialProfiles = profiles.filter((p) => !p.is_sso);

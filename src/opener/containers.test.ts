@@ -4,8 +4,8 @@
  */
 
 import { colorFromContainerName, prepareContainer } from "./containers";
-import { Container } from "../types";
-import { CONTAINER_COLORS } from "../constants";
+import { Container } from "@/types";
+import { CONTAINER_COLORS } from "@/constants";
 import browser from "webextension-polyfill";
 
 // Mock the webextension-polyfill

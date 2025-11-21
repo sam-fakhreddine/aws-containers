@@ -1,5 +1,5 @@
-import { Container } from "../types";
-import { CONTAINER_COLORS, CONTAINER_ICONS, CUSTOM_PROTOCOL_PREFIX } from "../constants";
+import { Container } from "@/types";
+import { CONTAINER_COLORS, CONTAINER_ICONS, CUSTOM_PROTOCOL_PREFIX } from "@/constants";
 
 /**
  * Parses opener parameters from a location hash

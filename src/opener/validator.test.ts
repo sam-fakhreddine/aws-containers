@@ -14,7 +14,7 @@ import {
     oneOfOrEmpty,
     atLeastOneRequired,
 } from "./validator";
-import { OpenerParamsSchema } from "../types";
+import { OpenerParamsSchema } from "@/types";
 
 describe("url validator", () => {
     /**

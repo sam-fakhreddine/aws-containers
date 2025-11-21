@@ -1,4 +1,4 @@
-import { AWSProfile } from "../types";
+import { AWSProfile } from "@/types";
 
 /**
  * Sorts AWS profiles based on credential status and name.

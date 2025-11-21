@@ -3,7 +3,7 @@
  * Provides functions for validating and sanitizing URL search parameters
  */
 
-import { OpenerParamsSchema, ParameterValidator, GlobalValidator } from "../types";
+import { OpenerParamsSchema, ParameterValidator, GlobalValidator } from "@/types";
 
 /**
  * Checks if a value is empty (null, undefined, or empty string)

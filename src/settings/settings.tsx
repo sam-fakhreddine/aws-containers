@@ -13,11 +13,11 @@ import Input from "@cloudscape-design/components/input";
 import SpaceBetween from "@cloudscape-design/components/space-between";
 
 // Internal - services
-import * as apiClient from "../services/apiClient";
-import { browser } from "../services/browserUtils";
+import * as apiClient from "@/services/apiClient";
+import { browser } from "@/services/browserUtils";
 
 // Constants
-import { STORAGE_KEYS } from "../popup/constants";
+import { STORAGE_KEYS } from "@/constants";
 
 export const Settings: React.FC = () => {
     const [token, setToken] = useState("");

@@ -9,7 +9,7 @@ import { screen, waitFor, fireEvent } from "@testing-library/dom";
 import "@testing-library/jest-dom";
 import browser from "webextension-polyfill";
 import { AWSProfilesPopup } from "./awsProfiles";
-import { prepareContainer } from "../utils/containerManager";
+import { prepareContainer } from "@/utils/containerManager";
 
 // Mock the webextension-polyfill
 jest.mock("webextension-polyfill", () => ({

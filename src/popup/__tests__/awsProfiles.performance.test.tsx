@@ -8,12 +8,12 @@
 import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AWSProfilesPopup } from '../awsProfiles';
+import { AWSProfilesPopup } from '@/popup/awsProfiles';
 import {
     waitFor as waitForMs,
     createMockProfiles,
     RenderCounter,
-} from '../../__testUtils__/performanceHelpers';
+} from '@/__testUtils__/performanceHelpers';
 
 // Mock browser APIs
 (global as any).browser = {

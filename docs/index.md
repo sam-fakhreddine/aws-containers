@@ -44,6 +44,7 @@ This project evolved from custom CLI scripts and Firefox extensions, unified int
 
 ### Development
 - [Architecture](development/architecture.md) - How the extension works
+- [WXT Migration Guide](development/WXT_MIGRATION.md) - Webpack to WXT migration details
 - [Contributing](development/contributing.md) - How to contribute
 - [Building from Source](development/building.md) - Build instructions
 - [Testing](development/testing.md) - Running tests
@@ -106,6 +107,7 @@ security/best-practices
 :caption: Development
 
 development/architecture
+development/WXT_MIGRATION
 development/contributing
 development/building
 development/testing

@@ -4,12 +4,12 @@
  */
 
 // Internal imports
-import { ProfileListResponse, ConsoleUrlResponse } from "../popup/types";
+import { ProfileListResponse, ConsoleUrlResponse } from "@/types";
 import {
     STORAGE_KEYS,
     API_TOKEN_PATTERN,
     API_TOKEN_PATTERN_LEGACY,
-} from "../popup/constants";
+} from "@/constants";
 import { API_BASE_URL, REQUEST_TIMEOUT_MS, HEALTH_CHECK_TIMEOUT_MS } from "./config";
 import { browser } from "./browserUtils";
 
