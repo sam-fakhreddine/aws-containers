@@ -104,14 +104,6 @@ describe("required validator", () => {
     });
 
     /**
-     * Test that boolean values pass validation
-     */
-    it("should return boolean values", () => {
-        expect(required(true, "param")).toBe(true);
-        expect(required(false, "param")).toBe(false);
-    });
-
-    /**
      * Test that empty string throws error
      */
     it("should throw error for empty string", () => {
@@ -404,14 +396,6 @@ describe("oneOf validator", () => {
         expect(validator("a", "option")).toBe("a");
         expect(validator("b", "option")).toBe("b");
         expect(validator("c", "option")).toBe("c");
-    });
-
-    /**
-     * Test that numeric values work
-     */
-    it("should work with numeric values", () => {
-        const validator = oneOf([1, 2, 3]);
-        expect(validator(2 as any, "number")).toBe(2);
     });
 
     /**

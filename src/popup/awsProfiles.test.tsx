@@ -13,6 +13,32 @@ import { prepareContainer } from "../utils/containerManager";
 
 // Mock the webextension-polyfill
 jest.mock("webextension-polyfill", () => ({
+    default: {
+        runtime: {
+            sendMessage: jest.fn(),
+            connectNative: jest.fn(),
+            lastError: null,
+        },
+        contextualIdentities: {
+            query: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            remove: jest.fn(),
+        },
+        storage: {
+            local: {
+                get: jest.fn(),
+                set: jest.fn(),
+            },
+            onChanged: {
+                addListener: jest.fn(),
+                removeListener: jest.fn(),
+            },
+        },
+        tabs: {
+            create: jest.fn(),
+        },
+    },
     runtime: {
         sendMessage: jest.fn(),
         connectNative: jest.fn(),
@@ -28,6 +54,10 @@ jest.mock("webextension-polyfill", () => ({
         local: {
             get: jest.fn(),
             set: jest.fn(),
+        },
+        onChanged: {
+            addListener: jest.fn(),
+            removeListener: jest.fn(),
         },
     },
     tabs: {

@@ -29,6 +29,8 @@ export const STORAGE_KEYS = {
     FAVORITES: "favorites",
     RECENT_PROFILES: "recentProfiles",
     SELECTED_REGION: "selectedRegion",
+    ENABLED_REGIONS: "enabledRegions",
+    SEPARATE_REGIONS_IN_CONTAINERS: "separateRegionsInContainers",
     CACHED_PROFILES: "cachedProfiles",
     PROFILES_CACHE_TIME: "profilesCacheTime",
     CONTAINERS: "containers",
@@ -47,3 +49,44 @@ export const API_TOKEN_PATTERN = /^awspc_[A-Za-z0-9]{43}_[A-Za-z0-9]{6}$/;
 export const API_TOKEN_PATTERN_LEGACY = /^[A-Za-z0-9_-]{32,64}$/;
 export const API_TOKEN_MIN_LENGTH = 32; // Legacy minimum
 export const API_TOKEN_MAX_LENGTH = 64; // Legacy maximum
+
+// AWS Regions
+export const AWS_REGIONS = [
+    // US Regions
+    { code: "us-east-1", name: "US East (N. Virginia)" },
+    { code: "us-east-2", name: "US East (Ohio)" },
+    { code: "us-west-1", name: "US West (N. California)" },
+    { code: "us-west-2", name: "US West (Oregon)" },
+    // Canada
+    { code: "ca-central-1", name: "Canada (Central)" },
+    { code: "ca-west-1", name: "Canada (Calgary)" },
+    // South America
+    { code: "sa-east-1", name: "South America (São Paulo)" },
+    // Europe
+    { code: "eu-central-1", name: "Europe (Frankfurt)" },
+    { code: "eu-central-2", name: "Europe (Zurich)" },
+    { code: "eu-west-1", name: "Europe (Ireland)" },
+    { code: "eu-west-2", name: "Europe (London)" },
+    { code: "eu-west-3", name: "Europe (Paris)" },
+    { code: "eu-south-1", name: "Europe (Milan)" },
+    { code: "eu-south-2", name: "Europe (Spain)" },
+    { code: "eu-north-1", name: "Europe (Stockholm)" },
+    // Asia Pacific
+    { code: "ap-east-1", name: "Asia Pacific (Hong Kong)" },
+    { code: "ap-south-1", name: "Asia Pacific (Mumbai)" },
+    { code: "ap-south-2", name: "Asia Pacific (Hyderabad)" },
+    { code: "ap-southeast-1", name: "Asia Pacific (Singapore)" },
+    { code: "ap-southeast-2", name: "Asia Pacific (Sydney)" },
+    { code: "ap-southeast-3", name: "Asia Pacific (Jakarta)" },
+    { code: "ap-southeast-4", name: "Asia Pacific (Melbourne)" },
+    { code: "ap-northeast-1", name: "Asia Pacific (Tokyo)" },
+    { code: "ap-northeast-2", name: "Asia Pacific (Seoul)" },
+    { code: "ap-northeast-3", name: "Asia Pacific (Osaka)" },
+    // Middle East
+    { code: "me-south-1", name: "Middle East (Bahrain)" },
+    { code: "me-central-1", name: "Middle East (UAE)" },
+    // Africa
+    { code: "af-south-1", name: "Africa (Cape Town)" },
+    // Israel
+    { code: "il-central-1", name: "Israel (Tel Aviv)" },
+] as const;

@@ -20,30 +20,22 @@ Common issues and solutions for AWS Profile Containers.
 
    Should return: `{"status":"healthy","version":"2.0.0",...}`
 
-2. **Start the API server:**
+2. **Check service status:**
 
    ```bash
-   # Linux
-   systemctl --user start aws-profile-bridge
-
-   # macOS
-   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.plist
+   ./scripts/manage.sh status
    ```
 
-3. **Check API server status:**
+3. **Start the API server:**
 
    ```bash
-   # Linux
-   systemctl --user status aws-profile-bridge
-
-   # macOS
-   launchctl list | grep aws-profile-bridge
+   ./scripts/manage.sh start
    ```
 
 4. **View API server logs:**
 
    ```bash
-   tail -f ~/.aws/logs/aws_profile_bridge_api.log
+   ./scripts/manage.sh logs
    ```
 
 5. **Verify API token is configured:**
@@ -56,7 +48,7 @@ Common issues and solutions for AWS Profile Containers.
 
    ```bash
    cd /path/to/aws-containers
-   ./scripts/install-api-service.sh
+   ./scripts/manage.sh install
    ```
 
 ### Port Already in Use
@@ -73,9 +65,7 @@ lsof -i :10999
 kill -9 <PID>
 
 # Restart API server
-systemctl --user restart aws-profile-bridge  # Linux
-launchctl bootout gui/$(id -u)/com.aws.profile-bridge && \
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.plist  # macOS
+./scripts/manage.sh restart
 ```
 
 ### Python Version Too Old
@@ -124,7 +114,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
 
    ```bash
    # Reinstall to generate new token
-   ./scripts/install-api-service.sh
+   ./scripts/manage.sh install
    ```
 
 ## Profile Issues
@@ -179,16 +169,16 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aws.profile-bridge.p
    grep -A 3 "\[profile-name\]" ~/.aws/credentials
    ```
 
-3. **Check API server is running:**
+3. **Check API server status:**
 
    ```bash
-   curl http://localhost:10999/health
+   ./scripts/manage.sh status
    ```
 
 4. **Check API server logs:**
 
    ```bash
-   tail -f ~/.aws/logs/aws_profile_bridge_api.log
+   ./scripts/manage.sh logs
    ```
 
 5. **Check network connectivity:**
@@ -467,7 +457,7 @@ For detailed troubleshooting:
 3. **API server logs:**
 
    ```bash
-   tail -f ~/.aws/logs/aws_profile_bridge_api.log
+   ./scripts/manage.sh logs
    ```
 
 4. **Test API server:**
@@ -569,11 +559,12 @@ For feature requests:
 
 ### Q: How do I update the extension?
 
-**A:** Rebuild and reload:
+**A:** Update and rebuild:
 
 ```bash
 git pull
-npm run build
+./scripts/manage.sh restart  # Update API server
+yarn build                    # Rebuild extension
 # In Firefox: about:debugging → Reload extension
 ```
 

@@ -145,6 +145,7 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                         onProfileClick(profile);
                     }
                 }}
+                className="profile-item"
                 style={{
                     display: "flex",
                     alignItems: "center",
@@ -152,15 +153,8 @@ const ProfileItemComponent: FunctionComponent<ProfileItemProps> = ({
                     cursor: "pointer",
                     padding: "4px 6px",
                     borderRadius: "6px",
-                    transition: "background-color 0.15s ease, transform 0.1s ease",
+                    transition: "background-color 0.15s ease",
                     border: !profile.has_credentials ? "2px solid #d13212" : "2px solid transparent",
-                    willChange: "background-color, transform",
-                }}
-                onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#f2f3f3";
-                }}
-                onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "transparent";
                 }}
             >
                 <div className="menu-icon hover-highlight">

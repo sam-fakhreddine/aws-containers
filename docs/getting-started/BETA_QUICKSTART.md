@@ -26,7 +26,7 @@ cd aws-containers
 ### Step 2: Install API Server
 
 ```bash
-./scripts/install-api-service.sh
+./scripts/manage.sh install
 ```
 
 This installs:

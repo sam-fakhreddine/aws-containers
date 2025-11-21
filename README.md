@@ -32,7 +32,7 @@ git clone https://github.com/sam-fakhreddine/aws-containers.git
 cd aws-containers
 
 # Install and start the API server
-./scripts/install-api-service.sh
+./scripts/manage.sh install
 
 # Build the extension
 yarn install
@@ -108,8 +108,8 @@ Firefox Extension  →  API Server (localhost:10999)  →  ~/.aws/credentials
 Having issues? Check these resources:
 
 1. 📖 [Troubleshooting Guide](docs/user-guide/troubleshooting.md)
-2. 🔍 Verify API server: `curl http://localhost:10999/health`
-3. 📋 Check logs: `tail -f ~/.aws/logs/aws_profile_bridge_api.log`
+2. 🔍 Check service status: `./scripts/manage.sh status`
+3. 📋 View logs: `./scripts/manage.sh logs`
 4. 🐛 [Report an issue](https://github.com/sam-fakhreddine/aws-containers/issues)
 
 📖 **[Complete Support Guide](SUPPORT.md)**

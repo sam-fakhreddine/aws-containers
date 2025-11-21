@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from .api import health, profiles
+from .api import health, profiles, regions
 from .auth.authenticator import Authenticator
 from .auth.rate_limiter import RateLimiter
 from .auth.token_manager import TokenManager
@@ -69,6 +69,7 @@ async def lifespan(app: FastAPI):
 
     authenticator = Authenticator(token_manager, rate_limiter)
     profiles.set_authenticator(authenticator)
+    regions.set_authenticator(authenticator)
 
     # Setup graceful shutdown
     loop = asyncio.get_running_loop()
@@ -104,6 +105,7 @@ def create_app() -> FastAPI:
     # Register routes
     app.include_router(health.router)
     app.include_router(profiles.router)
+    app.include_router(regions.router)
 
     return app
 

@@ -25,6 +25,13 @@ export class ApiClientError extends Error {
 
 let cachedToken: string | null = null;
 
+// Invalidate cache when token changes in storage
+browser.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === "local" && changes[STORAGE_KEYS.API_TOKEN]) {
+        cachedToken = null;
+    }
+});
+
 /**
  * Calculate CRC32 checksum for a string
  * @param data - String to calculate checksum for
@@ -130,7 +137,9 @@ export async function getApiToken(): Promise<string | null> {
     
     const result = await browser.storage.local.get(STORAGE_KEYS.API_TOKEN);
     const token = result[STORAGE_KEYS.API_TOKEN];
-    cachedToken = typeof token === "string" ? token : null;
+    if (typeof token === "string") {
+        cachedToken = token;
+    }
     return cachedToken;
 }
 
@@ -180,14 +189,11 @@ async function fetchWithTimeout(
         if (token) {
             headers.set("X-API-Token", token);
         }
-        // Force connection close to prevent keep-alive accumulation
-        headers.set("Connection", "close");
 
         const response = await fetch(url, {
             ...options,
             headers,
             signal: controller.signal,
-            keepalive: false,
         });
         return response;
     } catch (error) {
@@ -239,7 +245,7 @@ async function apiRequest<T>(
     }
 
     const data = await response.json();
-    if ((data as any).action === "error") {
+    if (data && typeof data === "object" && "action" in data && data.action === "error") {
         throw new ApiClientError("Server returned error action");
     }
     return data as T;
@@ -322,5 +328,21 @@ export function getApiVersion(): Promise<Record<string, string>> {
         `${API_BASE_URL}/version`,
         {},
         HEALTH_CHECK_TIMEOUT_MS
+    );
+}
+
+/**
+ * Fetches the list of AWS regions from AWS API
+ * @returns List of AWS regions
+ * @throws {ApiClientError} If request fails
+ */
+export function getRegions(): Promise<{ regions: Array<{ code: string; name: string }> }> {
+    return apiRequest<{ regions: Array<{ code: string; name: string }> }>(
+        `${API_BASE_URL}/regions`,
+        {},
+        REQUEST_TIMEOUT_MS,
+        {
+            401: "Authentication failed. Invalid or missing API token.",
+        }
     );
 }

@@ -4,7 +4,7 @@
  * Memoized for performance
  */
 
-import React, { FunctionComponent, memo } from "react";
+import React, { FunctionComponent, memo, useMemo } from "react";
 import Tabs from "@cloudscape-design/components/tabs";
 import { AWSProfile } from "../types";
 
@@ -30,8 +30,7 @@ const OrganizationTabsComponent: FunctionComponent<OrganizationTabsProps> = ({
     onTabChange,
     totalProfiles,
 }) => {
-    // Always show tabs
-    const tabs = [
+    const tabs = useMemo(() => [
         {
             id: "all",
             label: `All (${totalProfiles})`,
@@ -42,7 +41,7 @@ const OrganizationTabsComponent: FunctionComponent<OrganizationTabsProps> = ({
             label: `${org.name} (${org.profiles.length})`,
             content: null,
         })),
-    ];
+    ], [organizations, totalProfiles]);
 
     return (
         <Tabs

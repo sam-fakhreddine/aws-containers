@@ -5,7 +5,7 @@ AWS Profile Containers for Firefox - Comprehensive Installation Instructions
 ## Table of Contents
 
 - [Quick Install (Recommended)](#quick-install-recommended)
-- [Self-Contained Installation (No Python Required)](#self-contained-installation-no-python-required)
+- [Service Management](#service-management)
 - [Development Installation](#development-installation)
 - [Troubleshooting](#troubleshooting)
 
@@ -18,8 +18,9 @@ For most users, this is the easiest installation method:
 ### Prerequisites
 
 - Firefox browser
+- Python 3.12+
 - Node.js (v22.14.0+ or v24.10.0+)
-- npm
+- Yarn
 
 ### Steps
 
@@ -28,103 +29,78 @@ For most users, this is the easiest installation method:
 git clone https://github.com/sam-fakhreddine/aws-containers.git
 cd aws-containers
 
-# Run the installation script
-./install.sh
+# Install and start the API server
+./scripts/manage.sh install
+
+# Build the extension
+yarn install
+yarn build
 ```
 
-The install script will:
-1. ✓ Check for pre-built executables (no Python needed)
-2. ✓ Fall back to Python script if needed
-3. ✓ Install native messaging host
-4. ✓ Build the Firefox extension
-5. ✓ Configure everything for you
-
-**Note:** If you don't have Python installed and want a self-contained installation, see the next section.
+The installation will:
+1. ✓ Install uv (Python package manager) if needed
+2. ✓ Create Python 3.12 virtual environment
+3. ✓ Install API server dependencies
+4. ✓ Configure system service (systemd/launchd)
+5. ✓ Start the API server
+6. ✓ Verify API is online
 
 ---
 
-## Self-Contained Installation (No Python Required)
+## Service Management
 
-This method creates a standalone executable that includes Python and all dependencies. **Perfect for distribution to end users who don't have Python installed.**
+The `manage.sh` script provides complete service management:
 
-### For End Users (Download from Releases)
-
-1. Download the pre-built package for your platform from [GitHub Releases](https://github.com/sam-fakhreddine/aws-containers/releases):
-   - ✅ `aws_profile_bridge-linux` for Linux
-   - ✅ `aws_profile_bridge-macos-intel` for macOS Intel (x86_64) - *Unsigned*
-   - ✅ `aws_profile_bridge-macos-arm64` for macOS Apple Silicon (M1/M2/M3) - *Unsigned*
-
-2. Make the downloaded file executable and place it in the `bin/` directory:
-   ```bash
-   # For Linux
-   mkdir -p bin/linux
-   mv ~/Downloads/aws_profile_bridge-linux bin/linux/aws_profile_bridge
-   chmod +x bin/linux/aws_profile_bridge
-
-   # For macOS Intel (x86_64)
-   mkdir -p bin/darwin-x86_64
-   mv ~/Downloads/aws_profile_bridge-macos-intel bin/darwin-x86_64/aws_profile_bridge
-   chmod +x bin/darwin-x86_64/aws_profile_bridge
-   # Remove quarantine flag (macOS only)
-   xattr -d com.apple.quarantine bin/darwin-x86_64/aws_profile_bridge 2>/dev/null || true
-
-   # For macOS Apple Silicon (ARM64)
-   mkdir -p bin/darwin-arm64
-   mv ~/Downloads/aws_profile_bridge-macos-arm64 bin/darwin-arm64/aws_profile_bridge
-   chmod +x bin/darwin-arm64/aws_profile_bridge
-   # Remove quarantine flag (macOS only)
-   xattr -d com.apple.quarantine bin/darwin-arm64/aws_profile_bridge 2>/dev/null || true
-   ```
-
-   **Note for macOS users:** Binaries are currently **unsigned**. You'll need to bypass Gatekeeper (see Platform-Specific Notes below). Code signing coming soon!
-
-3. Run the installation script:
-   ```bash
-   ./install.sh
-   ```
-
-### For Developers (Build from Source)
-
-If you want to build the standalone executable yourself (works on Linux and macOS):
-
-#### Prerequisites
-
-- Python 3.8+ (only needed to build the executable, not to run it)
-- pip
-
-#### Steps
+### Interactive Menu (Default)
 
 ```bash
-# Build the standalone executable
-./build-native-host.sh
+./scripts/manage.sh
 ```
 
-This will:
-- Create a virtual environment
-- Install PyInstaller and dependencies
-- Build a standalone executable in `bin/<platform>/`
-  - Linux: `bin/linux/aws_profile_bridge`
-  - macOS Intel: `bin/darwin-x86_64/aws_profile_bridge`
-  - macOS ARM64: `bin/darwin-arm64/aws_profile_bridge`
-- The executable is ~15-20MB and includes:
-  - ✓ Python runtime
-  - ✓ boto3 library
-  - ✓ botocore library
-  - ✓ All required dependencies
+Provides an interactive menu with options:
+1. Install / Update
+2. Uninstall
+3. Status Check
+4. Live Logs
+5. Restart Service
+6. Stop Service
 
-**macOS Note:** Building from source works! Pre-built binaries are available in releases (unsigned - code signing optional for now).
+### Command Line Usage
 
 ```bash
-# Install everything (uses the newly built executable)
-./install.sh
+# Install or update the service
+./scripts/manage.sh install
+
+# Check service status
+./scripts/manage.sh status
+
+# View live logs
+./scripts/manage.sh logs
+
+# Restart the service
+./scripts/manage.sh restart
+
+# Stop the service
+./scripts/manage.sh stop
+
+# Start the service
+./scripts/manage.sh start
+
+# Uninstall completely
+./scripts/manage.sh uninstall
+
+# Show help
+./scripts/manage.sh help
 ```
 
-**Benefits:**
-- ✅ No Python required on end-user systems
-- ✅ No dependency issues
-- ✅ Single binary to distribute
-- ✅ Works offline (all dependencies bundled)
-- ✅ Consistent behavior across systems
+### Service Details
+
+- **Service Name**: `aws-profile-bridge`
+- **API Endpoint**: `http://localhost:10999`
+- **Log File**: `~/.aws/logs/aws_profile_bridge_api.log`
+- **Install Directory**: `~/.local/share/aws-profile-bridge`
+- **Linux**: systemd user service
+- **macOS**: launchd user agent
 
 ---
 
@@ -135,10 +111,9 @@ For developers who want to modify the code:
 ### Prerequisites
 
 - Firefox browser
+- Python 3.12+
 - Node.js (v22.14.0+ or v24.10.0+)
-- npm
-- Python 3.8+ (for native messaging host)
-- pip (Python package manager)
+- Yarn
 
 ### Steps
 
@@ -147,32 +122,37 @@ For developers who want to modify the code:
 git clone https://github.com/sam-fakhreddine/aws-containers.git
 cd aws-containers
 
-# Install Python dependencies (optional, for better SSO support)
-pip install -r api-server/requirements.txt
+# Install and start API server
+./scripts/manage.sh install
 
 # Install Node dependencies
-npm install
+yarn install
 
 # Build the extension
-npm run build
-
-# Install native messaging host
-./install.sh
+yarn build
 ```
 
 ### Development Workflow
 
 1. Make changes to the code
-2. Rebuild:
+2. Rebuild extension:
    ```bash
-   npm run build
+   yarn build
    ```
-3. Reload extension in Firefox (about:debugging)
+3. Restart API server if needed:
+   ```bash
+   ./scripts/manage.sh restart
+   ```
+4. Reload extension in Firefox (about:debugging)
 
-### Building Standalone Executable for Testing
+### Viewing Logs During Development
 
 ```bash
-./build-native-host.sh
+# Live log tail
+./scripts/manage.sh logs
+
+# Or directly
+tail -f ~/.aws/logs/aws_profile_bridge_api.log
 ```
 
 ---
@@ -209,16 +189,19 @@ To verify the installation works:
 2. You should see a list of your AWS profiles from `~/.aws/credentials` and `~/.aws/config`
 3. Click on a profile to open it in a container
 
-If you see "Setup Required":
-- Check that native messaging host is installed:
+If you see errors:
+- Check service status:
   ```bash
-  ls -la ~/.local/bin/aws_profile_bridge*
+  ./scripts/manage.sh status
   ```
-- Check the manifest:
+- View logs:
   ```bash
-  cat ~/.mozilla/api-server-hosts/aws_profile_bridge.json
+  ./scripts/manage.sh logs
   ```
-- Restart Firefox
+- Restart the service:
+  ```bash
+  ./scripts/manage.sh restart
+  ```
 - Check the browser console for errors (F12)
 
 ---
@@ -227,102 +210,74 @@ If you see "Setup Required":
 
 ### Linux
 
-- Native messaging host directory: `~/.mozilla/api-server-hosts/`
-- Executable location: `~/.local/bin/`
+- Service: systemd user service
+- Service file: `~/.config/systemd/user/aws-profile-bridge.service`
+- Install directory: `~/.local/share/aws-profile-bridge`
+- Logs: `~/.aws/logs/aws_profile_bridge_api.log`
 
 ### macOS
 
-- Native messaging host directory: `~/Library/Application Support/Mozilla/NativeMessagingHosts/`
-- Executable location: `~/.local/bin/`
-- **Architectures:**
-  - Intel Macs (x86_64): Use `aws_profile_bridge-macos-intel`
-  - Apple Silicon (M1/M2/M3): Use `aws_profile_bridge-macos-arm64`
-  - The install script automatically detects your architecture
-
-**Bypassing Gatekeeper for Unsigned Binaries:**
-
-Since the macOS binaries are currently unsigned, you'll need to bypass Gatekeeper:
-
-1. **Remove quarantine flag:**
-   ```bash
-   xattr -d com.apple.quarantine ~/.local/bin/aws_profile_bridge
-   ```
-
-2. **If you still get "unidentified developer" warnings:**
-   - Right-click the executable in Finder
-   - Select "Open"
-   - Click "Open" in the security dialog
-
-3. **Alternative: Allow in System Settings:**
-   - System Settings → Privacy & Security
-   - Scroll to "Security" section
-   - Click "Allow Anyway" next to the blocked executable
-
-**Note:** Code signing will be added in a future release to eliminate these steps.
+- Service: launchd user agent
+- Plist file: `~/Library/LaunchAgents/com.aws.profile-bridge.plist`
+- Install directory: `~/.local/share/aws-profile-bridge`
+- Logs: `~/.aws/logs/aws_profile_bridge_api.log`
 
 ### Windows
 
-Windows support is planned for future releases.
+Windows support via WSL2 is planned for future releases.
 
 ---
 
 ## Troubleshooting
 
-### "Setup Required" Error
+### API Not Responding
 
-**Problem:** Extension shows "Setup Required" message
-
-**Solutions:**
-1. Restart Firefox
-2. Check native messaging host is installed:
-   ```bash
-   ls -la ~/.local/bin/aws_profile_bridge*
-   ```
-3. Check manifest exists and has correct path:
-   ```bash
-   cat ~/.mozilla/api-server-hosts/aws_profile_bridge.json
-   ```
-4. Rebuild and reinstall:
-   ```bash
-   ./build-native-host.sh
-   ./install.sh
-   ```
-
-### Permission Denied
-
-**Problem:** Native messaging host can't execute
-
-**Solution:**
-```bash
-chmod +x ~/.local/bin/aws_profile_bridge
-```
-
-### Python Not Found (when using Python script)
-
-**Problem:** Install script says Python not found
+**Problem:** Extension can't connect to API server
 
 **Solutions:**
-1. **Recommended:** Use standalone executable:
+1. Check service status:
    ```bash
-   ./build-native-host.sh
-   ./install.sh
+   ./scripts/manage.sh status
    ```
-2. **Or** install Python 3.8+
+2. View logs for errors:
+   ```bash
+   ./scripts/manage.sh logs
+   ```
+3. Restart the service:
+   ```bash
+   ./scripts/manage.sh restart
+   ```
+4. Verify API health:
+   ```bash
+   curl http://localhost:10999/health
+   ```
 
-### boto3 Import Error
+### Service Won't Start
 
-**Problem:** Native messaging host can't import boto3
+**Problem:** Service fails to start
 
-**Solution:** Install Python dependencies:
-```bash
-pip install -r api-server/requirements.txt
-```
+**Solutions:**
+1. Check if port 10999 is already in use:
+   ```bash
+   lsof -i :10999
+   ```
+2. View detailed logs:
+   ```bash
+   ./scripts/manage.sh logs
+   ```
+3. Reinstall the service:
+   ```bash
+   ./scripts/manage.sh uninstall
+   ./scripts/manage.sh install
+   ```
 
-**Or** use standalone executable (recommended):
-```bash
-./build-native-host.sh
-./install.sh
-```
+### Python Version Issues
+
+**Problem:** Wrong Python version
+
+**Solution:** The installer requires Python 3.12+. Install via:
+- macOS: `brew install python@3.12`
+- Linux: Use your package manager or pyenv
 
 ### No Profiles Shown
 
@@ -361,14 +316,11 @@ aws sso login --profile <profile-name>
 
 To remove the extension:
 
-1. Remove from Firefox (about:addons)
-2. Remove native messaging host:
+1. Uninstall the API service:
    ```bash
-   rm ~/.local/bin/aws_profile_bridge*
-   rm ~/.mozilla/api-server-hosts/aws_profile_bridge.json
-   # Or for macOS:
-   # rm ~/Library/Application\ Support/Mozilla/NativeMessagingHosts/aws_profile_bridge.json
+   ./scripts/manage.sh uninstall
    ```
+2. Remove from Firefox (about:addons)
 3. Remove containers (optional):
    - Click "Clear Containers" in the extension
 

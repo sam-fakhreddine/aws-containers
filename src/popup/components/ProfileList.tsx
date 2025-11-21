@@ -59,51 +59,7 @@ const ProfileListComponent: FunctionComponent<ProfileListProps> = ({
 };
 
 /**
- * Custom comparison function for ProfileList memoization
- * Only re-render if profiles array or favorites array actually changed
- */
-function arePropsEqual(
-    prevProps: Readonly<ProfileListProps>,
-    nextProps: Readonly<ProfileListProps>
-): boolean {
-    // Check if profiles array length changed
-    if (prevProps.profiles.length !== nextProps.profiles.length) {
-        return false;
-    }
-
-    // Check if favorites array length changed
-    if (prevProps.favorites.length !== nextProps.favorites.length) {
-        return false;
-    }
-
-    // Check if profile names changed (shallow comparison sufficient)
-    for (let i = 0; i < prevProps.profiles.length; i++) {
-        if (prevProps.profiles[i].name !== nextProps.profiles[i].name) {
-            return false;
-        }
-        if (prevProps.profiles[i].expired !== nextProps.profiles[i].expired) {
-            return false;
-        }
-    }
-
-    // Check if favorites changed
-    for (let i = 0; i < prevProps.favorites.length; i++) {
-        if (prevProps.favorites[i] !== nextProps.favorites[i]) {
-            return false;
-        }
-    }
-
-    // Check if empty message changed
-    if (prevProps.emptyMessage !== nextProps.emptyMessage) {
-        return false;
-    }
-
-    // Props are equal, don't re-render
-    return true;
-}
-
-/**
  * Memoized ProfileList component
- * Prevents unnecessary re-renders when props haven't changed
+ * Relies on reference equality for profiles array (already memoized in parent)
  */
-export const ProfileList = memo(ProfileListComponent, arePropsEqual);
+export const ProfileList = memo(ProfileListComponent);

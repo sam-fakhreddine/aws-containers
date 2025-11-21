@@ -409,7 +409,7 @@ JSON Response ─────────────> Return to extension
 ### Installation
 
 ```
-User runs: ./scripts/install-api-service.sh
+User runs: ./scripts/manage.sh install
     │
     ▼
 [Check for uv] ────────────> Install if missing

@@ -3,7 +3,7 @@
  * Handles container listing, creation, and deletion
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { type ContextualIdentities } from "webextension-polyfill";
 import {
     getManagedContainers,
@@ -31,38 +31,29 @@ export function useContainers(): UseContainersReturn {
     const [error, setError] = useState<string | null>(null);
 
     const isMounted = useIsMounted();
-    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     /**
-     * Refresh the list of managed containers (debounced)
+     * Refresh the list of managed containers
      */
     const refreshContainers = useCallback(async (): Promise<void> => {
-        // Clear existing debounce timer
-        if (debounceTimerRef.current) {
-            clearTimeout(debounceTimerRef.current);
-        }
-
-        // Debounce container queries to avoid excessive API calls
-        debounceTimerRef.current = setTimeout(async () => {
-            try {
-                setLoading(true);
-                setError(null);
-                const containerList = await getManagedContainers();
-                if (isMounted()) {
-                    setContainers(containerList);
-                }
-            } catch (err) {
-                console.error("Failed to refresh containers:", err);
-                if (isMounted()) {
-                    setError("Failed to load containers");
-                    setContainers([]);
-                }
-            } finally {
-                if (isMounted()) {
-                    setLoading(false);
-                }
+        try {
+            setLoading(true);
+            setError(null);
+            const containerList = await getManagedContainers();
+            if (isMounted()) {
+                setContainers(containerList);
             }
-        }, 300);
+        } catch (err) {
+            console.error("Failed to refresh containers:", err);
+            if (isMounted()) {
+                setError("Failed to load containers");
+                setContainers([]);
+            }
+        } finally {
+            if (isMounted()) {
+                setLoading(false);
+            }
+        }
     }, [isMounted]);
 
     /**

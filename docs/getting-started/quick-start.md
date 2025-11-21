@@ -10,28 +10,27 @@ Get AWS Profile Containers up and running in just a few minutes!
 
 ## Installation
 
-### Option 1: Quick Install (Recommended)
+### Quick Install
 
 ```bash
 # Clone the repository
 git clone https://github.com/sam-fakhreddine/aws-containers.git
 cd aws-containers
 
-# Run the installation script
-./install.sh
+# Install and start the API server
+./scripts/manage.sh install
+
+# Build the extension
+yarn install
+yarn build
 ```
 
 The install script will automatically:
-- Check for pre-built executables (no Python needed!)
-- Fall back to Python script if needed
-- Install the native messaging host
-- Build the Firefox extension
-- Configure everything for you
-
-### Option 2: Download Pre-Built Release
-
-1. Download the latest release from [GitHub Releases](https://github.com/sam-fakhreddine/aws-containers/releases)
-2. Extract and run `./install.sh`
+- Install uv (Python package manager) if needed
+- Create Python 3.12 virtual environment
+- Install API server dependencies
+- Configure system service (systemd/launchd)
+- Start and verify the API server
 
 ## Load the Extension in Firefox
 
@@ -43,11 +42,27 @@ The install script will automatically:
 ## First Use
 
 1. **Click the extension icon** in your Firefox toolbar
-2. **You should see your AWS profiles** - If you see "Setup Required", restart Firefox and try again
+2. **You should see your AWS profiles** - If not, check service status: `./scripts/manage.sh status`
 3. **Select a region** from the dropdown (default: us-east-1)
 4. **Click a profile** to open AWS Console in an isolated container
 
 That's it! You're now using AWS Profile Containers.
+
+## Managing the Service
+
+```bash
+# Check service status
+./scripts/manage.sh status
+
+# View live logs
+./scripts/manage.sh logs
+
+# Restart service
+./scripts/manage.sh restart
+
+# Interactive menu
+./scripts/manage.sh
+```
 
 ## What's Next?
 
@@ -59,7 +74,8 @@ That's it! You're now using AWS Profile Containers.
 ## Need Help?
 
 If you encounter issues:
-1. Check the [Troubleshooting Guide](../user-guide/troubleshooting.md)
-2. Restart Firefox
-3. Check the [Installation Guide](installation.md) for detailed steps
-4. [Open an issue](https://github.com/sam-fakhreddine/aws-containers/issues) on GitHub
+1. Check service status: `./scripts/manage.sh status`
+2. View logs: `./scripts/manage.sh logs`
+3. Check the [Troubleshooting Guide](../user-guide/troubleshooting.md)
+4. Restart service: `./scripts/manage.sh restart`
+5. [Open an issue](https://github.com/sam-fakhreddine/aws-containers/issues) on GitHub

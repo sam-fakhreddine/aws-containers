@@ -146,7 +146,7 @@ Repository: https://github.com/sam-fakhreddine/aws-containers
 
 For privacy questions:
 - Open an issue on GitHub: https://github.com/sam-fakhreddine/aws-containers/issues
-- Email: [Add contact email]
+- Email: aws-containers@samfakhreddine.dev
 
 ## Legal Disclaimer
 

@@ -73,7 +73,7 @@ The Firefox extension has been migrated from **Native Messaging** to **HTTP API*
 
 ```bash
 # Install and start the API server as a system service
-./scripts/install-api-service.sh
+./scripts/manage.sh install
 ```
 
 This will:

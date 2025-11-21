@@ -10,4 +10,5 @@ export { useRecentProfiles } from "./useRecentProfiles";
 export { useRegion } from "./useRegion";
 export { useTheme } from "./useTheme";
 export { useIsMounted } from "./useIsMounted";
+export { useEnabledRegions } from "./useEnabledRegions";
 export type { ThemeMode, ResolvedTheme } from "./useTheme";

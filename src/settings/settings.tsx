@@ -5,6 +5,7 @@ import React, { useState, useEffect } from "react";
 import Alert from "@cloudscape-design/components/alert";
 import Box from "@cloudscape-design/components/box";
 import Button from "@cloudscape-design/components/button";
+import Checkbox from "@cloudscape-design/components/checkbox";
 import Container from "@cloudscape-design/components/container";
 import FormField from "@cloudscape-design/components/form-field";
 import Header from "@cloudscape-design/components/header";
@@ -13,9 +14,10 @@ import SpaceBetween from "@cloudscape-design/components/space-between";
 
 // Internal - services
 import * as apiClient from "../services/apiClient";
+import { browser } from "../services/browserUtils";
 
 // Constants
-import { API_TOKEN_LENGTH } from "../popup/constants";
+import { STORAGE_KEYS } from "../popup/constants";
 
 export const Settings: React.FC = () => {
     const [token, setToken] = useState("");
@@ -25,9 +27,16 @@ export const Settings: React.FC = () => {
     );
     const [testing, setTesting] = useState(false);
     const [isLegacy, setIsLegacy] = useState(false);
+    const [regions, setRegions] = useState<Array<{ code: string; name: string }>>([]);
+    const [enabledRegions, setEnabledRegions] = useState<string[]>([]);
+    const [loadingRegions, setLoadingRegions] = useState(false);
+    const [separateRegions, setSeparateRegions] = useState(false);
 
     useEffect(() => {
         loadToken();
+        loadRegions();
+        loadEnabledRegions();
+        loadSeparateRegionsSetting();
     }, []);
 
     const loadToken = async () => {
@@ -63,9 +72,9 @@ export const Settings: React.FC = () => {
             } else {
                 setMessage({ type: "success", text: "Token saved successfully" });
             }
-        } catch (error) {
-            if (error instanceof apiClient.ApiClientError) {
-                setMessage({ type: "error", text: error.message });
+        } catch (err) {
+            if (err instanceof apiClient.ApiClientError) {
+                setMessage({ type: "error", text: err.message });
             } else {
                 setMessage({ type: "error", text: "Failed to save token" });
             }
@@ -83,7 +92,7 @@ export const Settings: React.FC = () => {
             } else {
                 setMessage({ type: "error", text: "✗ Connection failed. Check if API server is running." });
             }
-        } catch (error) {
+        } catch {
             setMessage({ type: "error", text: "✗ Connection failed. Check if API server is running and token is correct." });
         } finally {
             setTesting(false);
@@ -95,6 +104,53 @@ export const Settings: React.FC = () => {
         setToken("");
         setSavedToken(null);
         setMessage({ type: "success", text: "Token cleared" });
+    };
+
+    const loadRegions = async () => {
+        setLoadingRegions(true);
+        try {
+            const response = await apiClient.getRegions();
+            setRegions(response.regions);
+        } catch (error) {
+            console.error("Failed to load regions:", error);
+        } finally {
+            setLoadingRegions(false);
+        }
+    };
+
+    const loadEnabledRegions = async () => {
+        const result = await browser.storage.local.get(STORAGE_KEYS.ENABLED_REGIONS);
+        const enabled = (result[STORAGE_KEYS.ENABLED_REGIONS] as string[] | undefined) || [];
+        setEnabledRegions(enabled);
+    };
+
+    const handleRegionToggle = async (regionCode: string, checked: boolean) => {
+        const updated = checked
+            ? [...enabledRegions, regionCode]
+            : enabledRegions.filter(r => r !== regionCode);
+        setEnabledRegions(updated);
+        await browser.storage.local.set({ [STORAGE_KEYS.ENABLED_REGIONS]: updated });
+    };
+
+    const handleSelectAll = async () => {
+        const allCodes = regions.map(r => r.code);
+        setEnabledRegions(allCodes);
+        await browser.storage.local.set({ [STORAGE_KEYS.ENABLED_REGIONS]: allCodes });
+    };
+
+    const handleDeselectAll = async () => {
+        setEnabledRegions([]);
+        await browser.storage.local.set({ [STORAGE_KEYS.ENABLED_REGIONS]: [] });
+    };
+
+    const loadSeparateRegionsSetting = async () => {
+        const result = await browser.storage.local.get(STORAGE_KEYS.SEPARATE_REGIONS_IN_CONTAINERS);
+        setSeparateRegions((result[STORAGE_KEYS.SEPARATE_REGIONS_IN_CONTAINERS] as boolean | undefined) || false);
+    };
+
+    const handleSeparateRegionsToggle = async (checked: boolean) => {
+        setSeparateRegions(checked);
+        await browser.storage.local.set({ [STORAGE_KEYS.SEPARATE_REGIONS_IN_CONTAINERS]: checked });
     };
 
     return (
@@ -173,14 +229,70 @@ export const Settings: React.FC = () => {
                             <li>Open a terminal</li>
                             <li>Run: <code>cat ~/.aws/profile_bridge_config.json</code></li>
                             <li>Copy the <code>api_token</code> value</li>
-                            <li>Paste it above and click "Save Token"</li>
+                            <li>Paste it above and click &quot;Save Token&quot;</li>
                         </ol>
                     </Box>
 
                     <Box variant="small" color="text-body-secondary">
-                        The token is stored securely in your browser's local storage and is only
+                        The token is stored securely in your browser&apos;s local storage and is only
                         sent to localhost (127.0.0.1:10999).
                     </Box>
+                </SpaceBetween>
+            </Container>
+
+            <Container
+                header={
+                    <Header
+                        variant="h2"
+                        actions={
+                            <SpaceBetween direction="horizontal" size="xs">
+                                <Button onClick={handleSelectAll} disabled={loadingRegions || regions.length === 0}>
+                                    Select All
+                                </Button>
+                                <Button onClick={handleDeselectAll} disabled={loadingRegions || enabledRegions.length === 0}>
+                                    Deselect All
+                                </Button>
+                            </SpaceBetween>
+                        }
+                    >
+                        Enabled Regions
+                    </Header>
+                }
+            >
+                <SpaceBetween size="l">
+                    <SpaceBetween size="s">
+                        <Alert type="info">
+                            Select which AWS regions to show in the region dropdown. Only selected regions will appear.
+                            {enabledRegions.length === 0 && " (All regions will be shown if none are selected)"}
+                        </Alert>
+
+                        <Checkbox
+                            checked={separateRegions}
+                            onChange={({ detail }) => handleSeparateRegionsToggle(detail.checked)}
+                        >
+                            Open each region in a separate container (e.g., &quot;profile-name [us-east-1]&quot;)
+                        </Checkbox>
+                    </SpaceBetween>
+
+                    {loadingRegions ? (
+                        <Box>Loading regions...</Box>
+                    ) : regions.length === 0 ? (
+                        <Alert type="warning">
+                            Unable to load regions. Ensure API server is running and token is configured.
+                        </Alert>
+                    ) : (
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "8px" }}>
+                            {regions.map((region) => (
+                                <Checkbox
+                                    key={region.code}
+                                    checked={enabledRegions.includes(region.code)}
+                                    onChange={({ detail }) => handleRegionToggle(region.code, detail.checked)}
+                                >
+                                    {region.code}
+                                </Checkbox>
+                            ))}
+                        </div>
+                    )}
                 </SpaceBetween>
             </Container>
         </div>

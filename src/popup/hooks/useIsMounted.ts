@@ -3,7 +3,7 @@
  * Prevents state updates on unmounted components
  */
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 /**
  * Hook that returns a function to check if component is still mounted
@@ -19,5 +19,5 @@ export function useIsMounted(): () => boolean {
         };
     }, []);
 
-    return () => isMountedRef.current;
+    return useCallback(() => isMountedRef.current, []);
 }

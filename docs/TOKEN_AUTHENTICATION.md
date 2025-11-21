@@ -17,7 +17,7 @@ The extension uses token-based authentication to secure communication between th
 The API server automatically generates a token on first startup:
 
 ```bash
-./scripts/install-api-service.sh
+./scripts/manage.sh install
 ```
 
 ### 2. Get Your Token

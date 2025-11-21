@@ -5,7 +5,7 @@
  */
 
 // React
-import React, { FunctionComponent, memo } from "react";
+import React, { FunctionComponent, memo, useMemo } from "react";
 
 // Cloudscape components
 import Input from "@cloudscape-design/components/input";
@@ -36,14 +36,16 @@ const ProfileSearchComponent: FunctionComponent<ProfileSearchProps> = ({
     onRegionChange,
     regions,
 }) => {
-    const regionOptions = regions.map((region) => ({
+    const regionOptions = useMemo(() => regions.map((region) => ({
         label: region.name,
         value: region.code,
-    }));
+    })), [regions]);
 
-    const selectedOption =
+    const selectedOption = useMemo(() => 
         regionOptions.find((opt) => opt.value === selectedRegion) ||
-        regionOptions[0];
+        regionOptions[0],
+        [regionOptions, selectedRegion]
+    );
 
     return (
         <div style={{ padding: "8px" }}>

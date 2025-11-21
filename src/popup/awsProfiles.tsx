@@ -27,6 +27,7 @@ import {
     useRecentProfiles,
     useRegion,
     useTheme,
+    useEnabledRegions,
 } from "./hooks";
 
 // Internal - components
@@ -43,56 +44,13 @@ import {
 import * as apiClient from "../services/apiClient";
 
 // Internal - utils
-import { prepareContainer } from "../utils/containerManager";
+import { prepareContainer, clearAllContainers } from "../utils/containerManager";
 
 // Types
 import { AWSProfile } from "./types";
 
 // Constants
 import { POPUP_WIDTH_THRESHOLD, SEARCH_DEBOUNCE_MS } from "./constants";
-
-/**
- * Complete list of AWS commercial regions
- */
-const AWS_REGIONS = [
-    // US Regions
-    { code: "us-east-1", name: "US East (N. Virginia)" },
-    { code: "us-east-2", name: "US East (Ohio)" },
-    { code: "us-west-1", name: "US West (N. California)" },
-    { code: "us-west-2", name: "US West (Oregon)" },
-    // Canada
-    { code: "ca-central-1", name: "Canada (Central)" },
-    { code: "ca-west-1", name: "Canada (Calgary)" },
-    // South America
-    { code: "sa-east-1", name: "South America (São Paulo)" },
-    // Europe
-    { code: "eu-central-1", name: "Europe (Frankfurt)" },
-    { code: "eu-central-2", name: "Europe (Zurich)" },
-    { code: "eu-west-1", name: "Europe (Ireland)" },
-    { code: "eu-west-2", name: "Europe (London)" },
-    { code: "eu-west-3", name: "Europe (Paris)" },
-    { code: "eu-south-1", name: "Europe (Milan)" },
-    { code: "eu-south-2", name: "Europe (Spain)" },
-    { code: "eu-north-1", name: "Europe (Stockholm)" },
-    // Asia Pacific
-    { code: "ap-east-1", name: "Asia Pacific (Hong Kong)" },
-    { code: "ap-south-1", name: "Asia Pacific (Mumbai)" },
-    { code: "ap-south-2", name: "Asia Pacific (Hyderabad)" },
-    { code: "ap-southeast-1", name: "Asia Pacific (Singapore)" },
-    { code: "ap-southeast-2", name: "Asia Pacific (Sydney)" },
-    { code: "ap-southeast-3", name: "Asia Pacific (Jakarta)" },
-    { code: "ap-southeast-4", name: "Asia Pacific (Melbourne)" },
-    { code: "ap-northeast-1", name: "Asia Pacific (Tokyo)" },
-    { code: "ap-northeast-2", name: "Asia Pacific (Seoul)" },
-    { code: "ap-northeast-3", name: "Asia Pacific (Osaka)" },
-    // Middle East
-    { code: "me-south-1", name: "Middle East (Bahrain)" },
-    { code: "me-central-1", name: "Middle East (UAE)" },
-    // Africa
-    { code: "af-south-1", name: "Africa (Cape Town)" },
-    // Israel
-    { code: "il-central-1", name: "Israel (Tel Aviv)" },
-];
 
 /**
  * Main AWS Profiles Popup Component
@@ -113,6 +71,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     const { addRecentProfile } = useRecentProfiles();
     const { selectedRegion, setRegion } = useRegion();
     const { mode: themeMode, setMode: setThemeMode } = useTheme();
+    const { regions: enabledRegions } = useEnabledRegions();
 
     // Local UI state
     const [searchFilter, setSearchFilter] = useState("");
@@ -120,6 +79,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
     const [selectedOrgTab, setSelectedOrgTab] = useState<string>("all");
     const [isRemoving, setIsRemoving] = useState(false);
     const [openProfileError, setOpenProfileError] = useState<string | null>(null);
+    const [separateRegions, setSeparateRegions] = useState(false);
 
     /**
      * Notify background page that popup mounted and cleanup on unmount
@@ -132,6 +92,11 @@ export const AWSProfilesPopup: FunctionComponent = () => {
             }
         });
         loadProfiles();
+
+        // Load separate regions setting
+        browser.storage.local.get("separateRegionsInContainers").then((result) => {
+            setSeparateRegions((result.separateRegionsInContainers as boolean | undefined) || false);
+        });
 
         // Cleanup on unmount
         return () => {
@@ -253,9 +218,12 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                 consoleUrl = urlObj.toString();
             }
 
-            // Create or get the container
+            // Create or get the container (with optional region suffix)
+            const containerName = separateRegions 
+                ? `${response.profileName} [${selectedRegion}]`
+                : response.profileName;
             const container = await prepareContainer(
-                response.profileName,
+                containerName,
                 response.color,
                 response.icon
             );
@@ -299,7 +267,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
      */
     const handleClearContainers = useCallback(async () => {
         try {
-            // TODO: Implement clearContainers functionality
+            await clearAllContainers();
             setIsRemoving(false);
         } catch (err) {
             console.error("Failed to clear containers:", err);
@@ -431,7 +399,7 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                             onSearchChange={setSearchFilter}
                             selectedRegion={selectedRegion}
                             onRegionChange={setRegion}
-                            regions={AWS_REGIONS}
+                            regions={[...enabledRegions]}
                         />
 
                         <OrganizationTabs
@@ -447,7 +415,6 @@ export const AWSProfilesPopup: FunctionComponent = () => {
                                 overflowY: "auto",
                                 minHeight: "200px",
                                 maxHeight: "calc(100vh - 250px)",
-                                willChange: "scroll-position",
                             }}
                         >
                             <ProfileList

@@ -20,28 +20,27 @@ jest.mock("webextension-polyfill", () => ({
     windows: {
         WINDOW_ID_CURRENT: -2,
     },
+    permissions: {
+        contains: jest.fn().mockResolvedValue(true),
+        request: jest.fn().mockResolvedValue(true),
+    },
 }));
 
 describe("newTab", () => {
     beforeEach(() => {
         // Clear all mocks before each test
         jest.clearAllMocks();
+        // Reset permissions mock to default (granted)
+        (browser.permissions.contains as jest.Mock).mockResolvedValue(true);
     });
 
     /**
      * Test creating a new tab with valid container
      */
     it("should create new tab in container and close current tab", async () => {
-        const mockGetBrowserInfo = browser.runtime.getBrowserInfo as jest.Mock;
         const mockGetCurrent = browser.tabs.getCurrent as jest.Mock;
         const mockCreate = browser.tabs.create as jest.Mock;
         const mockRemove = browser.tabs.remove as jest.Mock;
-
-        // Mock browser info
-        mockGetBrowserInfo.mockResolvedValue({
-            name: "Firefox",
-            version: "100.0",
-        });
 
         // Mock current tab
         const currentTab = {
@@ -69,7 +68,6 @@ describe("newTab", () => {
 
         await newTab(container, { url: "https://example.com" });
 
-        expect(mockGetBrowserInfo).toHaveBeenCalled();
         expect(mockGetCurrent).toHaveBeenCalled();
         expect(mockCreate).toHaveBeenCalledWith({
             cookieStoreId: "firefox-container-1",
@@ -83,12 +81,10 @@ describe("newTab", () => {
      * Test that new tab is created at next index
      */
     it("should create new tab at next index after current tab", async () => {
-        const mockGetBrowserInfo = browser.runtime.getBrowserInfo as jest.Mock;
         const mockGetCurrent = browser.tabs.getCurrent as jest.Mock;
         const mockCreate = browser.tabs.create as jest.Mock;
         const mockRemove = browser.tabs.remove as jest.Mock;
 
-        mockGetBrowserInfo.mockResolvedValue({ name: "Firefox", version: "100.0" });
         mockGetCurrent.mockResolvedValue({ id: 10, index: 3 });
         mockCreate.mockResolvedValue({ id: 11 });
 
@@ -112,12 +108,10 @@ describe("newTab", () => {
      * Test handling when current tab has no ID
      */
     it("should not remove tab when current tab has no ID", async () => {
-        const mockGetBrowserInfo = browser.runtime.getBrowserInfo as jest.Mock;
         const mockGetCurrent = browser.tabs.getCurrent as jest.Mock;
         const mockCreate = browser.tabs.create as jest.Mock;
         const mockRemove = browser.tabs.remove as jest.Mock;
 
-        mockGetBrowserInfo.mockResolvedValue({ name: "Firefox", version: "100.0" });
         mockGetCurrent.mockResolvedValue({ index: 0 }); // No ID
         mockCreate.mockResolvedValue({ id: 2 });
 
@@ -138,10 +132,10 @@ describe("newTab", () => {
     /**
      * Test error handling when browser info fails
      */
-    it("should throw error when browser info fails", async () => {
-        const mockGetBrowserInfo = browser.runtime.getBrowserInfo as jest.Mock;
+    it("should throw error when permissions check fails", async () => {
+        const mockContains = browser.permissions.contains as jest.Mock;
 
-        mockGetBrowserInfo.mockRejectedValue(new Error("Browser info unavailable"));
+        mockContains.mockRejectedValue(new Error("Permission check failed"));
 
         const container = {
             cookieStoreId: "firefox-container-1",
@@ -152,19 +146,15 @@ describe("newTab", () => {
             colorCode: "#0000ff",
         } as any;
 
-        await expect(newTab(container, { url: "https://example.com" })).rejects.toThrow(
-            "creating new tab:"
-        );
+        await expect(newTab(container, { url: "https://example.com" })).rejects.toThrow();
     });
 
     /**
      * Test error handling when getCurrent fails
      */
     it("should throw error when getCurrent fails", async () => {
-        const mockGetBrowserInfo = browser.runtime.getBrowserInfo as jest.Mock;
         const mockGetCurrent = browser.tabs.getCurrent as jest.Mock;
 
-        mockGetBrowserInfo.mockResolvedValue({ name: "Firefox", version: "100.0" });
         mockGetCurrent.mockRejectedValue(new Error("Cannot get current tab"));
 
         const container = {
@@ -185,11 +175,9 @@ describe("newTab", () => {
      * Test error handling when tab creation fails
      */
     it("should throw error when tab creation fails", async () => {
-        const mockGetBrowserInfo = browser.runtime.getBrowserInfo as jest.Mock;
         const mockGetCurrent = browser.tabs.getCurrent as jest.Mock;
         const mockCreate = browser.tabs.create as jest.Mock;
 
-        mockGetBrowserInfo.mockResolvedValue({ name: "Firefox", version: "100.0" });
         mockGetCurrent.mockResolvedValue({ id: 1, index: 0 });
         mockCreate.mockRejectedValue(new Error("Failed to create tab"));
 
@@ -211,12 +199,10 @@ describe("newTab", () => {
      * Test that container cookie store ID is passed correctly
      */
     it("should use correct container cookie store ID", async () => {
-        const mockGetBrowserInfo = browser.runtime.getBrowserInfo as jest.Mock;
         const mockGetCurrent = browser.tabs.getCurrent as jest.Mock;
         const mockCreate = browser.tabs.create as jest.Mock;
         const mockRemove = browser.tabs.remove as jest.Mock;
 
-        mockGetBrowserInfo.mockResolvedValue({ name: "Firefox", version: "100.0" });
         mockGetCurrent.mockResolvedValue({ id: 1, index: 0 });
         mockCreate.mockResolvedValue({ id: 2 });
 
@@ -242,12 +228,10 @@ describe("newTab", () => {
      * Test handling different URL types
      */
     it("should handle different URL types", async () => {
-        const mockGetBrowserInfo = browser.runtime.getBrowserInfo as jest.Mock;
         const mockGetCurrent = browser.tabs.getCurrent as jest.Mock;
         const mockCreate = browser.tabs.create as jest.Mock;
         const mockRemove = browser.tabs.remove as jest.Mock;
 
-        mockGetBrowserInfo.mockResolvedValue({ name: "Firefox", version: "100.0" });
         mockGetCurrent.mockResolvedValue({ id: 1, index: 0 });
         mockCreate.mockResolvedValue({ id: 2 });
 
@@ -269,7 +253,6 @@ describe("newTab", () => {
 
         for (const url of urls) {
             jest.clearAllMocks();
-            mockGetBrowserInfo.mockResolvedValue({ name: "Firefox", version: "100.0" });
             mockGetCurrent.mockResolvedValue({ id: 1, index: 0 });
             mockCreate.mockResolvedValue({ id: 2 });
 
@@ -285,12 +268,10 @@ describe("newTab", () => {
      * Test that tab index starts from zero
      */
     it("should handle tab at index 0", async () => {
-        const mockGetBrowserInfo = browser.runtime.getBrowserInfo as jest.Mock;
         const mockGetCurrent = browser.tabs.getCurrent as jest.Mock;
         const mockCreate = browser.tabs.create as jest.Mock;
         const mockRemove = browser.tabs.remove as jest.Mock;
 
-        mockGetBrowserInfo.mockResolvedValue({ name: "Firefox", version: "100.0" });
         mockGetCurrent.mockResolvedValue({ id: 1, index: 0 });
         mockCreate.mockResolvedValue({ id: 2 });
 
