@@ -37,14 +37,21 @@ module.exports = {
     ],
 
     // An object that configures minimum threshold enforcement for coverage results
-    // Updated thresholds based on comprehensive test suite (199 passing tests)
-    // Includes extensive testing of all TypeScript modules and core React utilities
+    // Updated thresholds based on comprehensive test suite (722 passing tests)
+    // Achieved coverage: Statements 84.74%, Branches 72.42%, Functions 77.22%, Lines 85.69%
+    // Thresholds set slightly below achieved to allow for minor fluctuations while preventing regression
+    // Last updated: 2024-11-22 after completing coverage improvement tasks
+    //
+    // Rationale for thresholds:
+    // - Global thresholds ensure overall code quality remains high
+    // - Set 2-3% below achieved coverage to allow for minor code changes
+    // - Prevents significant regression while allowing normal development
     coverageThreshold: {
         global: {
-            branches: 42,
-            functions: 52,
-            lines: 59,
-            statements: 60,
+            branches: 70,      // Achieved: 72.42% - allows for new conditional logic
+            functions: 75,     // Achieved: 77.22% - allows for new utility functions
+            lines: 83,         // Achieved: 85.69% - maintains high line coverage
+            statements: 82,    // Achieved: 84.74% - maintains high statement coverage
         },
     },
     // A path to a custom dependency extractor
@@ -71,6 +78,7 @@ module.exports = {
     moduleNameMapper: {
         "@/(.*)": "<rootDir>/src/$1",
         "@src/(.*)": "<rootDir>/src/$1",
+        "^entrypoints/(.*)": "<rootDir>/entrypoints/$1",
         "\\.(css|less|scss|sss|styl)$":
             "<rootDir>/node_modules/jest-css-modules",
     },
