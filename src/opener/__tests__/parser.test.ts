@@ -3,7 +3,7 @@
  * Following patterns from Python tests: extensive edge cases, clear naming
  */
 
-import { parseOpenerParams } from "./parser";
+import { parseOpenerParams } from "@/opener/parser";
 import { CUSTOM_PROTOCOL_PREFIX } from "@/constants";
 
 describe("parseOpenerParams", () => {

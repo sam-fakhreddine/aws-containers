@@ -366,5 +366,112 @@ describe("useFavorites", () => {
                 favorites: ["profile2"],
             });
         });
+
+        it("flushes pending writes when available", async () => {
+            mockStorageGet.mockResolvedValue({});
+
+            const { result } = renderHook(() => useFavorites());
+
+            await waitFor(() => {
+                expect(result.current.loading).toBe(false);
+            });
+
+            await act(async () => {
+                await result.current.addFavorite("profile1");
+            });
+
+            // In test mode, flushPendingWrites is available
+            if (result.current.flushPendingWrites) {
+                await act(async () => {
+                    await result.current.flushPendingWrites!();
+                });
+            }
+
+            expect(mockStorageSet).toHaveBeenCalled();
+        });
+    });
+
+    describe("Edge Cases", () => {
+        it("handles invalid data types in storage", async () => {
+            mockStorageGet.mockResolvedValue({ favorites: "not-an-array" });
+
+            const { result } = renderHook(() => useFavorites());
+
+            await waitFor(() => {
+                expect(result.current.loading).toBe(false);
+            });
+
+            // Should default to empty array for invalid data
+            expect(result.current.favorites).toEqual([]);
+        });
+
+        it("handles null favorites in storage", async () => {
+            mockStorageGet.mockResolvedValue({ favorites: null });
+
+            const { result } = renderHook(() => useFavorites());
+
+            await waitFor(() => {
+                expect(result.current.loading).toBe(false);
+            });
+
+            expect(result.current.favorites).toEqual([]);
+        });
+
+        it("handles undefined favorites in storage", async () => {
+            mockStorageGet.mockResolvedValue({ favorites: undefined });
+
+            const { result } = renderHook(() => useFavorites());
+
+            await waitFor(() => {
+                expect(result.current.loading).toBe(false);
+            });
+
+            expect(result.current.favorites).toEqual([]);
+        });
+
+        it("cleans up on unmount", async () => {
+            mockStorageGet.mockResolvedValue({});
+
+            const { result, unmount } = renderHook(() => useFavorites());
+
+            await waitFor(() => {
+                expect(result.current.loading).toBe(false);
+            });
+
+            await act(async () => {
+                await result.current.addFavorite("profile1");
+            });
+
+            // Unmount should not throw errors
+            expect(() => unmount()).not.toThrow();
+        });
+
+        it("handles sequential favorite operations", async () => {
+            mockStorageGet.mockResolvedValue({});
+
+            const { result } = renderHook(() => useFavorites());
+
+            await waitFor(() => {
+                expect(result.current.loading).toBe(false);
+            });
+
+            // Add favorites sequentially
+            await act(async () => {
+                await result.current.addFavorite("profile1");
+            });
+
+            await act(async () => {
+                await result.current.addFavorite("profile2");
+            });
+
+            await act(async () => {
+                await result.current.addFavorite("profile3");
+            });
+
+            expect(result.current.favorites).toHaveLength(3);
+            expect(result.current.favorites).toContain("profile1");
+            expect(result.current.favorites).toContain("profile2");
+            expect(result.current.favorites).toContain("profile3");
+        });
     });
 });

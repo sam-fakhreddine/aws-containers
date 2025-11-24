@@ -3,7 +3,7 @@
  * Following patterns from Python tests: extensive mocking, edge cases, clear naming
  */
 
-import { newTab, closeCurrentTab, getActiveTab } from "./tabs";
+import { newTab, closeCurrentTab, getActiveTab } from "@/opener/tabs";
 import browser from "webextension-polyfill";
 
 // Mock the webextension-polyfill

@@ -10,27 +10,14 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AWSProfilesPopup } from '@/popup/awsProfiles';
 import {
-    waitFor as waitForMs,
     createMockProfiles,
-    RenderCounter,
 } from '@/__testUtils__/performanceHelpers';
 
 // Mock browser APIs
 (global as any).browser = {
     runtime: {
-        sendMessage: jest.fn(),
-        connectNative: jest.fn(() => ({
-            postMessage: jest.fn(),
-            onMessage: {
-                addListener: jest.fn(),
-                removeListener: jest.fn(),
-            },
-            onDisconnect: {
-                addListener: jest.fn(),
-                removeListener: jest.fn(),
-            },
-            disconnect: jest.fn(),
-        })),
+        sendMessage: jest.fn(() => Promise.resolve()),
+        openOptionsPage: jest.fn(() => Promise.resolve()),
     },
     storage: {
         local: {
@@ -42,40 +29,87 @@ import {
         query: jest.fn(() => Promise.resolve([])),
         remove: jest.fn(() => Promise.resolve()),
     },
+    tabs: {
+        create: jest.fn(() => Promise.resolve()),
+    },
 } as any;
 
 // Mock hooks
-jest.mock('../hooks', () => ({
-    useProfiles: () => ({
-        profiles: createMockProfiles(50),
-        loading: false,
-        error: null,
-        nativeMessagingAvailable: true,
-        loadProfiles: jest.fn(),
-        refreshProfiles: jest.fn(),
-    }),
-    useFavorites: () => ({
-        favorites: new Set(['test-profile-0', 'test-profile-1']),
-        toggleFavorite: jest.fn(),
-    }),
-    useContainers: () => ({
-        containers: [],
-        clearContainers: jest.fn(),
-    }),
-    useRecentProfiles: () => ({
-        recentProfiles: [],
-        addRecentProfile: jest.fn(),
-    }),
-    useRegion: () => ({
-        selectedRegion: 'us-east-1',
-        setRegion: jest.fn(),
-    }),
+jest.mock('@/hooks', () => ({
+    useProfiles: jest.fn(),
+    useFavorites: jest.fn(),
+    useRecentProfiles: jest.fn(),
+    useRegion: jest.fn(),
+    useTheme: jest.fn(),
+    useEnabledRegions: jest.fn(),
 }));
+
+// Mock services
+jest.mock('@/services/apiClient', () => ({
+    getProfiles: jest.fn(),
+    getConsoleUrl: jest.fn(),
+    getApiToken: jest.fn(),
+    ApiClientError: class ApiClientError extends Error {
+        constructor(message: string) {
+            super(message);
+            this.name = 'ApiClientError';
+        }
+    },
+}));
+
+// Mock container manager
+jest.mock('@/utils/containerManager', () => ({
+    prepareContainer: jest.fn(),
+    clearAllContainers: jest.fn(),
+}));
+
+import * as hooks from '@/hooks';
 
 describe('AWSProfiles Performance - Search Debouncing', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         jest.useFakeTimers();
+
+        // Setup default mock implementations
+        const mockProfiles = createMockProfiles(50);
+        
+        (hooks.useProfiles as jest.Mock).mockReturnValue({
+            profiles: mockProfiles,
+            loading: false,
+            error: null,
+            apiAvailable: true,
+            loadProfiles: jest.fn(),
+            refreshProfiles: jest.fn(),
+            enrichSSOProfiles: jest.fn(),
+        });
+
+        (hooks.useFavorites as jest.Mock).mockReturnValue({
+            favorites: ['test-profile-0', 'test-profile-1'],
+            isFavorite: jest.fn((name: string) => ['test-profile-0', 'test-profile-1'].includes(name)),
+            toggleFavorite: jest.fn(),
+            addFavorite: jest.fn(),
+            removeFavorite: jest.fn(),
+            loading: false,
+        });
+
+        (hooks.useRecentProfiles as jest.Mock).mockReturnValue({
+            recentProfiles: [],
+            addRecentProfile: jest.fn(),
+        });
+
+        (hooks.useRegion as jest.Mock).mockReturnValue({
+            selectedRegion: 'us-east-1',
+            setRegion: jest.fn(),
+        });
+
+        (hooks.useTheme as jest.Mock).mockReturnValue({
+            mode: 'light',
+            setMode: jest.fn(),
+        });
+
+        (hooks.useEnabledRegions as jest.Mock).mockReturnValue({
+            regions: new Set(['us-east-1', 'us-west-2', 'eu-west-1']),
+        });
     });
 
     afterEach(() => {
@@ -206,6 +240,47 @@ describe('AWSProfiles Performance - Search Debouncing', () => {
 describe('AWSProfiles Performance - useCallback Effectiveness', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+
+        // Setup default mock implementations
+        const mockProfiles = createMockProfiles(50);
+        
+        (hooks.useProfiles as jest.Mock).mockReturnValue({
+            profiles: mockProfiles,
+            loading: false,
+            error: null,
+            apiAvailable: true,
+            loadProfiles: jest.fn(),
+            refreshProfiles: jest.fn(),
+            enrichSSOProfiles: jest.fn(),
+        });
+
+        (hooks.useFavorites as jest.Mock).mockReturnValue({
+            favorites: ['test-profile-0', 'test-profile-1'],
+            isFavorite: jest.fn((name: string) => ['test-profile-0', 'test-profile-1'].includes(name)),
+            toggleFavorite: jest.fn(),
+            addFavorite: jest.fn(),
+            removeFavorite: jest.fn(),
+            loading: false,
+        });
+
+        (hooks.useRecentProfiles as jest.Mock).mockReturnValue({
+            recentProfiles: [],
+            addRecentProfile: jest.fn(),
+        });
+
+        (hooks.useRegion as jest.Mock).mockReturnValue({
+            selectedRegion: 'us-east-1',
+            setRegion: jest.fn(),
+        });
+
+        (hooks.useTheme as jest.Mock).mockReturnValue({
+            mode: 'light',
+            setMode: jest.fn(),
+        });
+
+        (hooks.useEnabledRegions as jest.Mock).mockReturnValue({
+            regions: new Set(['us-east-1', 'us-west-2', 'eu-west-1']),
+        });
     });
 
     /**
@@ -216,14 +291,14 @@ describe('AWSProfiles Performance - useCallback Effectiveness', () => {
 
         // Get initial reference (we can't directly test this in DOM,
         // but we can verify the component doesn't error on re-render)
-        const initialContent = screen.getByText(/AWS Profiles/i);
+        const initialContent = screen.getByText(/AWS Profile Containers/i);
         expect(initialContent).toBeInTheDocument();
 
         // Force re-render
         rerender(<AWSProfilesPopup />);
 
         // Component should still render correctly
-        const afterRerender = screen.getByText(/AWS Profiles/i);
+        const afterRerender = screen.getByText(/AWS Profile Containers/i);
         expect(afterRerender).toBeInTheDocument();
 
         // If callbacks were unstable, child components would re-render
@@ -260,6 +335,47 @@ describe('AWSProfiles Performance - useCallback Effectiveness', () => {
 describe('AWSProfiles Performance - Overall Rendering', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+
+        // Setup default mock implementations
+        const mockProfiles = createMockProfiles(50);
+        
+        (hooks.useProfiles as jest.Mock).mockReturnValue({
+            profiles: mockProfiles,
+            loading: false,
+            error: null,
+            apiAvailable: true,
+            loadProfiles: jest.fn(),
+            refreshProfiles: jest.fn(),
+            enrichSSOProfiles: jest.fn(),
+        });
+
+        (hooks.useFavorites as jest.Mock).mockReturnValue({
+            favorites: ['test-profile-0', 'test-profile-1'],
+            isFavorite: jest.fn((name: string) => ['test-profile-0', 'test-profile-1'].includes(name)),
+            toggleFavorite: jest.fn(),
+            addFavorite: jest.fn(),
+            removeFavorite: jest.fn(),
+            loading: false,
+        });
+
+        (hooks.useRecentProfiles as jest.Mock).mockReturnValue({
+            recentProfiles: [],
+            addRecentProfile: jest.fn(),
+        });
+
+        (hooks.useRegion as jest.Mock).mockReturnValue({
+            selectedRegion: 'us-east-1',
+            setRegion: jest.fn(),
+        });
+
+        (hooks.useTheme as jest.Mock).mockReturnValue({
+            mode: 'light',
+            setMode: jest.fn(),
+        });
+
+        (hooks.useEnabledRegions as jest.Mock).mockReturnValue({
+            regions: new Set(['us-east-1', 'us-west-2', 'eu-west-1']),
+        });
     });
 
     /**
@@ -275,7 +391,7 @@ describe('AWSProfiles Performance - Overall Rendering', () => {
         expect(renderTime).toBeLessThan(1000); // 1 second
 
         // Verify content is rendered
-        expect(screen.getByText(/AWS Profiles/i)).toBeInTheDocument();
+        expect(screen.getByText(/AWS Profile Containers/i)).toBeInTheDocument();
     });
 
     /**
@@ -293,7 +409,7 @@ describe('AWSProfiles Performance - Overall Rendering', () => {
         // Re-render should be very fast due to React.memo and useCallback
         expect(rerenderTime).toBeLessThan(500); // 500ms
 
-        expect(screen.getByText(/AWS Profiles/i)).toBeInTheDocument();
+        expect(screen.getByText(/AWS Profile Containers/i)).toBeInTheDocument();
     });
 
     /**

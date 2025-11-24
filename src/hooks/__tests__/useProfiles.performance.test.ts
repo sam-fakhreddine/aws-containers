@@ -1,158 +1,51 @@
 /**
  * useProfiles Hook Performance Tests
  *
- * Tests for memory leak prevention, port cleanup,
+ * Tests for memory leak prevention, API cleanup,
  * and overall hook performance.
  */
 
-import { renderHook, act } from '@testing-library/react';
-import { waitFor } from '@testing-library/dom';
-import type { Runtime } from 'webextension-polyfill';
-
-// Mock browser API BEFORE importing useProfiles
-jest.mock('webextension-polyfill', () => {
-    const mockDisconnect = jest.fn();
-    const mockPostMessage = jest.fn();
-    const mockPort = {
-        postMessage: mockPostMessage,
-        disconnect: mockDisconnect,
-        onMessage: {
-            addListener: jest.fn(),
-            removeListener: jest.fn(),
-            hasListener: jest.fn(),
-        },
-        onDisconnect: {
-            addListener: jest.fn(),
-            removeListener: jest.fn(),
-            hasListener: jest.fn(),
-        },
-    };
-
-    return {
-        default: {
-            runtime: {
-                connectNative: jest.fn(() => mockPort),
-            },
-            storage: {
-                local: {
-                    get: jest.fn(() => Promise.resolve({ awsProfiles: [] })),
-                    set: jest.fn(() => Promise.resolve()),
-                },
-            },
-        },
-        __mockPort: mockPort,
-    };
-});
-
-// Import AFTER mocking
+import { renderHook, act, waitFor } from '@testing-library/react';
 import useProfiles from '@/hooks/useProfiles';
 import { measureExecutionTime } from '@/__testUtils__/performanceHelpers';
+import * as apiClient from '@/services/apiClient';
 import browser from 'webextension-polyfill';
 
+// Mock apiClient
+jest.mock('@/services/apiClient', () => ({
+    getProfiles: jest.fn(),
+    getProfilesEnriched: jest.fn(),
+    getApiToken: jest.fn(),
+    ApiClientError: class ApiClientError extends Error {
+        constructor(message: string, public readonly statusCode?: number) {
+            super(message);
+            this.name = 'ApiClientError';
+        }
+    },
+}));
+
 describe('useProfiles Performance', () => {
+    const mockProfiles = [
+        { name: 'profile-1', expired: false, expiration: '2025-01-01', has_credentials: true },
+        { name: 'profile-2', expired: false, expiration: '2025-01-01', has_credentials: true },
+    ];
+
     beforeEach(() => {
         jest.clearAllMocks();
-    });
-
-    /**
-     * Test that port is properly cleaned up on unmount (memory leak prevention)
-     */
-    it.skip('should cleanup port on unmount to prevent memory leaks', async () => {
-        const { result, unmount } = renderHook(() => useProfiles());
-
-        // Initial state
-        expect(result.current.loading).toBe(true);
-
-        // Load profiles
-        await act(async () => {
-            await result.current.loadProfiles();
-        });
-
-        // Verify connectNative was called
-        expect(browser.runtime.connectNative).toHaveBeenCalled();
-
-        // Get the mock port that was returned
-        const mockPort = (browser.runtime.connectNative as jest.Mock).mock.results[0].value;
-        const disconnectSpy = mockPort.disconnect;
-
-        // Unmount the hook
-        unmount();
-
-        // Verify port was disconnected on cleanup
-        await waitFor(() => {
-            expect(disconnectSpy).toHaveBeenCalled();
-        });
-    });
-
-    /**
-     * Test that old port is disconnected before creating new one
-     */
-    it.skip('should disconnect old port before creating new connection', async () => {
-        const { result } = renderHook(() => useProfiles());
-
-        const connectNativeSpy = browser.runtime.connectNative as jest.Mock;
-
-        // First load
-        await act(async () => {
-            await result.current.loadProfiles();
-        });
-
-        const firstCallCount = connectNativeSpy.mock.calls.length;
-        const firstPort = connectNativeSpy.mock.results[0]?.value;
-        const disconnectSpy = firstPort?.disconnect;
-
-        // Second load (should disconnect old port first)
-        await act(async () => {
-            await result.current.loadProfiles();
-        });
-
-        const secondCallCount = connectNativeSpy.mock.calls.length;
-
-        // Verify new connection was created
-        expect(secondCallCount).toBeGreaterThan(firstCallCount);
-
-        // Verify old port was disconnected
-        // (disconnect is called before creating new port)
-        if (disconnectSpy) {
-            expect(disconnectSpy).toHaveBeenCalled();
-        }
-    });
-
-    /**
-     * Test that multiple rapid load calls don't create port leaks
-     */
-    it.skip('should handle rapid load calls without leaking ports', async () => {
-        const { result } = renderHook(() => useProfiles());
-
-        const connectNativeSpy = browser.runtime.connectNative as jest.Mock;
-
-        // Rapidly call loadProfiles 5 times
-        await act(async () => {
-            const promises = [];
-            for (let i = 0; i < 5; i++) {
-                promises.push(result.current.loadProfiles());
-            }
-            await Promise.all(promises);
-        });
-
-        // Should have called connectNative multiple times
-        expect(connectNativeSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
-
-        // Get the first mock port
-        const firstPort = connectNativeSpy.mock.results[0]?.value;
-        const disconnectSpy = firstPort?.disconnect;
-
-        // Should have called disconnect to cleanup old ports
-        // (prevents accumulation of open ports)
-        if (disconnectSpy) {
-            expect(disconnectSpy).toHaveBeenCalled();
-        }
+        
+        // Mock browser storage
+        browser.storage.local.get = jest.fn().mockResolvedValue({});
+        browser.storage.local.set = jest.fn().mockResolvedValue(undefined);
+        
+        // Default mock implementations
+        (apiClient.getApiToken as jest.Mock).mockResolvedValue('test-token');
+        (apiClient.getProfiles as jest.Mock).mockResolvedValue({ profiles: mockProfiles });
     });
 
     /**
      * Benchmark: Hook initialization time
      */
-    it.skip('should initialize quickly', async () => {
+    it('should initialize quickly', async () => {
         const { result, timeMs } = await measureExecutionTime(() => {
             return renderHook(() => useProfiles());
         });
@@ -166,144 +59,204 @@ describe('useProfiles Performance', () => {
     /**
      * Benchmark: Profile loading performance
      */
-    it.skip('should load profiles efficiently', async () => {
+    it('should load profiles efficiently', async () => {
         const { result } = renderHook(() => useProfiles());
 
-        // Get the mock port
-        const mockPort = (browser.runtime.connectNative as jest.Mock).mock.results[0]?.value;
-
-        // Mock successful response
-        const mockOnMessageListener = (mockPort?.onMessage?.addListener as jest.Mock)?.mock
-            .calls[0]?.[0];
-
         const { timeMs } = await measureExecutionTime(async () => {
-            await act(async () => {
-                const loadPromise = result.current.loadProfiles();
-
-                // Simulate native messaging response
-                if (mockOnMessageListener) {
-                    mockOnMessageListener({
-                        type: 'profiles',
-                        data: [
-                            { name: 'profile-1', expired: false, expiration: '2025-01-01' },
-                            { name: 'profile-2', expired: false, expiration: '2025-01-01' },
-                        ],
-                    });
-                }
-
-                await loadPromise;
+            await waitFor(() => {
+                expect(result.current.loading).toBe(false);
             });
         });
 
         // Loading should complete quickly
-        expect(timeMs).toBeLessThan(1000); // 1 second threshold
+        expect(timeMs).toBeLessThan(2000); // 2 second threshold
+        expect(apiClient.getProfiles).toHaveBeenCalled();
     });
 
     /**
      * Test cache performance
      */
-    it.skip('should use cache to speed up repeated loads', async () => {
+    it('should use cache to speed up repeated loads', async () => {
         // Mock cached data
-        (browser.storage.local.get as jest.Mock).mockResolvedValue({
-            awsProfiles: [
-                { name: 'cached-profile-1', expired: false, expiration: '2025-01-01' },
-                { name: 'cached-profile-2', expired: false, expiration: '2025-01-01' },
-            ],
+        const cachedProfiles = [
+            { name: 'cached-profile-1', expired: false, expiration: '2025-01-01', has_credentials: true },
+            { name: 'cached-profile-2', expired: false, expiration: '2025-01-01', has_credentials: true },
+        ];
+        
+        browser.storage.local.get = jest.fn().mockResolvedValue({
+            'aws-profiles': {
+                timestamp: Date.now(),
+                profiles: cachedProfiles,
+            },
         });
 
         const { result } = renderHook(() => useProfiles());
 
-        // First load (from cache)
-        const { timeMs: firstLoadTime } = await measureExecutionTime(async () => {
-            await act(async () => {
-                await result.current.loadProfiles(false);
-            });
+        // Wait for cache to load
+        await waitFor(() => {
+            expect(result.current.loading).toBe(false);
         });
 
-        // Cached load should be very fast
-        expect(firstLoadTime).toBeLessThan(500); // 500ms threshold
-
-        // Verify cache was accessed
-        expect(browser.storage.local.get).toHaveBeenCalled();
+        // Should use cached data without calling API
+        expect(result.current.profiles).toEqual(cachedProfiles);
+        expect(apiClient.getProfiles).not.toHaveBeenCalled();
     });
 
     /**
-     * Test that refresh properly clears cache
+     * Test that refresh properly bypasses cache
      */
-    it.skip('should bypass cache on refresh', async () => {
+    it('should bypass cache on refresh', async () => {
+        // Mock cached data
+        browser.storage.local.get = jest.fn().mockResolvedValue({
+            'aws-profiles': {
+                timestamp: Date.now(),
+                profiles: [{ name: 'cached', expired: false, expiration: '2025-01-01', has_credentials: true }],
+            },
+        });
+
         const { result } = renderHook(() => useProfiles());
 
-        await act(async () => {
-            await result.current.refreshProfiles();
+        // Wait for initial load from cache
+        await waitFor(() => {
+            expect(result.current.loading).toBe(false);
         });
 
-        // Refresh should call loadProfiles with forceRefresh=true
-        // This bypasses the cache and forces fresh data
-        expect(browser.runtime.connectNative).toHaveBeenCalled();
+        // Clear mock calls from initial load
+        jest.clearAllMocks();
+        
+        // Reset browser storage mock for refresh
+        browser.storage.local.get = jest.fn().mockResolvedValue({});
+        browser.storage.local.set = jest.fn().mockResolvedValue(undefined);
+
+        // Refresh should call API
+        act(() => {
+            result.current.refreshProfiles();
+        });
+
+        await waitFor(() => {
+            expect(apiClient.getProfiles).toHaveBeenCalled();
+        });
     });
 
     /**
-     * Memory stability test
+     * Test that multiple rapid load calls are handled efficiently
      */
-    it.skip('should not accumulate listeners on multiple loads', async () => {
-        const { result, unmount } = renderHook(() => useProfiles());
+    it('should handle rapid load calls efficiently', async () => {
+        const { result } = renderHook(() => useProfiles());
 
-        // Get the mock port
-        const mockPort = (browser.runtime.connectNative as jest.Mock).mock.results[0]?.value;
-        const addListenerSpy = mockPort?.onMessage?.addListener as jest.Mock;
+        // Wait for initial load
+        await waitFor(() => {
+            expect(result.current.loading).toBe(false);
+        });
 
-        // Load multiple times
-        for (let i = 0; i < 5; i++) {
-            await act(async () => {
-                await result.current.loadProfiles();
+        // Clear initial calls
+        jest.clearAllMocks();
+
+        // Rapidly call loadProfiles 5 times
+        const { timeMs } = await measureExecutionTime(async () => {
+            act(() => {
+                for (let i = 0; i < 5; i++) {
+                    result.current.loadProfiles();
+                }
             });
-        }
 
-        // Should not accumulate listeners
-        // Each new load should cleanup old listeners
-        if (addListenerSpy) {
-            const listenerCount = addListenerSpy.mock.calls.length;
-            expect(listenerCount).toBeGreaterThanOrEqual(1);
-        }
+            await waitFor(() => {
+                expect(apiClient.getProfiles).toHaveBeenCalled();
+            });
+        });
 
-        // Cleanup
-        unmount();
+        // Should complete in reasonable time
+        expect(timeMs).toBeLessThan(3000); // 3 second threshold
     });
 
     /**
      * Test error handling performance
      */
-    it.skip('should handle errors gracefully without memory leaks', async () => {
-        // Get the original mock port to use as a template
-        const originalMockPort = (browser.runtime.connectNative as jest.Mock).mock.results[0]?.value;
+    it('should handle errors gracefully', async () => {
+        const error = new apiClient.ApiClientError('Connection failed');
+        (apiClient.getProfiles as jest.Mock).mockRejectedValue(error);
 
-        // Mock port that simulates error
-        const errorPort = {
-            ...originalMockPort,
-            postMessage: jest.fn(() => {
-                throw new Error('Connection failed');
-            }),
-        };
+        const { result } = renderHook(() => useProfiles());
 
-        (browser.runtime.connectNative as jest.Mock).mockReturnValue(errorPort);
-
-        const { result, unmount } = renderHook(() => useProfiles());
-
-        // Attempt to load (will error)
-        await act(async () => {
-            try {
-                await result.current.loadProfiles();
-            } catch (e) {
-                // Expected error
-            }
-        });
-
-        // Even with error, should cleanup port
-        unmount();
-
-        const disconnectSpy = errorPort.disconnect as jest.Mock;
+        // Wait for error state
         await waitFor(() => {
-            expect(disconnectSpy).toHaveBeenCalled();
+            expect(result.current.loading).toBe(false);
+            expect(result.current.error).toBeTruthy();
         });
+
+        // Error should be set
+        expect(result.current.error).toBe('Connection failed');
+    });
+
+    /**
+     * Test cache expiration
+     */
+    it('should reload when cache is expired', async () => {
+        // Mock expired cached data (older than 30 minutes)
+        const expiredTimestamp = Date.now() - (31 * 60 * 1000);
+        browser.storage.local.get = jest.fn().mockResolvedValue({
+            'aws-profiles': {
+                timestamp: expiredTimestamp,
+                profiles: [{ name: 'expired', expired: false, expiration: '2025-01-01', has_credentials: true }],
+            },
+        });
+
+        const { result } = renderHook(() => useProfiles());
+
+        // Should call API because cache is expired
+        await waitFor(() => {
+            expect(apiClient.getProfiles).toHaveBeenCalled();
+        });
+
+        await waitFor(() => {
+            expect(result.current.loading).toBe(false);
+        });
+
+        // Should have fresh data, not expired cache
+        expect(result.current.profiles).toEqual(mockProfiles);
+    });
+
+    /**
+     * Test enriched profiles loading
+     */
+    it('should load enriched profiles efficiently', async () => {
+        (apiClient.getProfilesEnriched as jest.Mock).mockResolvedValue({ profiles: mockProfiles });
+
+        const { result } = renderHook(() => useProfiles());
+
+        // Wait for initial load
+        await waitFor(() => {
+            expect(result.current.loading).toBe(false);
+        });
+
+        const { timeMs } = await measureExecutionTime(async () => {
+            act(() => {
+                result.current.enrichSSOProfiles();
+            });
+
+            await waitFor(() => {
+                expect(apiClient.getProfilesEnriched).toHaveBeenCalled();
+            });
+        });
+
+        // Should complete in reasonable time
+        expect(timeMs).toBeLessThan(2000); // 2 second threshold
+    });
+
+    /**
+     * Test missing token handling
+     */
+    it('should handle missing token gracefully', async () => {
+        (apiClient.getApiToken as jest.Mock).mockResolvedValue(null);
+
+        const { result } = renderHook(() => useProfiles());
+
+        await waitFor(() => {
+            expect(result.current.loading).toBe(false);
+        });
+
+        // Should set error about missing token
+        expect(result.current.error).toContain('No API token configured');
+        expect(apiClient.getProfiles).not.toHaveBeenCalled();
     });
 });

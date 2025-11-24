@@ -14,7 +14,7 @@ import {
     NATIVE_MESSAGING_HOST,
     ContainerColor,
     ContainerIcon,
-} from "./index";
+} from "@/constants";
 
 describe("Container Colors", () => {
     /**

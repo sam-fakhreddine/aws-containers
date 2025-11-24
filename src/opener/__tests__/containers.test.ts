@@ -3,7 +3,7 @@
  * Following patterns from Python tests: extensive mocking, edge cases, clear naming
  */
 
-import { colorFromContainerName, prepareContainer } from "./containers";
+import { colorFromContainerName, prepareContainer } from "@/opener/containers";
 import { Container } from "@/types";
 import { CONTAINER_COLORS } from "@/constants";
 import browser from "webextension-polyfill";

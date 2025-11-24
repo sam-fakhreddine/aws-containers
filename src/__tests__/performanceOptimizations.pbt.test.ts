@@ -39,7 +39,7 @@ describe('Property-Based Test: Performance Optimization Application', () => {
      * Validates: Requirements 4.2
      */
     it('should wrap ProfileSearch regionOptions in useMemo', () => {
-        const filePath = path.resolve(__dirname, '../popup/components/ProfileSearch.tsx');
+        const filePath = path.resolve(__dirname, '../components/ProfileSearch.tsx');
         const fileContent = fs.readFileSync(filePath, 'utf-8');
 
         // Verify file contains useMemo import (handle multi-line imports)
@@ -58,7 +58,7 @@ describe('Property-Based Test: Performance Optimization Application', () => {
      * Validates: Requirements 4.2
      */
     it('should wrap ProfileSearch selectedOption in useMemo', () => {
-        const filePath = path.resolve(__dirname, '../popup/components/ProfileSearch.tsx');
+        const filePath = path.resolve(__dirname, '../components/ProfileSearch.tsx');
         const fileContent = fs.readFileSync(filePath, 'utf-8');
 
         // Verify selectedOption is created with useMemo
@@ -74,7 +74,7 @@ describe('Property-Based Test: Performance Optimization Application', () => {
      * Validates: Requirements 4.3
      */
     it('should wrap OrganizationTabs tabs array in useMemo', () => {
-        const filePath = path.resolve(__dirname, '../popup/components/OrganizationTabs.tsx');
+        const filePath = path.resolve(__dirname, '../components/OrganizationTabs.tsx');
         const fileContent = fs.readFileSync(filePath, 'utf-8');
 
         // Verify file contains useMemo import (handle multi-line imports)
@@ -101,17 +101,17 @@ describe('Property-Based Test: Performance Optimization Application', () => {
                         description: 'useIsMounted uses useCallback'
                     },
                     {
-                        file: '../popup/components/ProfileSearch.tsx',
+                        file: '../components/ProfileSearch.tsx',
                         pattern: /const\s+regionOptions\s*=\s*useMemo\s*\(/,
                         description: 'ProfileSearch uses useMemo for regionOptions'
                     },
                     {
-                        file: '../popup/components/ProfileSearch.tsx',
+                        file: '../components/ProfileSearch.tsx',
                         pattern: /const\s+selectedOption\s*=\s*useMemo\s*\(/,
                         description: 'ProfileSearch uses useMemo for selectedOption'
                     },
                     {
-                        file: '../popup/components/OrganizationTabs.tsx',
+                        file: '../components/OrganizationTabs.tsx',
                         pattern: /const\s+tabs\s*=\s*useMemo\s*\(/,
                         description: 'OrganizationTabs uses useMemo for tabs'
                     }
@@ -142,12 +142,12 @@ describe('Property-Based Test: Performance Optimization Application', () => {
                         expectedDeps: '[]'
                     },
                     {
-                        file: '../popup/components/ProfileSearch.tsx',
+                        file: '../components/ProfileSearch.tsx',
                         hook: 'useMemo',
                         expectedDeps: '[regions]'
                     },
                     {
-                        file: '../popup/components/OrganizationTabs.tsx',
+                        file: '../components/OrganizationTabs.tsx',
                         hook: 'useMemo',
                         expectedDeps: '[organizations, totalProfiles]'
                     }
@@ -173,8 +173,8 @@ describe('Property-Based Test: Performance Optimization Application', () => {
         fc.assert(
             fc.property(
                 fc.constantFrom(
-                    '../popup/components/ProfileSearch.tsx',
-                    '../popup/components/OrganizationTabs.tsx'
+                    '../components/ProfileSearch.tsx',
+                    '../components/OrganizationTabs.tsx'
                 ),
                 (file) => {
                     const filePath = path.resolve(__dirname, file);
@@ -199,8 +199,8 @@ describe('Property-Based Test: Performance Optimization Application', () => {
         fc.assert(
             fc.property(
                 fc.constantFrom(
-                    '../popup/components/ProfileSearch.tsx',
-                    '../popup/components/OrganizationTabs.tsx'
+                    '../components/ProfileSearch.tsx',
+                    '../components/OrganizationTabs.tsx'
                 ),
                 (file) => {
                     const filePath = path.resolve(__dirname, file);
@@ -236,11 +236,11 @@ describe('Property-Based Test: Performance Optimization Application', () => {
                 requiredImports: ['useCallback', 'useEffect', 'useRef']
             },
             {
-                file: '../popup/components/ProfileSearch.tsx',
+                file: '../components/ProfileSearch.tsx',
                 requiredImports: ['useMemo', 'memo']
             },
             {
-                file: '../popup/components/OrganizationTabs.tsx',
+                file: '../components/OrganizationTabs.tsx',
                 requiredImports: ['useMemo', 'memo']
             }
         ];
@@ -272,8 +272,8 @@ describe('Property-Based Test: Performance Optimization Application', () => {
             fc.property(
                 fc.constantFrom(
                     '../hooks/useIsMounted.ts',
-                    '../popup/components/ProfileSearch.tsx',
-                    '../popup/components/OrganizationTabs.tsx'
+                    '../components/ProfileSearch.tsx',
+                    '../components/OrganizationTabs.tsx'
                 ),
                 (file) => {
                     const filePath = path.resolve(__dirname, file);

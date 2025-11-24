@@ -4,14 +4,14 @@
  */
 
 // Mock all dependencies before importing
-jest.mock("./containers");
-jest.mock("./parser");
-jest.mock("./tabs");
+jest.mock("@/opener/containers");
+jest.mock("@/opener/parser");
+jest.mock("@/opener/tabs");
 
-import { prepareContainer } from "./containers";
-import { parseOpenerParams } from "./parser";
-import { newTab } from "./tabs";
-import { error, openTabInContainer, main } from "./index";
+import { prepareContainer } from "@/opener/containers";
+import { parseOpenerParams } from "@/opener/parser";
+import { newTab } from "@/opener/tabs";
+import { error, openTabInContainer, main } from "@/opener/index";
 
 describe("opener module", () => {
     let mockPrepareContainer: jest.MockedFunction<typeof prepareContainer>;

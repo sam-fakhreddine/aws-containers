@@ -2,6 +2,18 @@
 
 Guide to running and writing tests for AWS Profile Containers.
 
+## Test Coverage
+
+**Current Coverage:** 84.74% statements, 72.42% branches, 77.22% functions, 85.69% lines
+
+The project maintains high test coverage across all modules:
+- ✅ 722 passing tests across 39 test suites
+- ✅ All critical paths tested
+- ✅ No modules with 0% coverage
+- ✅ Coverage thresholds enforced in CI
+
+📊 **[View Full Coverage Report](.kiro/specs/wxt-test-fixes/FINAL_COVERAGE_REPORT.md)**
+
 ## Extension Tests
 
 ### Running Tests
@@ -15,6 +27,12 @@ npm test -- --watch
 
 # With coverage
 npm test -- --coverage
+
+# Run specific test file
+npm test -- src/hooks/__tests__/useProfiles.test.ts
+
+# Run tests matching pattern
+npm test -- -t "should load profiles"
 ```
 
 ### Test Files
