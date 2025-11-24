@@ -15,10 +15,10 @@ import {
     getConsoleUrl,
     getApiVersion,
     getRegions,
-} from "./apiClient";
-import { browser } from "./browserUtils";
+} from "@/services/apiClient";
+import { browser } from "@/services/browserUtils";
 
-jest.mock("./browserUtils", () => ({
+jest.mock("@/services/browserUtils", () => ({
     browser: {
         storage: {
             local: {
@@ -55,6 +55,44 @@ describe("validateTokenFormat", () => {
         consoleWarnSpy.mockRestore();
     });
 
+    it("should accept valid new format token with correct checksum", () => {
+        // Generate a valid token by calculating the correct checksum
+        // Token format: awspc_{43_chars}_{6_char_checksum}
+        const randomPart = "a".repeat(43); // Must be exactly 43 characters
+        
+        // Calculate CRC32 checksum (same algorithm as in apiClient.ts)
+        const table = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+            let c = i;
+            for (let j = 0; j < 8; j++) {
+                c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+            }
+            table[i] = c;
+        }
+        let crc = 0xffffffff;
+        for (let i = 0; i < randomPart.length; i++) {
+            crc = table[(crc ^ randomPart.charCodeAt(i)) & 0xff] ^ (crc >>> 8);
+        }
+        crc = (crc ^ 0xffffffff) >>> 0;
+        
+        // Encode to Base62
+        const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        let checksum = "";
+        let num = crc;
+        if (num === 0) {
+            checksum = alphabet[0];
+        } else {
+            while (num > 0) {
+                checksum = alphabet[num % 62] + checksum;
+                num = Math.floor(num / 62);
+            }
+        }
+        checksum = checksum.padStart(6, "0");
+        
+        const validToken = `awspc_${randomPart}_${checksum}`;
+        expect(validateTokenFormat(validToken)).toBe(true);
+    });
+
     it("should reject token with wrong checksum", () => {
         const consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation();
         expect(validateTokenFormat("awspc_abc123_wrong0")).toBe(false);
@@ -63,6 +101,52 @@ describe("validateTokenFormat", () => {
 
     it("should reject token with wrong parts", () => {
         expect(validateTokenFormat("awspc_abc123")).toBe(false);
+    });
+
+    it("should reject token with invalid prefix", () => {
+        expect(validateTokenFormat("invalid_abc123_1YGHqG")).toBe(false);
+    });
+
+    it("should reject null or undefined token", () => {
+        expect(validateTokenFormat(null as any)).toBe(false);
+        expect(validateTokenFormat(undefined as any)).toBe(false);
+    });
+
+    it("should handle token with different random parts", () => {
+        // Test with a different random part to exercise checksum calculation
+        const randomPart = "B".repeat(43);
+        
+        // Calculate CRC32 checksum
+        const table = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+            let c = i;
+            for (let j = 0; j < 8; j++) {
+                c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+            }
+            table[i] = c;
+        }
+        let crc = 0xffffffff;
+        for (let i = 0; i < randomPart.length; i++) {
+            crc = table[(crc ^ randomPart.charCodeAt(i)) & 0xff] ^ (crc >>> 8);
+        }
+        crc = (crc ^ 0xffffffff) >>> 0;
+        
+        // Encode to Base62
+        const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        let checksum = "";
+        let num = crc;
+        if (num === 0) {
+            checksum = alphabet[0];
+        } else {
+            while (num > 0) {
+                checksum = alphabet[num % 62] + checksum;
+                num = Math.floor(num / 62);
+            }
+        }
+        checksum = checksum.padStart(6, "0");
+        
+        const validToken = `awspc_${randomPart}_${checksum}`;
+        expect(validateTokenFormat(validToken)).toBe(true);
     });
 });
 
@@ -189,6 +273,17 @@ describe("getProfiles", () => {
         });
         await expect(getProfiles()).rejects.toThrow(/Server returned error/);
     });
+
+    it("should handle generic HTTP error with default message", async () => {
+        (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 500 });
+        await expect(getProfiles()).rejects.toThrow(/Request failed with status 500/);
+    });
+
+    it("should handle network error that is not TypeError", async () => {
+        const customError = new Error("Custom network error");
+        (global.fetch as jest.Mock).mockRejectedValue(customError);
+        await expect(getProfiles()).rejects.toThrow("Custom network error");
+    });
 });
 
 describe("getProfilesEnriched", () => {
@@ -203,6 +298,25 @@ describe("getProfilesEnriched", () => {
             json: async () => ({ profiles: [] }),
         });
         expect(await getProfilesEnriched()).toEqual({ profiles: [] });
+    });
+
+    it("should throw on 401", async () => {
+        (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 401 });
+        await expect(getProfilesEnriched()).rejects.toThrow(/Authentication failed/);
+    });
+
+    it("should throw on 429", async () => {
+        (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 429 });
+        await expect(getProfilesEnriched()).rejects.toThrow(/Rate limit/);
+    });
+
+    it("should handle timeout", async () => {
+        (global.fetch as jest.Mock).mockImplementation(() => {
+            const error = new Error();
+            error.name = "AbortError";
+            return Promise.reject(error);
+        });
+        await expect(getProfilesEnriched()).rejects.toThrow(/timed out/);
     });
 });
 
@@ -225,6 +339,21 @@ describe("getConsoleUrl", () => {
         await expect(getConsoleUrl("missing")).rejects.toThrow(/not found/);
     });
 
+    it("should throw on 400", async () => {
+        (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 400 });
+        await expect(getConsoleUrl("invalid")).rejects.toThrow(/Invalid profile name/);
+    });
+
+    it("should throw on 401", async () => {
+        (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 401 });
+        await expect(getConsoleUrl("test")).rejects.toThrow(/Authentication failed/);
+    });
+
+    it("should throw on 429", async () => {
+        (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 429 });
+        await expect(getConsoleUrl("test")).rejects.toThrow(/Rate limit/);
+    });
+
     it("should encode profile name", async () => {
         (global.fetch as jest.Mock).mockResolvedValue({
             ok: true,
@@ -233,6 +362,18 @@ describe("getConsoleUrl", () => {
         await getConsoleUrl("profile with spaces");
         expect(global.fetch).toHaveBeenCalledWith(
             expect.stringContaining("profile%20with%20spaces"),
+            expect.any(Object)
+        );
+    });
+
+    it("should handle special characters in profile name", async () => {
+        (global.fetch as jest.Mock).mockResolvedValue({
+            ok: true,
+            json: async () => ({ url: "https://console.aws.amazon.com" }),
+        });
+        await getConsoleUrl("profile/with/slashes");
+        expect(global.fetch).toHaveBeenCalledWith(
+            expect.stringContaining("profile%2Fwith%2Fslashes"),
             expect.any(Object)
         );
     });
@@ -251,6 +392,25 @@ describe("getApiVersion", () => {
         });
         expect(await getApiVersion()).toEqual({ version: "1.0.0" });
     });
+
+    it("should handle timeout", async () => {
+        (global.fetch as jest.Mock).mockImplementation(() => {
+            const error = new Error();
+            error.name = "AbortError";
+            return Promise.reject(error);
+        });
+        await expect(getApiVersion()).rejects.toThrow(/timed out/);
+    });
+
+    it("should handle connection error", async () => {
+        (global.fetch as jest.Mock).mockRejectedValue(new TypeError("fetch failed"));
+        await expect(getApiVersion()).rejects.toThrow(/Cannot connect/);
+    });
+
+    it("should handle generic HTTP error", async () => {
+        (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 503 });
+        await expect(getApiVersion()).rejects.toThrow(/Request failed with status 503/);
+    });
 });
 
 describe("getRegions", () => {
@@ -266,6 +426,25 @@ describe("getRegions", () => {
         });
         const result = await getRegions();
         expect(result.regions).toHaveLength(1);
+    });
+
+    it("should throw on 401", async () => {
+        (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 401 });
+        await expect(getRegions()).rejects.toThrow(/Authentication failed/);
+    });
+
+    it("should handle timeout", async () => {
+        (global.fetch as jest.Mock).mockImplementation(() => {
+            const error = new Error();
+            error.name = "AbortError";
+            return Promise.reject(error);
+        });
+        await expect(getRegions()).rejects.toThrow(/timed out/);
+    });
+
+    it("should handle connection error", async () => {
+        (global.fetch as jest.Mock).mockRejectedValue(new TypeError("fetch failed"));
+        await expect(getRegions()).rejects.toThrow(/Cannot connect/);
     });
 });
 

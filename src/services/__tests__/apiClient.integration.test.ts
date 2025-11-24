@@ -11,11 +11,11 @@ import {
     getConsoleUrl,
     setApiToken,
     clearApiToken,
-} from "./apiClient";
-import { API_BASE_URL } from "./config";
-import { browser } from "./browserUtils";
+} from "@/services/apiClient";
+import { API_BASE_URL } from "@/services/config";
+import { browser } from "@/services/browserUtils";
 
-jest.mock("./browserUtils", () => ({
+jest.mock("@/services/browserUtils", () => ({
     browser: {
         storage: {
             local: {
