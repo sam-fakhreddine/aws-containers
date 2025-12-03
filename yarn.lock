@@ -1013,14 +1013,14 @@
   integrity sha512-ODcGhqDyHtYqm35CP0Bt255EkFtcwUr5J0SweEcRJf/WhIrLnz7elOaZcbKcygzoo35EGSqFh7mt/W8kIZD+Lg==
 
 "@cloudscape-design/global-styles@^1.0.48":
-  version "1.0.48"
-  resolved "https://registry.yarnpkg.com/@cloudscape-design/global-styles/-/global-styles-1.0.48.tgz#f6ea19a184aee4b15e07d7c48e48212604a33a80"
-  integrity sha512-6FXtKW/AJLAxYEvKmM8hRawtldT/76utLaU1dbWW3ZmjcLhkODaIVz+vQP0+tlq7eth569Xo3fNwTCr8VcTmCA==
+  version "1.0.49"
+  resolved "https://registry.yarnpkg.com/@cloudscape-design/global-styles/-/global-styles-1.0.49.tgz#e89736375b35eabbed305275386dcc4340997def"
+  integrity sha512-zN6zKKNJSDAsHtG700RtVuehfRMwBXOX7wi8P8X/ZXIIkAJ0n0RmhgVeP1r/tVHZCdTVof7HKB2DNjrtbMkNFg==
 
 "@cloudscape-design/test-utils-core@^1.0.0":
-  version "1.0.68"
-  resolved "https://registry.npmjs.org/@cloudscape-design/test-utils-core/-/test-utils-core-1.0.68.tgz#af971d0c7edcc090f91b15635c07a0604f3eb36b"
-  integrity sha512-DnFeMDq3SJR9F4qyzt91C1sn4DVNc/J5GyhW2tDFFilY04I7pLFd54pbJeQa8RNlQ5lg5DHXGyaUcMvjkWhOsA==
+  version "1.0.71"
+  resolved "https://registry.yarnpkg.com/@cloudscape-design/test-utils-core/-/test-utils-core-1.0.71.tgz#2b6ec362c4dd5f549408e87756370b1075d28002"
+  integrity sha512-4rXQlsd6Rdg+KCNoltLa1+0wjgNugbduuK7L4nTa/Aw/gJIYqrTU78ip5A2VmbDhiE6fiGqtCFmU6LcKCMP//A==
   dependencies:
     css-selector-tokenizer "^0.8.0"
     css.escape "^1.5.1"
@@ -2303,6 +2303,13 @@
   version "0.2.9"
   resolved "https://registry.npmjs.org/@pkgr/core/-/core-0.2.9.tgz#d229a7b7f9dac167a156992ef23c7f023653f53b"
   integrity sha512-QNqXyfVS2wm9hweSYD2O7F0G06uurj9kZ96TRQE5Y9hU7+tgdZwIkbAKc5Ocy1HxEY2kuDQa6cQ1WRs/O5LFKA==
+
+"@playwright/test@^1.49.0":
+  version "1.57.0"
+  resolved "https://registry.yarnpkg.com/@playwright/test/-/test-1.57.0.tgz#a14720ffa9ed7ef7edbc1f60784fc6134acbb003"
+  integrity sha512-6TyEnHgd6SArQO8UO2OMTxshln3QMWBtPGrOCgs3wVEmQmwyuNtB10IZMfmYDE0riwNR1cu4q+pPcxMVtaG3TA==
+  dependencies:
+    playwright "1.57.0"
 
 "@pnpm/config.env-replace@^1.1.0":
   version "1.1.0"
@@ -5380,6 +5387,11 @@ fs.realpath@^1.0.0:
   version "1.0.0"
   resolved "https://registry.npmjs.org/fs.realpath/-/fs.realpath-1.0.0.tgz#1504ad2523158caa40db4a2787cb01411994ea4f"
   integrity sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==
+
+fsevents@2.3.2:
+  version "2.3.2"
+  resolved "https://registry.yarnpkg.com/fsevents/-/fsevents-2.3.2.tgz#8a526f78b8fdf4623b709e0b975c52c24c02fd1a"
+  integrity sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==
 
 fsevents@^2.3.3:
   version "2.3.3"
@@ -8487,6 +8499,20 @@ pkg-dir@^4.2.0:
   integrity sha512-HRDzbaKjC+AOWVXxAU/x54COGeIv9eb+6CkDSQoNTt4XyWoIJvuPsXizxu/Fr23EiekbtZwmh1IcIG/l/a10GQ==
   dependencies:
     find-up "^4.0.0"
+
+playwright-core@1.57.0:
+  version "1.57.0"
+  resolved "https://registry.yarnpkg.com/playwright-core/-/playwright-core-1.57.0.tgz#3dcc9a865af256fa9f0af0d67fc8dd54eecaebf5"
+  integrity sha512-agTcKlMw/mjBWOnD6kFZttAAGHgi/Nw0CZ2o6JqWSbMlI219lAFLZZCyqByTsvVAJq5XA5H8cA6PrvBRpBWEuQ==
+
+playwright@1.57.0:
+  version "1.57.0"
+  resolved "https://registry.yarnpkg.com/playwright/-/playwright-1.57.0.tgz#74d1dacff5048dc40bf4676940b1901e18ad0f46"
+  integrity sha512-ilYQj1s8sr2ppEJ2YVadYBN0Mb3mdo9J0wQ+UuDhzYqURwSoW4n1Xs5vs7ORwgDGmyEh33tRMeS8KhdkMoLXQw==
+  dependencies:
+    playwright-core "1.57.0"
+  optionalDependencies:
+    fsevents "2.3.2"
 
 possible-typed-array-names@^1.0.0:
   version "1.1.0"
