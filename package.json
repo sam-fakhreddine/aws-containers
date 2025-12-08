@@ -89,7 +89,7 @@
     "sharp": "^0.34.5",
     "style-loader": "^4.0.0",
     "terser-webpack-plugin": "^5.3.10",
-    "ts-jest": "^29.1.2",
+    "ts-jest": "^29.4.6",
     "ts-loader": "^9.5.1",
     "typescript": "^5.4.5",
     "web-ext": "^9.1.0",
