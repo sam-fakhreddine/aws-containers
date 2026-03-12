@@ -26,6 +26,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
       - name: Setup Node.js environment
         uses: ./.github/actions/setup-node-env
 
@@ -46,6 +51,11 @@ jobs:
     needs: lint-and-test
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
       - name: Setup Node.js environment
         uses: ./.github/actions/setup-node-env
 
@@ -91,6 +101,11 @@ jobs:
     needs: [lint-and-test, e2e-tests]
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
       - name: Setup Node.js environment
         uses: ./.github/actions/setup-node-env
 
