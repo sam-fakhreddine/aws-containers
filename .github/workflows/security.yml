@@ -55,13 +55,20 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '24'
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
-      - name: Run npm audit
-        run: npm audit --audit-level=moderate
+      - name: Run yarn audit
+        run: |
+          yarn audit --level moderate; exit_code=$?
+          # yarn audit exit code is a bitmask: 2=low, 4=moderate, 8=high, 16=critical
+          # Only fail on moderate and above (bitmask >= 4)
+          if [ $((exit_code & 28)) -ne 0 ]; then
+            echo "::error::Moderate or higher vulnerabilities found"
+            exit 1
+          fi
 
       - name: Security summary
         run: |
