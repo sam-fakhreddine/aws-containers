@@ -1008,19 +1008,19 @@
     weekstart "^1.1.0"
 
 "@cloudscape-design/design-tokens@^3.0.64":
-  version "3.0.64"
-  resolved "https://registry.yarnpkg.com/@cloudscape-design/design-tokens/-/design-tokens-3.0.64.tgz#0da375b120ba3ba029af72945f97f32fde2c6e2a"
-  integrity sha512-ODcGhqDyHtYqm35CP0Bt255EkFtcwUr5J0SweEcRJf/WhIrLnz7elOaZcbKcygzoo35EGSqFh7mt/W8kIZD+Lg==
+  version "3.0.96"
+  resolved "https://registry.yarnpkg.com/@cloudscape-design/design-tokens/-/design-tokens-3.0.96.tgz#48344f86928f523740c99923787f090fbc304fc1"
+  integrity sha512-w/BHuqKGEzETzsSp0GZJQ7VfN139OP9uT+3B5Tu8iy15flJqldFym7yun+WkIUSI6IxdXTCU5tNco2CHIVfbcg==
 
 "@cloudscape-design/global-styles@^1.0.48":
-  version "1.0.48"
-  resolved "https://registry.yarnpkg.com/@cloudscape-design/global-styles/-/global-styles-1.0.48.tgz#f6ea19a184aee4b15e07d7c48e48212604a33a80"
-  integrity sha512-6FXtKW/AJLAxYEvKmM8hRawtldT/76utLaU1dbWW3ZmjcLhkODaIVz+vQP0+tlq7eth569Xo3fNwTCr8VcTmCA==
+  version "1.0.60"
+  resolved "https://registry.yarnpkg.com/@cloudscape-design/global-styles/-/global-styles-1.0.60.tgz#9e8e4b5c0dc2930a7463588ffe0f8eb3f39de8ae"
+  integrity sha512-GIAjVl726yUIj8EXYeSjMQYg6toJ55i8dq3U4SqHAz03cgdUO0QUICHSLHrGAHKRiu/KgyrSomuhXwT40D09wg==
 
 "@cloudscape-design/test-utils-core@^1.0.0":
-  version "1.0.68"
-  resolved "https://registry.npmjs.org/@cloudscape-design/test-utils-core/-/test-utils-core-1.0.68.tgz#af971d0c7edcc090f91b15635c07a0604f3eb36b"
-  integrity sha512-DnFeMDq3SJR9F4qyzt91C1sn4DVNc/J5GyhW2tDFFilY04I7pLFd54pbJeQa8RNlQ5lg5DHXGyaUcMvjkWhOsA==
+  version "1.0.84"
+  resolved "https://registry.yarnpkg.com/@cloudscape-design/test-utils-core/-/test-utils-core-1.0.84.tgz#35beb6169abd4b874e80f4cb9f19a9371054d69f"
+  integrity sha512-Fm4hB9JPBpClyLt7D8ur8fofrv7rRVefuqsNJGMTS+5crs7yw8mdFio9WpiZobnlh59tRpzyTc6dAkVkcYYebg==
   dependencies:
     css-selector-tokenizer "^0.8.0"
     css.escape "^1.5.1"
@@ -2303,6 +2303,13 @@
   version "0.2.9"
   resolved "https://registry.npmjs.org/@pkgr/core/-/core-0.2.9.tgz#d229a7b7f9dac167a156992ef23c7f023653f53b"
   integrity sha512-QNqXyfVS2wm9hweSYD2O7F0G06uurj9kZ96TRQE5Y9hU7+tgdZwIkbAKc5Ocy1HxEY2kuDQa6cQ1WRs/O5LFKA==
+
+"@playwright/test@^1.49.0":
+  version "1.61.0"
+  resolved "https://registry.yarnpkg.com/@playwright/test/-/test-1.61.0.tgz#dcc3d43e581aab2985d70413309d89350e980ad8"
+  integrity sha512-cKA5B6lpFEMyMGjxF54QihfYpB4FkEGH+qZhtArDEG+wezQAJY8Pq6C7T1SjWz+FFzt3TbyoXBQYk/0292TdJA==
+  dependencies:
+    playwright "1.61.0"
 
 "@pnpm/config.env-replace@^1.1.0":
   version "1.1.0"
@@ -5380,6 +5387,11 @@ fs.realpath@^1.0.0:
   version "1.0.0"
   resolved "https://registry.npmjs.org/fs.realpath/-/fs.realpath-1.0.0.tgz#1504ad2523158caa40db4a2787cb01411994ea4f"
   integrity sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==
+
+fsevents@2.3.2:
+  version "2.3.2"
+  resolved "https://registry.yarnpkg.com/fsevents/-/fsevents-2.3.2.tgz#8a526f78b8fdf4623b709e0b975c52c24c02fd1a"
+  integrity sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==
 
 fsevents@^2.3.3:
   version "2.3.3"
@@ -8487,6 +8499,20 @@ pkg-dir@^4.2.0:
   integrity sha512-HRDzbaKjC+AOWVXxAU/x54COGeIv9eb+6CkDSQoNTt4XyWoIJvuPsXizxu/Fr23EiekbtZwmh1IcIG/l/a10GQ==
   dependencies:
     find-up "^4.0.0"
+
+playwright-core@1.61.0:
+  version "1.61.0"
+  resolved "https://registry.yarnpkg.com/playwright-core/-/playwright-core-1.61.0.tgz#caf8078b2a39cd7738dc75ec11cb3b47f385c3f0"
+  integrity sha512-caX7TrY3Ml6egyDX0WUcTHDxodl/b51y5wJOdCEA36QviK/s2g081hvmGs8eaE3DWb6NYZQ6BjO/QkNRPenoPA==
+
+playwright@1.61.0:
+  version "1.61.0"
+  resolved "https://registry.yarnpkg.com/playwright/-/playwright-1.61.0.tgz#7082df3df08ffa82b11420ea5fae84a40bd16e3f"
+  integrity sha512-Z+7BeeqQPRRzklHsVFP4KTGIyMxKUmfeRA4WisM6G3/XW6nwGeX6fX9qYaDa+CiUqpOkb2f6X3nar05R3kSuJQ==
+  dependencies:
+    playwright-core "1.61.0"
+  optionalDependencies:
+    fsevents "2.3.2"
 
 possible-typed-array-names@^1.0.0:
   version "1.1.0"
